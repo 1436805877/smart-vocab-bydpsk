@@ -914,6 +914,57 @@
             line-height: 1.7;
             color: #475569;
         }
+        .sense-example {
+            max-width: 720px;
+            margin: 14px auto;
+            padding: 14px 18px;
+            background: #f8fafc;
+            border-left: 4px solid #6366f1;
+            border-radius: 10px;
+            font-size: 17px;
+            line-height: 1.7;
+            color: #1e293b;
+        }
+        .sense-options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        .sense-option {
+            text-align: left !important;
+            font-size: 14px !important;
+            line-height: 1.6;
+            padding: 12px 14px !important;
+        }
+        .sense-chain {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin: 10px auto;
+            max-width: 720px;
+        }
+        .sense-chain span {
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 13px;
+        }
+        .sense-chain b {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+        .sense-explanation {
+            margin-top: 8px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #334155;
+        }
         .root-family {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -2911,6 +2962,14 @@
                         badge: '词根',
                         render: () => this.renderRootChallenge()
                     },
+                    senseChain: {
+                        id: 'senseChain',
+                        name: '词义链',
+                        icon: '🪜',
+                        desc: '看例句或词义链阶段，选择对应义项',
+                        badge: '义项',
+                        render: () => this.renderSenseChainGame()
+                    },
                     spellingChallenge: {
                         id: 'spellingChallenge',
                         name: '拼写挑战',
@@ -4345,6 +4404,234 @@
                                 if (state.index >= state.total) state.finished = true;
                                 this.renderRootChallenge();
                             }, 1700);
+                        });
+                    });
+                }
+            },
+
+            // ============================================================
+            //  词义链 / 义项选择（0.2 新增）
+            // ============================================================
+            renderSenseChainGame() {
+                const container = document.getElementById('rightPanel');
+                const candidates = this.words.filter(w => !w.deleted &&
+                    (w.senses || []).filter(s => s && s.definition).length >= 2);
+                if (candidates.length === 0) {
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🪜 词义链</div>
+                                <button class="back-btn" id="senseBackBtn">← 返回</button>
+                            </div>
+                            <div class="empty-review">
+                                需要至少 2 个义项的单词才能练习义项选择。<br>
+                                导入含多义项的 v2 数据后再来。
+                            </div>
+                        </div>
+                    `;
+                    const back = document.getElementById('senseBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    return;
+                }
+                const state = this.gameStates.senseChain || {};
+                if (!state.initialized) {
+                    state.questions = [];
+                    state.index = 0;
+                    state.score = 0;
+                    state.finished = false;
+                    state.showAnswer = false;
+                    state.selected = '';
+                    state.pendingTimeout = null;
+                    const uniq = arr => [...new Set(arr.filter(Boolean))];
+                    const allDefs = uniq(candidates.flatMap(w => (w.senses || [])
+                        .map(s => s && s.definition)));
+                    const shuffle = arr => {
+                        const a = [...arr];
+                        for (let i = a.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [a[i], a[j]] = [a[j], a[i]];
+                        }
+                        return a;
+                    };
+                    const used = new Set();
+                    for (let attempt = 0; attempt < 120 && state.questions.length < 10; attempt++) {
+                        const w = candidates[Math.floor(Math.random() * candidates.length)];
+                        const senses = (w.senses || []).filter(s => s && s.definition);
+                        if (senses.length < 2) continue;
+                        const defOptions = (correct) => shuffle(uniq([correct, ...allDefs])).slice(0, 4);
+                        let q = null;
+
+                        // 例句义项题：例句里能找到这个词，挖空后问对应义项
+                        const exampleSenses = senses.filter(s => s.example &&
+                            new RegExp(this.escapeRegex(w.word), 'i').test(s.example));
+                        if (exampleSenses.length) {
+                            const sense = exampleSenses[Math.floor(Math.random() * exampleSenses.length)];
+                            const options = defOptions(sense.definition);
+                            if (options.length >= 2) {
+                                q = {
+                                    type: 'example',
+                                    word: w.word,
+                                    prompt: String(sense.example).replace(new RegExp(this.escapeRegex(w.word), 'ig'), '_____'),
+                                    question: `这句话中的「${w.word}」对应哪个义项？`,
+                                    options,
+                                    answer: sense.definition,
+                                    explanation: `${w.word} · ${sense.definition}`,
+                                    chain: ((w.core && w.core.chain) || []).map(n => n.label).filter(Boolean),
+                                    wordId: w.id,
+                                    senseId: sense.id
+                                };
+                            }
+                        }
+
+                        // 词义链题：给链上的一个阶段，选对应义项
+                        if (!q) {
+                            const chain = ((w.core && w.core.chain) || []).filter(n => n && n.label);
+                            for (const node of shuffle(chain)) {
+                                let sense = null;
+                                if (node.senseId !== undefined) {
+                                    sense = senses.find(s => String(s.id) === String(node.senseId));
+                                }
+                                if (!sense) {
+                                    const idx = (w.core.chain || []).indexOf(node);
+                                    if (idx >= 0 && w.senses[idx] && w.senses[idx].definition) sense = w.senses[idx];
+                                }
+                                if (!sense) continue;
+                                const options = defOptions(sense.definition);
+                                if (options.length < 2) continue;
+                                q = {
+                                    type: 'chain',
+                                    word: w.word,
+                                    prompt: `从核心感觉「${(w.core && w.core.feeling) || ''}」出发，走到「${node.label}」这一步，对应哪个义项？`,
+                                    question: '',
+                                    options,
+                                    answer: sense.definition,
+                                    explanation: `${(w.core && w.core.chain || []).map(n => n.label).filter(Boolean).join(' → ')}`,
+                                    chain: ((w.core && w.core.chain) || []).map(n => n.label).filter(Boolean),
+                                    wordId: w.id,
+                                    senseId: sense.id
+                                };
+                                break;
+                            }
+                        }
+
+                        if (!q) continue;
+                        const key = `${q.type}|${w.id}|${q.senseId}`;
+                        if (used.has(key)) continue;
+                        used.add(key);
+                        state.questions.push(q);
+                    }
+                    state.total = state.questions.length;
+                    state.initialized = true;
+                    this.gameStates.senseChain = state;
+                }
+
+                if (state.total === 0) {
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🪜 词义链</div>
+                                <button class="back-btn" id="senseBackBtn">← 返回</button>
+                            </div>
+                            <div class="empty-review">多义项数据不足，暂时无法出题。</div>
+                        </div>
+                    `;
+                    const back = document.getElementById('senseBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    return;
+                }
+
+                if (state.finished || state.index >= state.total) {
+                    const finalScore = state.score;
+                    const total = state.total;
+                    if (state.pendingTimeout) { clearTimeout(state.pendingTimeout);
+                        state.pendingTimeout = null; }
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🪜 词义链 <small>结果</small></div>
+                                <button class="back-btn" id="senseBackBtn">← 返回</button>
+                            </div>
+                            <div class="game-result">
+                                <div class="big-score">${finalScore} / ${total}</div>
+                                <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
+                                <button id="senseRetryBtn">🔄 再来一局</button>
+                            </div>
+                        </div>
+                    `;
+                    const back = document.getElementById('senseBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    const retry = document.getElementById('senseRetryBtn');
+                    if (retry) retry.addEventListener('click', () => {
+                        this.stopGameTimers();
+                        delete this.gameStates.senseChain;
+                        this.renderSenseChainGame();
+                    });
+                    return;
+                }
+
+                const q = state.questions[state.index];
+                if (!q) { state.finished = true;
+                    this.renderSenseChainGame(); return; }
+                const isAnswering = state.showAnswer;
+                const correct = state.selected === q.answer;
+                const feedback = isAnswering
+                    ? `<div class="feedback-banner ${correct ? 'correct' : 'wrong'}">
+                        ${correct ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                        <div class="sense-explanation">${this.escapeHtml(q.explanation || '')}</div>
+                    </div>`
+                    : '';
+                const chainHtml = (q.chain || []).length
+                    ? `<div class="sense-chain">${q.chain.map(n => `<span>${this.escapeHtml(n)}</span>`).join('<b>→</b>')}</div>`
+                    : '';
+                let html = `
+                    <div class="game-container">
+                        <div class="game-header">
+                            <div class="game-title">🪜 词义链 <small>义项选择</small></div>
+                            <button class="back-btn" id="senseBackBtn2">← 返回</button>
+                        </div>
+                        <div class="core-recall-word" style="font-size:42px;margin:18px 0 4px;">${this.escapeHtml(q.word || '')}</div>
+                        ${q.type === 'example' ? `<div class="sense-example">${this.escapeHtml(q.prompt)}</div><div class="game-question" style="font-size:17px;">${this.escapeHtml(q.question)}</div>` : `<div class="game-question" style="font-size:18px;line-height:1.7;">${this.escapeHtml(q.prompt)}</div>`}
+                        ${chainHtml}
+                        ${feedback}
+                        <div class="sense-options">
+                            ${q.options.map(opt => {
+                                let cls = '';
+                                if (isAnswering) {
+                                    if (opt === q.answer) cls = 'correct-answer';
+                                    else if (opt === state.selected) cls = 'wrong-answer';
+                                }
+                                return `<button class="sense-option ${cls}" data-definition="${this.escapeHtml(opt)}" ${isAnswering ? 'disabled' : ''}>${this.escapeHtml(opt)}</button>`;
+                            }).join('')}
+                        </div>
+                        <div class="game-status">
+                            <span>进度 ${state.index + 1}/${state.total}</span>
+                            <span class="score">得分 ${state.score}</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML = html;
+
+                const back = document.getElementById('senseBackBtn2');
+                if (back) back.addEventListener('click', () => this.leaveGame());
+                if (!isAnswering) {
+                    container.querySelectorAll('.sense-option').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            if (state.showAnswer || state.finished) return;
+                            const selected = btn.dataset.definition;
+                            const correctAnswer = selected === q.answer;
+                            state.selected = selected;
+                            state.showAnswer = true;
+                            if (correctAnswer) state.score++;
+                            this.recordReview(q.wordId, correctAnswer);
+                            this.renderSenseChainGame();
+                            state.pendingTimeout = setTimeout(() => {
+                                if (!this.isGameActive('senseChain')) return;
+                                state.showAnswer = false;
+                                state.selected = '';
+                                state.index++;
+                                if (state.index >= state.total) state.finished = true;
+                                this.renderSenseChainGame();
+                            }, 1800);
                         });
                     });
                 }

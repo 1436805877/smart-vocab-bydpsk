@@ -1,6 +1,6 @@
 {
   "name": "smart-vocab",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "智能单词本 0.1 beta — 核心感觉 + 词根演变 + 近义辨析",
   "main": "main.js",
