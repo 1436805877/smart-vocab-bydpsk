@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.1 beta（重构测试版）
+    智能单词本 v0.2 beta（义项级 SRS 测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.1 beta</title>
+    <title>智能单词本 v0.2 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -821,7 +821,12 @@
         }
         .overview-sense-item .sense-core-link {
             font-size: 13px;
-            color: #4f46e5;
+            color: #6366f1;
+            margin-top: 4px;
+        }
+        .sense-srs {
+            font-size: 12px;
+            color: #0f766e;
             margin-top: 4px;
         }
         .core-section {
@@ -2643,7 +2648,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.1 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.2 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="stats">📊 统计</button>
@@ -2762,7 +2767,7 @@
             constructor() {
                 this.db = null;
                 this.DB_NAME = 'SmartVocabDB_v9';
-                this.DB_VERSION = 2;
+                this.DB_VERSION = 3;
             }
             async init() {
                 return new Promise((resolve, reject) => {
@@ -2779,6 +2784,9 @@
                         }
                         if (!db.objectStoreNames.contains('extras')) {
                             db.createObjectStore('extras', { keyPath: 'key' });
+                        }
+                        if (!db.objectStoreNames.contains('progress')) {
+                            db.createObjectStore('progress', { keyPath: 'key' });
                         }
                     };
                 });
@@ -2804,6 +2812,24 @@
                         resolve(out);
                     };
                     req.onerror = () => reject(req.error);
+                });
+            }
+            async getProgress() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('progress', 'readonly');
+                    const req = tx.objectStore('progress').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+            async saveProgress(progress) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('progress', 'readwrite');
+                    const store = tx.objectStore('progress');
+                    store.clear();
+                    for (const p of progress) store.put(p);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
                 });
             }
             async saveWords(words) {
@@ -2887,6 +2913,7 @@
             searchIndex: new SearchIndex(),
             words: [],
             extras: { rootFamilies: [], synonymGroups: [], confusionPairs: [] },
+            progress: new Map(),
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -3032,6 +3059,7 @@
                     try {
                         await this.db.saveWords(this.words);
                         await this.db.saveExtras(this.extras);
+                        await this.db.saveProgress([...this.progress.values()]);
                         if (seq === this.saveSeq) this.dataDirty = false;
                     } catch (e) { console.error('Save failed:', e); }
                 };
@@ -3048,12 +3076,56 @@
                 try {
                     await this.db.saveWords(this.words);
                     await this.db.saveExtras(this.extras);
+                    await this.db.saveProgress([...this.progress.values()]);
                     if (seq === this.saveSeq) this.dataDirty = false;
                 } catch (e) { console.error('Flush save failed:', e); }
             },
 
+            senseKey(wordId, senseId) {
+                return `${wordId}:${senseId}`;
+            },
+
+            // 0.2.1：义项级间隔重复。先用简单步进，后续可替换成 FSRS。
+            scheduleSenseReview(wordId, senseId, grade, now = Date.now()) {
+                const key = this.senseKey(wordId, senseId);
+                let p = this.progress.get(key);
+                if (!p) {
+                    p = {
+                        key, wordId, senseId,
+                        dueAt: now, interval: 0, ease: 2.5, reps: 0, lapses: 0,
+                        lastGrade: null, wrongCount: 0, lastReviewedAt: 0, createdAt: now
+                    };
+                    this.progress.set(key, p);
+                }
+                p.lastReviewedAt = now;
+                p.lastGrade = grade;
+                const dayMs = 86400000;
+                if (grade <= 0) {
+                    p.reps = 0;
+                    p.lapses = (p.lapses || 0) + 1;
+                    p.wrongCount = (p.wrongCount || 0) + 1;
+                    p.interval = 0;
+                    p.ease = Math.max(1.3, (p.ease || 2.5) - 0.2);
+                    p.dueAt = now + 10 * 60 * 1000;
+                } else if (grade === 1) {
+                    p.reps = (p.reps || 0) + 1;
+                    p.interval = 1;
+                    p.ease = Math.max(1.3, (p.ease || 2.5) - 0.05);
+                    p.dueAt = now + p.interval * dayMs;
+                } else {
+                    p.reps = (p.reps || 0) + 1;
+                    const steps = [1, 3, 7, 14, 30];
+                    if (p.reps <= steps.length) p.interval = steps[p.reps - 1];
+                    else p.interval = Math.min(180, Math.max(1, Math.round((p.interval || 1) * (p.ease || 2.5))));
+                    p.ease = Math.min(3.0, (p.ease || 2.5) + 0.05);
+                    p.dueAt = now + p.interval * dayMs;
+                }
+                p.updatedAt = now;
+                return p;
+            },
+
             // 复习结果统一回写：供所有游戏调用，避免只有翻卡牌更新掌握度。
-            recordReview(wordId, correct) {
+            recordReview(wordId, correct, senseId = null, grade = null) {
                 const w = this.words.find(x => x.id === wordId);
                 if (!w) return;
                 w.lastReviewDate = Date.now();
@@ -3063,6 +3135,10 @@
                     if (w.mastery !== 'mastered') w.mastery = 'learning';
                 } else {
                     w.mastery = 'learning';
+                }
+                const g = (grade === null || grade === undefined) ? (correct ? 2 : 0) : Number(grade);
+                if (senseId !== null && senseId !== undefined) {
+                    this.scheduleSenseReview(wordId, senseId, Number.isFinite(g) ? g : (correct ? 2 : 0));
                 }
                 this.reviewDirty = true;
                 this.dataDirty = true;
@@ -3088,6 +3164,8 @@
                     synonymGroups: Array.isArray(extras.synonymGroups) ? extras.synonymGroups : [],
                     confusionPairs: Array.isArray(extras.confusionPairs) ? extras.confusionPairs : [],
                 };
+                const progressRows = await this.db.getProgress();
+                this.progress = new Map((progressRows || []).filter(p => p && p.key).map(p => [p.key, p]));
                 if (words.length === 0) {
                     const oldWords = localStorage.getItem('myWordsData_v8_2');
                     if (oldWords) { try { words = JSON.parse(oldWords); } catch (e) {} localStorage.removeItem(
@@ -3844,7 +3922,7 @@
                         const currentWord = activeWords[this.flashcardIndex];
                         if (!currentWord) return;
                         if (action === 'mastered' || action === 'unknown') {
-                            this.recordReview(currentWord.id, action === 'mastered');
+                            this.recordReview(currentWord.id, action === 'mastered', this.flashcardSenseId);
                         }
                         this.flashcardIndex = (this.flashcardIndex + 1) % activeWords.length;
                         this.flashcardFlipped = false;
@@ -3987,7 +4065,7 @@
                 container.querySelectorAll('.core-recall-actions button[data-grade]').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const grade = Number(btn.dataset.grade);
-                        this.recordReview(word.id, grade === 2);
+                        this.recordReview(word.id, grade === 2, null, grade);
                         if (grade === 2) state.correct = (state.correct || 0) + 1;
                         advance();
                     });
@@ -4634,7 +4712,7 @@
                             state.selected = selected;
                             state.showAnswer = true;
                             if (correctAnswer) state.score++;
-                            this.recordReview(q.wordId, correctAnswer);
+                            this.recordReview(q.wordId, correctAnswer, q.senseId);
                             this.renderSenseChainGame();
                             state.pendingTimeout = setTimeout(() => {
                                 if (!this.isGameActive('senseChain')) return;
@@ -4734,7 +4812,7 @@
                     const val = input.value.trim();
                     if (!val) return;
                     const correct = val.toLowerCase() === q.word.toLowerCase();
-                    this.recordReview(q.wordId, correct);
+                    this.recordReview(q.wordId, correct, q.senseId);
                     state.playedAudio = false;
                     if (correct) {
                         state.score++;
@@ -4878,6 +4956,7 @@
                         state.questions.push({
                             word: w.word,
                             wordId: w.id,
+                            senseId: sense.id,
                             correctDef: correctDef,
                             options: options
                         });
@@ -4906,7 +4985,7 @@
                             }
                             state.showAnswer = true;
                             state.correctAnswer = cur.correctDef;
-                            this.recordReview(cur.wordId, false);
+                            this.recordReview(cur.wordId, false, cur.senseId);
                             this.renderWordShooter();
                             state.pendingTimeout = setTimeout(() => {
                                 if (!this.isGameActive('wordShooter')) return;
@@ -4962,7 +5041,7 @@
                 const handleChoice = (def) => {
                     if (state.finished || state.showAnswer) return;
                     const correct = def === q.correctDef;
-                    this.recordReview(q.wordId, correct);
+                    this.recordReview(q.wordId, correct, q.senseId);
                     if (correct) {
                         state.score++;
                         state.index++;
@@ -5057,8 +5136,8 @@
                     selected.forEach(w => {
                         const sense = this.pickSense(w);
                         if (sense) {
-                            cards.push({ type: 'word', text: w.word, pairId: w.id });
-                            cards.push({ type: 'def', text: sense.definition, pairId: w.id });
+                            cards.push({ type: 'word', text: w.word, pairId: w.id, senseId: sense.id });
+                            cards.push({ type: 'def', text: sense.definition, pairId: w.id, senseId: sense.id });
                         }
                     });
                     for (let i = cards.length - 1; i > 0; i--) {
@@ -5131,12 +5210,12 @@
                         matched.add(card.pairId);
                         state.selectedIndex = null;
                         state.score++;
-                        this.recordReview(card.pairId, true);
+                        this.recordReview(card.pairId, true, card.senseId);
                         if (matched.size >= state.totalPairs) state.finished = true;
                         this.renderWordMatch();
                     } else {
                         state.selectedIndex = null;
-                        this.recordReview(firstCard.pairId, false);
+                        this.recordReview(firstCard.pairId, false, firstCard.senseId);
                         const tempIdx = idx;
                         this.renderWordMatch();
                         const allCards = container.querySelectorAll('.match-card');
@@ -5408,7 +5487,11 @@
                     if (s.formality) tags.push('语体:' + s.formality);
                     if (s.grammar) tags.push('语法:' + s.grammar);
                     const tagHtml = tags.length ? tags.map(t => `<span>${this.escapeHtml(t)}</span>`).join('') : '';
-                    return `<div class="overview-sense-item" data-sense-id="${s.id}"><div class="sense-def">${idx+1}. ${this.escapeHtml(s.definition || '')}</div>${s.coreLink ? `<div class="sense-core-link">🧭 ${this.escapeHtml(s.coreLink)}</div>` : ''}${s.example ? `<div class="sense-example">📝 ${this.escapeHtml(s.example)}</div>` : ''}${tagHtml ? `<div class="sense-tags">${tagHtml}</div>` : ''}</div>`;
+                    const srsP = this.progress.get(this.senseKey(word.id, s.id));
+                    const srsText = srsP
+                        ? `${srsP.dueAt <= Date.now() ? '⏰ 到期' : '🕒 下次 ' + new Date(srsP.dueAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} · 间隔 ${srsP.interval || 0} 天 · 复习 ${srsP.reps || 0} 次`
+                        : '🆕 未学';
+                    return `<div class="overview-sense-item" data-sense-id="${s.id}"><div class="sense-def">${idx+1}. ${this.escapeHtml(s.definition || '')}</div>${s.coreLink ? `<div class="sense-core-link">🧭 ${this.escapeHtml(s.coreLink)}</div>` : ''}<div class="sense-srs">${this.escapeHtml(srsText)}</div>${s.example ? `<div class="sense-example">📝 ${this.escapeHtml(s.example)}</div>` : ''}${tagHtml ? `<div class="sense-tags">${tagHtml}</div>` : ''}</div>`;
                 }).join('');
                 const senseOptions = word.senses.map((s, idx) =>
                     `<option value="${s.id}">释义 ${idx+1}: ${s.definition ? s.definition.slice(0, 30) : '（空）'}</option>`
@@ -5622,6 +5705,8 @@
                 const unknown = activeWords.filter(w => w.mastery === 'unknown' || !w.mastery).length;
                 const now = Date.now();
                 const dueForReview = activeWords.filter(w => (now - w.lastReviewDate) / 86400000 > 2).length;
+                const dueSenses = [...this.progress.values()].filter(p => (p.dueAt || 0) <= now).length;
+                const learnedSenses = this.progress.size;
                 const deletedCount = this.words.filter(w => w.deleted).length;
                 const totalReviews = activeWords.reduce((acc, w) => acc + (w.reviewCount || 0), 0);
                 const totalCorrect = activeWords.reduce((acc, w) => acc + (w.correctCount || 0), 0);
@@ -5648,7 +5733,7 @@
                 const dailyCounts = last7days.map(date => activeWords.filter(w => new Date(w.addedDate)
                     .toISOString().slice(0, 10) === date).length);
                 let html =
-                    `<h3 style="margin-bottom:20px;">📊 数据统计</h3><div class="stats-grid"><div class="stat-card"><div class="number">${totalWords}</div><div class="label">总单词数（活跃）</div></div><div class="stat-card"><div class="number">${totalSenses}</div><div class="label">总释义数</div></div><div class="stat-card" style="border-color: #6366f1;"><div class="number">${coreReady}</div><div class="label">🧭 核心感觉就绪</div></div><div class="stat-card" style="border-color: #0ea5e9;"><div class="number">${synGroupCount}</div><div class="label">⚖️ 近义组</div></div><div class="stat-card" style="border-color: #22c55e;"><div class="number">${rootFamilyCount}</div><div class="label">🌳 词根家族</div></div><div class="stat-card"><div class="number">${mastered}</div><div class="label">✅ 已掌握</div></div><div class="stat-card"><div class="number">${learning}</div><div class="label">🔄 学习中</div></div><div class="stat-card"><div class="number">${unknown}</div><div class="label">❓ 未标记</div></div><div class="stat-card" style="border-color: #f59e0b;"><div class="number">${dueForReview}</div><div class="label">🔔 待复习</div></div><div class="stat-card" style="border-color: #8b5cf6;"><div class="number">${totalReviews}</div><div class="label">🎮 累计复习</div></div><div class="stat-card" style="border-color: #10b981;"><div class="number">${accuracy}%</div><div class="label">🎯 平均正确率</div></div><div class="stat-card" style="border-color: #94a3b8;"><div class="number">${deletedCount}</div><div class="label">♻️ 回收站</div></div></div>`;
+                    `<h3 style="margin-bottom:20px;">📊 数据统计</h3><div class="stats-grid"><div class="stat-card"><div class="number">${totalWords}</div><div class="label">总单词数（活跃）</div></div><div class="stat-card"><div class="number">${totalSenses}</div><div class="label">总释义数</div></div><div class="stat-card" style="border-color: #6366f1;"><div class="number">${coreReady}</div><div class="label">🧭 核心感觉就绪</div></div><div class="stat-card" style="border-color: #0ea5e9;"><div class="number">${synGroupCount}</div><div class="label">⚖️ 近义组</div></div><div class="stat-card" style="border-color: #22c55e;"><div class="number">${rootFamilyCount}</div><div class="label">🌳 词根家族</div></div><div class="stat-card"><div class="number">${mastered}</div><div class="label">✅ 已掌握</div></div><div class="stat-card"><div class="number">${learning}</div><div class="label">🔄 学习中</div></div><div class="stat-card"><div class="number">${unknown}</div><div class="label">❓ 未标记</div></div><div class="stat-card" style="border-color: #f59e0b;"><div class="number">${dueForReview}</div><div class="label">🔔 待复习</div></div><div class="stat-card" style="border-color: #0ea5e9;"><div class="number">${dueSenses}</div><div class="label">⏰ 到期义项</div></div><div class="stat-card" style="border-color: #14b8a6;"><div class="number">${learnedSenses}</div><div class="label">📚 已学义项</div></div><div class="stat-card" style="border-color: #8b5cf6;"><div class="number">${totalReviews}</div><div class="label">🎮 累计复习</div></div><div class="stat-card" style="border-color: #10b981;"><div class="number">${accuracy}%</div><div class="label">🎯 平均正确率</div></div><div class="stat-card" style="border-color: #94a3b8;"><div class="number">${deletedCount}</div><div class="label">♻️ 回收站</div></div></div>`;
                 const fieldLabels = { tone: '😊 情感色彩', topic: '📚 主题', pos: '📌 词性', level: '⭐ 难度',
                     origin: '🌍 来源', formality: '📝 语体', grammar: '📖 语法属性' };
                 fields.forEach(f => {
@@ -6048,7 +6133,7 @@
                     if (format === 'json') {
                         const data = {
                             app: '智能单词本',
-                            appVersion: '0.1.5-fix.1',
+                            appVersion: '0.2.0',
                             schemaVersion: 2,
                             exportedAt: new Date().toISOString(),
                             wordCount: this.words.length,
