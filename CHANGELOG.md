@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.3 — 2026-10-20
+
+### 新增
+
+- 单词详情页新增「🎭 文化与彩蛋」区块。
+- 义项新增 `exampleZh` 中文翻译显示。
+- 新增词库导入格式规范：
+  - `docs/word-import-format.md`
+  - `docs/word-import.schema.json`
+- 新增 AI 生成提示词：
+  - `docs/ai-word-generation-prompt.md`
+  - 覆盖核心感觉、词根、释义、近义、文化彩蛋、批量生成和自检。
+- 新增高质量示例词库：
+  - `数据与资料/单词模板_示例.json`
+  - 3 个词：profound / disaster / quarantine。
+
 ## 0.4.2 — 2026-10-20
 
 ### 调整

@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/smart-vocab/word-import.schema.json",
+  "title": "智能单词本导入格式 v3",
+  "description": "用于智能单词本导入的 v3 词库文件。AI 生成时应同时满足 docs/ai-word-generation-prompt.md 的质量要求。",
+  "type": "object",
+  "required": ["app", "schemaVersion", "deck", "words"],
+  "additionalProperties": true,
+  "properties": {
+    "app": { "const": "智能单词本" },
+    "appVersion": { "type": "string" },
+    "schemaVersion": { "const": 3 },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "wordCount": { "type": "integer", "minimum": 0 },
+    "deck": { "$ref": "#/$defs/deck" },
+    "decks": { "type": "array", "items": { "$ref": "#/$defs/deck" } },
+    "deckWords": { "type": "array", "items": { "$ref": "#/$defs/deckWord" } },
+    "words": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/word" } },
+    "rootFamilies": { "type": "array", "items": { "$ref": "#/$defs/rootFamily" } },
+    "synonymGroups": { "type": "array", "items": { "$ref": "#/$defs/synonymGroup" } },
+    "confusionPairs": { "type": "array", "items": { "$ref": "#/$defs/confusionPair" } },
+    "progress": { "type": "array", "items": { "$ref": "#/$defs/progress" } }
+  },
+  "$defs": {
+    "deck": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["user", "standard"] },
+        "version": { "type": "string" },
+        "readOnly": { "type": "boolean" },
+        "description": { "type": "string" },
+        "language": { "type": "string" },
+        "source": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "updatedAt": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "deckWord": {
+      "type": "object",
+      "required": ["key", "deckId", "wordId"],
+      "properties": {
+        "key": { "type": "string" },
+        "deckId": { "type": "string" },
+        "wordId": { "type": ["integer", "string"] }
+      },
+      "additionalProperties": true
+    },
+    "word": {
+      "type": "object",
+      "required": ["word", "core", "senses"],
+      "properties": {
+        "id": { "type": ["integer", "string"] },
+        "word": { "type": "string", "minLength": 1 },
+        "phonetic": { "type": "string" },
+        "wordNotes": { "type": "array", "items": { "type": "string" } },
+        "core": { "$ref": "#/$defs/core" },
+        "morphology": { "$ref": "#/$defs/morphology" },
+        "etymology": { "$ref": "#/$defs/etymology" },
+        "culture": { "$ref": "#/$defs/culture" },
+        "senses": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sense" } },
+        "synonymGroupIds": { "type": "array", "items": { "type": "string" } },
+        "mastery": { "enum": ["unknown", "learning", "mastered"] },
+        "addedDate": { "type": "integer" },
+        "lastReviewDate": { "type": "integer" },
+        "reviewCount": { "type": "integer", "minimum": 0 },
+        "correctCount": { "type": "integer", "minimum": 0 },
+        "deleted": { "type": "boolean" },
+        "quality": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "core": {
+      "type": "object",
+      "required": ["feeling"],
+      "properties": {
+        "feeling": { "type": "string", "maxLength": 80, "minLength": 1 },
+        "image": { "type": "string" },
+        "keywords": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+        "chain": { "type": "array", "items": { "$ref": "#/$defs/chainNode" } },
+        "quality": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "chainNode": {
+      "type": "object",
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "bridge": { "type": "string" },
+        "senseId": { "type": ["integer", "string"] }
+      },
+      "additionalProperties": true
+    },
+    "morphology": {
+      "type": "object",
+      "properties": {
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "form", "meaning"],
+            "properties": {
+              "type": { "enum": ["prefix", "root", "suffix", "infix", "combining"] },
+              "form": { "type": "string", "minLength": 1 },
+              "meaning": { "type": "string", "minLength": 1 },
+              "origin": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "literal": { "type": "string" },
+        "rootFamilyId": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "etymology": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "form": { "type": "string" },
+              "language": { "type": "string" },
+              "meaning": { "type": "string" },
+              "note": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "story": { "type": "string" },
+        "confidence": { "enum": ["high", "medium", "low"] }
+      },
+      "additionalProperties": true
+    },
+    "culture": {
+      "type": "object",
+      "properties": {
+        "background": { "type": "string" },
+        "usage": { "type": "string" },
+        "easterEggs": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "sense": {
+      "type": "object",
+      "required": ["id", "definition", "defZh", "defEn", "example", "exampleZh"],
+      "properties": {
+        "id": { "type": ["integer", "string"] },
+        "definition": { "type": "string", "minLength": 1 },
+        "defZh": { "type": "string", "minLength": 1 },
+        "defEn": { "type": "string", "minLength": 1 },
+        "example": { "type": "string" },
+        "exampleZh": { "type": "string" },
+        "pos": { "type": "string" },
+        "level": { "type": "string" },
+        "topic": { "type": "string" },
+        "tone": { "type": "string" },
+        "origin": { "type": "string" },
+        "formality": { "type": "string" },
+        "grammar": { "type": "string" },
+        "synonyms": { "type": "string" },
+        "collocations": { "type": "string" },
+        "pitfall": { "type": "string" },
+        "coreLink": { "type": "string" },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "rootFamily": {
+      "type": "object",
+      "required": ["id", "root", "meaning"],
+      "properties": {
+        "id": { "type": "string" },
+        "root": { "type": "string" },
+        "meaning": { "type": "string" },
+        "origin": { "type": "string" },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["word"],
+            "properties": {
+              "word": { "type": "string" },
+              "meaning": { "type": "string" },
+              "relation": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "mnemonic": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "synonymGroup": {
+      "type": "object",
+      "required": ["id", "name", "members"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "dimensions": { "type": "array", "items": { "type": "string" } },
+        "members": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["word"],
+            "properties": {
+              "word": { "type": "string" },
+              "nuance": { "type": "string" },
+              "strength": { "type": "string" },
+              "register": { "type": "string" },
+              "collocations": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "contrasts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "a": { "type": "string" },
+              "b": { "type": "string" },
+              "dimension": { "type": "string" },
+              "difference": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "mnemonic": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "confusionPair": {
+      "type": "object",
+      "required": ["id", "a", "b"],
+      "properties": {
+        "id": { "type": "string" },
+        "a": { "type": "string" },
+        "b": { "type": "string" },
+        "dimension": { "type": "string" },
+        "difference": { "type": "string" },
+        "examples": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "progress": {
+      "type": "object",
+      "required": ["key", "wordId", "senseId"],
+      "properties": {
+        "key": { "type": "string" },
+        "wordId": { "type": ["integer", "string"] },
+        "senseId": { "type": ["integer", "string"] },
+        "dueAt": { "type": "integer" },
+        "interval": { "type": "number" },
+        "ease": { "type": "number" },
+        "reps": { "type": "integer" },
+        "lapses": { "type": "integer" },
+        "wrongCount": { "type": "integer" },
+        "wrongActive": { "type": "boolean" },
+        "consecutiveCorrect": { "type": "integer" }
+      },
+      "additionalProperties": true
+    }
+  }
+}
