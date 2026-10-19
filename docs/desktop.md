@@ -55,7 +55,7 @@ npm run portable
 桌面版的数据仍暂时存在 Electron 的 IndexedDB 中，位于应用数据目录：
 
 ```text
-%APPDATA%\智能单词本
+%APPDATA%\smart-vocab
 ```
 
 通过菜单 **文件 → 打开数据目录** 可以直接打开。

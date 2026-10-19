@@ -27,6 +27,14 @@ npm run dist     # 生成 Windows 安装包 + 便携版
 
 详细说明见 [docs/desktop.md](docs/desktop.md)。如果本机无法下载 Electron，可在 GitHub Actions 里手动运行 **Build Windows app**，从 Artifacts 下载安装包。
 
+本机已生成免安装便携版：
+
+```text
+release/SmartVocab-0.1.0-portable.zip
+```
+
+解压后双击 `SmartVocab.exe` 即可运行。首次启动会使用独立的桌面数据目录，需要把网页版导出的 JSON 导入一次。
+
 ## 0.1 的范围
 
 - 删除「所属分类」功能，减少旧版遗留的概念和数据。
