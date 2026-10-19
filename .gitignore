@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+
+# Local test artifacts
+_test*.js
+_smoke*.html
+*.log
+*.tmp
+
+# Python
+__pycache__/

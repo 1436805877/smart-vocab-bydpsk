@@ -1,20 +1,15 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v2.3.1（优化版）
-    基于 v2.3 的单文件离线应用，主要变更：
-    1. 搜索改为真正的子串匹配（支持中文、多关键词 AND），新增结果计数；
-    2. 修复限时挑战 / 单词射手离开页面后计时器泄漏，统一在离开游戏时清理；
-    3. 回收站支持批量选择、批量永久删除、清空；
-    4. 分类系统支持 type=topic（主题分类），导入时按 名称+类型 合并；
-    5. 所有复习游戏都会回写 lastReviewDate / mastery / 复习统计；
-    6. 保存策略与批量索引重建优化，离开页面时尽力落库；
-    7. 修复迷宫计分、拼写无反馈、射手整局计时、导入覆盖丢分类等细节。
+    智能单词本 v0.1 beta（重构测试版）
+    基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
+    0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
+    正式版之前不会使用 1.0。
 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v2.3.1 · 复习中心</title>
+    <title>智能单词本 v0.1 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -38,20 +33,31 @@
         }
         .top-bar {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             align-items: center;
-            gap: 12px 20px;
+            gap: 8px;
             border-bottom: 2px solid #e9edf2;
-            padding-bottom: 16px;
-            margin-bottom: 20px;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+        .top-bar::-webkit-scrollbar {
+            height: 4px;
+        }
+        .top-bar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
         }
         .top-bar h1 {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
-            margin-right: auto;
+            margin-right: 4px;
             display: flex;
             align-items: center;
             gap: 8px;
+            flex: 0 0 auto;
+            white-space: nowrap;
         }
         .top-bar .version-tag {
             font-size: 11px;
@@ -146,6 +152,13 @@
         .top-bar .tool-btn.export-btn:hover {
             background: #d1fae5;
         }
+        .top-bar .nav-btn,
+        .top-bar .tool-btn {
+            padding: 6px 12px;
+            font-size: 14px;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
         .search-box {
             display: flex;
             align-items: center;
@@ -154,6 +167,8 @@
             padding: 4px 16px 4px 20px;
             border: 1px solid transparent;
             transition: 0.2s;
+            flex: 1 1 200px;
+            min-width: 160px;
         }
         .search-box:focus-within {
             border-color: #3b82f6;
@@ -166,7 +181,8 @@
             padding: 8px 0;
             font-size: 15px;
             outline: none;
-            width: 160px;
+            width: 100%;
+            min-width: 80px;
         }
         .search-box .clear-btn {
             background: none;
@@ -803,6 +819,92 @@
             padding: 0 8px;
             border-radius: 30px;
         }
+        .overview-sense-item .sense-core-link {
+            font-size: 13px;
+            color: #4f46e5;
+            margin-top: 4px;
+        }
+        .core-section {
+            background: linear-gradient(135deg, #eef2ff, #f8fafc);
+            border: 1px solid #dbeafe;
+            border-radius: 16px;
+            padding: 16px 18px;
+        }
+        .core-feeling {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        .core-image {
+            color: #475569;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .core-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .core-keywords span {
+            background: #4f46e5;
+            color: white;
+            border-radius: 30px;
+            padding: 2px 12px;
+            font-size: 12px;
+        }
+        .core-chain,
+        .morph-parts,
+        .etym-path {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .chain-node {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 6px 10px;
+        }
+        .chain-node small,
+        .etym-path small {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-left: 4px;
+        }
+        .chain-arrow {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .morph-part {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 14px;
+        }
+        .morph-part b {
+            color: #1d4ed8;
+        }
+        .morph-literal,
+        .etym-story {
+            font-size: 14px;
+            color: #475569;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        .etym-path span {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 4px 10px;
+        }
         .tag-group {
             display: flex;
             flex-wrap: wrap;
@@ -1068,6 +1170,38 @@
         }
         .modal .close-modal:hover {
             color: #0f172a;
+        }
+        .export-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .export-card {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-start;
+            text-align: left;
+            padding: 16px 18px;
+            border: 1px solid #dbeafe;
+            border-radius: 14px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .export-card:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            transform: translateY(-1px);
+        }
+        .export-card strong {
+            font-size: 16px;
+            color: #1e40af;
+        }
+        .export-card span {
+            font-size: 12px;
+            color: #64748b;
         }
         .modal .cat-form {
             display: flex;
@@ -2221,7 +2355,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">v2.3.1</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.1 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="stats">📊 统计</button>
@@ -2252,9 +2386,6 @@
                         <span class="mode-title">分组依据<select id="groupBySelect">
                             <option value="hierarchy">📂 层级列表</option>
                             <option value="alphabetical">🔤 字母</option>
-                            <option value="synonym">🔗 近义分类</option>
-                            <option value="root">🌱 词根分类</option>
-                            <option value="topicCat">🗂 主题分类</option>
                             <option value="tone">😊 情感色彩</option>
                             <option value="topic">📚 主题</option>
                             <option value="pos">📌 词性</option>
@@ -2265,7 +2396,6 @@
                         </select></span>
                         <span>
                             <button class="action-btn add-word" id="addWordBtn">➕ 添加单词</button>
-                            <button class="action-btn" id="openModalBtn">📂 分类</button>
                         </span>
                     </div>
                     <div class="add-word-form" id="addWordForm">
@@ -2301,20 +2431,7 @@
         </div>
     </div>
 
-    <!-- 分类管理弹窗 -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal">
-            <button class="close-modal" id="closeModalBtn">✕</button>
-            <h2>📂 管理分类</h2>
-            <div class="cat-form">
-                <input type="text" id="newCatName" placeholder="分类名称" />
-                <select id="newCatType"><option value="synonym">近义</option><option value="root">词根</option><option value="topic">主题</option></select>
-                <button id="addCatBtn">➕ 添加</button>
-            </div>
-            <div id="modalCatListContainer"></div>
-            <p class="text-sm text-muted mt-8">💡 点击分类名可编辑，单词旁的 ✕ 可移除该单词。</p>
-        </div>
-    </div>
+    <!-- 分类管理弹窗已移除：0.1 不再使用“所属分类”功能 -->
 
     <!-- 冲突弹窗 -->
     <div class="conflict-modal-overlay" id="conflictModalOverlay">
@@ -2331,7 +2448,22 @@
         </div>
     </div>
 
-    <input type="file" id="fileInput" accept=".json" />
+    <!-- 导出弹窗 -->
+    <div class="modal-overlay" id="exportModalOverlay">
+        <div class="modal" style="max-width:560px;">
+            <button class="close-modal" id="closeExportModalBtn">✕</button>
+            <h2>📤 导出单词本</h2>
+            <p class="text-sm text-muted">JSON 可完整备份并再次导入；CSV 适合 Excel；Markdown 适合阅读；TXT 是纯词表。</p>
+            <div class="export-grid">
+                <button class="export-card" data-format="json"><strong>JSON</strong><span>完整备份 · 可再次导入</span></button>
+                <button class="export-card" data-format="csv"><strong>CSV</strong><span>表格 · Excel 可打开</span></button>
+                <button class="export-card" data-format="md"><strong>Markdown</strong><span>学习笔记 · 可阅读</span></button>
+                <button class="export-card" data-format="txt"><strong>TXT</strong><span>纯单词表 · 一行一词</span></button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".json,.csv,.txt" multiple />
     <div class="toast" id="toast"></div>
 
     <script>
@@ -2357,9 +2489,6 @@
                             wStore.createIndex('by_word', 'word', { unique: false });
                             wStore.createIndex('by_deleted', 'deleted', { unique: false });
                         }
-                        if (!db.objectStoreNames.contains('categories')) {
-                            db.createObjectStore('categories', { keyPath: 'id' });
-                        }
                     };
                 });
             }
@@ -2372,31 +2501,12 @@
                     req.onerror = () => reject(req.error);
                 });
             }
-            async getAllCategories() {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('categories', 'readonly');
-                    const store = tx.objectStore('categories');
-                    const req = store.getAll();
-                    req.onsuccess = () => resolve(req.result || []);
-                    req.onerror = () => reject(req.error);
-                });
-            }
             async saveWords(words) {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('words', 'readwrite');
                     const store = tx.objectStore('words');
                     store.clear();
                     for (const w of words) store.put(w);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject(tx.error);
-                });
-            }
-            async saveCategories(categories) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction('categories', 'readwrite');
-                    const store = tx.objectStore('categories');
-                    store.clear();
-                    for (const c of categories) store.put(c);
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject(tx.error);
                 });
@@ -2459,7 +2569,6 @@
             db: new VocabDB(),
             searchIndex: new SearchIndex(),
             words: [],
-            categories: [],
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -2481,12 +2590,6 @@
             currentGame: null,
             flashcardIndex: 0,
             flashcardFlipped: false,
-
-            chainWords: [],
-            chainUsedSet: new Set(),
-            chainCurrent: null,
-            chainGameOver: false,
-            chainError: '',
 
             games: {},
 
@@ -2515,30 +2618,6 @@
                         desc: '自主复习，点击卡片翻转查看释义',
                         badge: '经典',
                         render: () => this.renderFlashcardGame()
-                    },
-                    wordchain: {
-                        id: 'wordchain',
-                        name: '单词接龙',
-                        icon: '🐉',
-                        desc: '根据尾字母接龙，挑战你的词汇量',
-                        badge: '新',
-                        render: () => this.renderWordChainGame()
-                    },
-                    timedChallenge: {
-                        id: 'timedChallenge',
-                        name: '限时挑战',
-                        icon: '⏳',
-                        desc: '30秒判断单词正误，挑战你的反应速度',
-                        badge: '快',
-                        render: () => this.renderTimedChallenge()
-                    },
-                    wordMaze: {
-                        id: 'wordMaze',
-                        name: '单词迷宫',
-                        icon: '🧭',
-                        desc: '在岔路口选择正确的释义，走出迷宫',
-                        badge: '闯关',
-                        render: () => this.renderWordMaze()
                     },
                     spellingChallenge: {
                         id: 'spellingChallenge',
@@ -2591,7 +2670,6 @@
                     consider(w.id);
                     (w.senses || []).forEach(s => consider(s.id));
                 });
-                this.categories.forEach(c => consider(c.id));
                 this.idSeq = Math.max(this.idSeq || 0, max, Date.now() * 1000);
             },
 
@@ -2602,7 +2680,6 @@
                 const doSave = async () => {
                     try {
                         await this.db.saveWords(this.words);
-                        await this.db.saveCategories(this.categories);
                         if (seq === this.saveSeq) this.dataDirty = false;
                     } catch (e) { console.error('Save failed:', e); }
                 };
@@ -2618,7 +2695,6 @@
                 const seq = ++this.saveSeq;
                 try {
                     await this.db.saveWords(this.words);
-                    await this.db.saveCategories(this.categories);
                     if (seq === this.saveSeq) this.dataDirty = false;
                 } catch (e) { console.error('Flush save failed:', e); }
             },
@@ -2653,18 +2729,13 @@
 
             async loadData() {
                 let words = await this.db.getAllWords();
-                let categories = await this.db.getAllCategories();
-                let demoSeeded = false;
                 if (words.length === 0) {
                     const oldWords = localStorage.getItem('myWordsData_v8_2');
-                    const oldCats = localStorage.getItem('myCategoriesData_v8_2');
                     if (oldWords) { try { words = JSON.parse(oldWords); } catch (e) {} localStorage.removeItem(
                         'myWordsData_v8_2'); }
-                    if (oldCats) { try { categories = JSON.parse(oldCats); } catch (e) {} localStorage.removeItem(
-                        'myCategoriesData_v8_2'); }
+                    localStorage.removeItem('myCategoriesData_v8_2');
                 }
                 if (words.length === 0) {
-                    demoSeeded = true;
                     words = [{
                         id: 1,
                         word: 'abide',
@@ -2765,12 +2836,7 @@
                         deleted: false
                     }];
                 }
-                if (categories.length === 0 && demoSeeded) {
-                    categories = [{ id: 101, name: '遵守', type: 'synonym', wordIds: [1] }, { id: 102, name: '翻转',
-                        type: 'root', wordIds: [2] }];
-                }
                 this.words = words.map(w => this.migrateWord(w));
-                this.categories = categories;
                 await this.saveData(true);
             },
 
@@ -2988,8 +3054,6 @@
                 this.renderList();
                 this.renderRightPanel();
                 this.updateSearchClearBtn();
-                const modal = document.getElementById('modalOverlay');
-                if (modal && modal.classList.contains('show')) this.renderModalCatList();
                 this.updateNavButtons();
                 this.updateGroupBySelect();
                 this.updateAlphaNav();
@@ -3087,22 +3151,6 @@
                         items: letterMap[letter].map(w => ({ type: 'word', word: w, sense: null, label: w
                                 .word }))
                     }));
-                } else if (this.currentGroupBy === 'synonym' || this.currentGroupBy === 'root' || this.currentGroupBy === 'topicCat') {
-                    const type = this.currentGroupBy === 'topicCat' ? 'topic' : this.currentGroupBy;
-                    const catList = this.categories.filter(c => c.type === type);
-                    const categorizedIds = new Set();
-                    catList.forEach(cat => {
-                        cat.wordIds.forEach(id => categorizedIds.add(id));
-                        const wordItems = cat.wordIds.map(id => filteredWords.find(w => w.id === id)).filter(
-                        Boolean);
-                        if (wordItems.length > 0) {
-                            groups.push({ title: cat.name, items: wordItems.map(w => ({ type: 'word',
-                                    word: w, sense: null, label: w.word })) });
-                        }
-                    });
-                    const uncategorized = filteredWords.filter(w => !categorizedIds.has(w.id));
-                    if (uncategorized.length > 0) groups.push({ title: '未分类', items: uncategorized.map(w => ({ type: 'word',
-                            word: w, sense: null, label: w.word })) });
                 } else {
                     const field = this.currentGroupBy;
                     const senseMap = {};
@@ -3244,18 +3292,10 @@
 
             renderRightPanel() {
                 const panel = document.getElementById('rightPanel');
-                const main = document.getElementById('mainContainer');
                 if (this.currentMode !== 'review' || !this.currentGame) this.stopGameTimers();
                 if (this.currentMode === 'review') {
-                    if (this.currentGame === 'wordchain') {
-                        main.classList.add('game-active');
-                    } else {
-                        main.classList.remove('game-active');
-                    }
                     this.renderReviewCenter(panel);
                     return;
-                } else {
-                    main.classList.remove('game-active');
                 }
                 if (this.currentMode === 'dictionary' || this.currentMode === 'recycle') {
                     this.renderDictionaryDetail(panel);
@@ -3316,8 +3356,6 @@
                             if (gameId === 'flashcard') {
                                 this.flashcardIndex = 0;
                                 this.flashcardFlipped = false;
-                            } else if (gameId === 'wordchain') {
-                                this.initWordChainGame();
                             } else {
                                 this.gameStates[gameId] = {};
                             }
@@ -3413,661 +3451,6 @@
                 });
                 const backBtn = document.getElementById('flashcardBackBtn');
                 if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-            },
-
-            // ============================================================
-            //  单词接龙 (原有)
-            // ============================================================
-            initWordChainGame() {
-                const activeWords = this.words.filter(w => !w.deleted);
-                if (activeWords.length < 2) {
-                    this.chainGameOver = true;
-                    this.chainWords = [];
-                    this.chainUsedSet = new Set();
-                    this.chainCurrent = null;
-                    this.chainError = '单词本中至少需要2个单词才能开始接龙';
-                    return;
-                }
-                let startWord = null;
-                const shuffled = [...activeWords].sort(() => Math.random() - 0.5);
-                for (const w of shuffled) {
-                    const lastLetter = w.word.charAt(w.word.length - 1).toLowerCase();
-                    const hasNext = activeWords.some(other =>
-                        other.id !== w.id &&
-                        !this.chainUsedSet.has(other.id) &&
-                        other.word.charAt(0).toLowerCase() === lastLetter
-                    );
-                    if (hasNext) { startWord = w; break; }
-                }
-                if (!startWord) {
-                    startWord = shuffled[0];
-                }
-                this.chainWords = [];
-                this.chainUsedSet = new Set();
-                this.chainGameOver = false;
-                this.chainError = '';
-                const sense0 = startWord.senses[0] || { definition: '' };
-                this.chainWords.push({
-                    word: startWord.word,
-                    phonetic: startWord.phonetic || '',
-                    def: sense0.definition || '',
-                    by: 'system',
-                    wordId: startWord.id
-                });
-                this.chainUsedSet.add(startWord.id);
-                const last = startWord.word.charAt(startWord.word.length - 1).toLowerCase();
-                this.chainCurrent = last;
-                const canContinue = this.findNextChainWord(last, activeWords);
-                if (!canContinue) {
-                    this.chainGameOver = true;
-                    this.chainError = '😅 起始词无法接龙，重新开始吧！';
-                }
-            },
-
-            findNextChainWord(letter, activeWords) {
-                const available = activeWords.filter(w =>
-                    !this.chainUsedSet.has(w.id) &&
-                    w.word.charAt(0).toLowerCase() === letter
-                );
-                if (available.length === 0) return null;
-                for (const w of available) {
-                    const nextLetter = w.word.charAt(w.word.length - 1).toLowerCase();
-                    const hasNext = activeWords.some(other =>
-                        !this.chainUsedSet.has(other.id) &&
-                        other.id !== w.id &&
-                        other.word.charAt(0).toLowerCase() === nextLetter
-                    );
-                    if (hasNext) return w;
-                }
-                return available[0];
-            },
-
-            renderWordChainGame() {
-                const container = document.getElementById('rightPanel');
-                const activeWords = this.words.filter(w => !w.deleted);
-
-                if (activeWords.length < 2) {
-                    container.innerHTML = `
-                        <div class="game-container wordchain-game">
-                            <div class="game-header">
-                                <div class="game-title">🐉 单词接龙 <small>需要至少2个单词</small></div>
-                                <button class="back-btn" id="chainBackBtn">← 返回</button>
-                            </div>
-                            <div class="empty-review">📚 单词本中至少需要2个单词才能玩接龙，去添加一些吧！</div>
-                        </div>
-                    `;
-                    const backBtn = document.getElementById('chainBackBtn');
-                    if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-                    return;
-                }
-
-                if (this.chainWords.length === 0) {
-                    this.initWordChainGame();
-                }
-
-                if (this.chainGameOver) {
-                    this.renderChainGameOver(container);
-                    return;
-                }
-
-                const lastWord = this.chainWords[this.chainWords.length - 1];
-                const lastLetter = lastWord.word.charAt(lastWord.word.length - 1).toLowerCase();
-
-                const lastBy = this.chainWords[this.chainWords.length - 1].by;
-                if (lastBy === 'user') {
-                    const next = this.findNextChainWord(lastLetter, activeWords);
-                    if (next) {
-                        const senseN = next.senses[0] || { definition: '' };
-                        this.chainWords.push({
-                            word: next.word,
-                            phonetic: next.phonetic || '',
-                            def: senseN.definition || '',
-                            by: 'system',
-                            wordId: next.id
-                        });
-                        this.chainUsedSet.add(next.id);
-                        const newLast = next.word.charAt(next.word.length - 1).toLowerCase();
-                        this.chainCurrent = newLast;
-                        const canCont = this.findNextChainWord(newLast, activeWords);
-                        if (!canCont) {
-                            this.chainGameOver = true;
-                            this.chainError = '🎉 系统无法继续接龙，游戏结束！';
-                        }
-                        this.renderChainGame(container);
-                        return;
-                    } else {
-                        this.chainGameOver = true;
-                        this.chainError = '🎉 系统无法继续接龙，游戏结束！';
-                        this.renderChainGame(container);
-                        return;
-                    }
-                }
-
-                this.renderChainGame(container);
-            },
-
-            renderChainGame(container) {
-                const activeWords = this.words.filter(w => !w.deleted);
-                const lastWord = this.chainWords[this.chainWords.length - 1];
-                const needLetter = lastWord.word.charAt(lastWord.word.length - 1).toLowerCase();
-
-                let chainHtml = '';
-                this.chainWords.forEach((item, idx) => {
-                    const isCurrent = idx === this.chainWords.length - 1;
-                    const cls = `chain-item ${item.by === 'system' ? 'system' : 'user'} ${isCurrent ? 'current' : ''}`;
-                    chainHtml += `
-                        <div class="${cls}">
-                            <span class="chain-index">#${idx + 1}</span>
-                            <span class="chain-word">${this.escapeHtml(item.word)}</span>
-                            ${item.phonetic ? `<span class="chain-phonetic">${this.escapeHtml(item.phonetic)}</span>` : ''}
-                            <span class="chain-def">${this.escapeHtml(item.def)}</span>
-                            <span style="font-size:12px;color:#94a3b8;margin-left:auto;">${item.by === 'system' ? '🤖' : '🧑'}</span>
-                        </div>
-                    `;
-                });
-
-                const canContinue = !this.chainGameOver;
-                const inputDisabled = !canContinue || this.chainGameOver;
-
-                let html = `
-                    <div class="game-container wordchain-game">
-                        <div class="game-header">
-                            <div class="game-title">🐉 单词接龙 <small>${this.chainWords.length} 个词</small></div>
-                            <button class="back-btn" id="chainBackBtn">← 返回游戏列表</button>
-                        </div>
-                        <div class="chain-container">
-                            <div class="chain-header">
-                                <div class="chain-hint">
-                                    ${canContinue ? `🔤 请以「<span class="letter">${needLetter.toUpperCase()}</span>」开头输入单词` : '⏳ 游戏结束'}
-                                </div>
-                                <div class="chain-count">📊 接龙长度：<strong>${this.chainWords.length}</strong></div>
-                            </div>
-                            <div class="chain-list" id="chainList">
-                                ${chainHtml}
-                            </div>
-                            <div class="chain-input-area">
-                                <input type="text" id="chainInput" placeholder="${canContinue ? `输入以 "${needLetter.toUpperCase()}" 开头的单词` : '游戏已结束'}" ${inputDisabled ? 'disabled' : ''} />
-                                <button class="chain-submit" id="chainSubmitBtn" ${inputDisabled ? 'disabled' : ''}>➤ 接龙</button>
-                                <button class="chain-restart" id="chainRestartBtn">🔄 重开</button>
-                            </div>
-                            <div class="chain-error" id="chainErrorMsg">${this.chainError || ''}</div>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML = html;
-
-                const chainList = document.getElementById('chainList');
-                if (chainList) {
-                    requestAnimationFrame(() => {
-                        chainList.scrollTop = chainList.scrollHeight;
-                    });
-                }
-
-                const backBtn = document.getElementById('chainBackBtn');
-                if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-
-                const restartBtn = document.getElementById('chainRestartBtn');
-                if (restartBtn) restartBtn.addEventListener('click', () => {
-                    this.initWordChainGame();
-                    this.renderWordChainGame();
-                });
-
-                const input = document.getElementById('chainInput');
-                const submitBtn = document.getElementById('chainSubmitBtn');
-                const errorEl = document.getElementById('chainErrorMsg');
-
-                const handleChainSubmit = () => {
-                    if (this.chainGameOver) return;
-                    const val = input.value.trim();
-                    if (!val) { errorEl.textContent = '⚠️ 请输入一个单词';
-                        return; }
-                    const lowerVal = val.toLowerCase();
-                    if (lowerVal.charAt(0) !== needLetter) {
-                        errorEl.textContent = `⚠️ 单词必须以 "${needLetter.toUpperCase()}" 开头`;
-                        input.value = '';
-                        input.focus();
-                        return;
-                    }
-                    const wordObj = activeWords.find(w => w.word.toLowerCase() === lowerVal);
-                    if (!wordObj) {
-                        errorEl.textContent = `⚠️ "${val}" 不在单词本中，请检查拼写`;
-                        input.value = '';
-                        input.focus();
-                        return;
-                    }
-                    if (this.chainUsedSet.has(wordObj.id)) {
-                        errorEl.textContent = `⚠️ "${val}" 已经使用过了，请换一个`;
-                        input.value = '';
-                        input.focus();
-                        return;
-                    }
-                    const senseU = wordObj.senses[0] || { definition: '' };
-                    this.chainWords.push({
-                        word: wordObj.word,
-                        phonetic: wordObj.phonetic || '',
-                        def: senseU.definition || '',
-                        by: 'user',
-                        wordId: wordObj.id
-                    });
-                    this.chainUsedSet.add(wordObj.id);
-                    this.recordReview(wordObj.id, true);
-                    input.value = '';
-                    errorEl.textContent = '';
-                    this.renderWordChainGame();
-                };
-
-                if (submitBtn) submitBtn.addEventListener('click', handleChainSubmit);
-                if (input) {
-                    input.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') handleChainSubmit();
-                    });
-                    if (!input.disabled) setTimeout(() => input.focus(), 100);
-                }
-            },
-
-            renderChainGameOver(container) {
-                const total = this.chainWords.length;
-                let chainHtml = '';
-                this.chainWords.forEach((item, idx) => {
-                    const cls = `chain-item ${item.by === 'system' ? 'system' : 'user'}`;
-                    chainHtml += `
-                        <div class="${cls}">
-                            <span class="chain-index">#${idx + 1}</span>
-                            <span class="chain-word">${this.escapeHtml(item.word)}</span>
-                            ${item.phonetic ? `<span class="chain-phonetic">${this.escapeHtml(item.phonetic)}</span>` : ''}
-                            <span class="chain-def">${this.escapeHtml(item.def)}</span>
-                            <span style="font-size:12px;color:#94a3b8;margin-left:auto;">${item.by === 'system' ? '🤖' : '🧑'}</span>
-                        </div>
-                    `;
-                });
-
-                const html = `
-                    <div class="game-container wordchain-game">
-                        <div class="game-header">
-                            <div class="game-title">🐉 单词接龙 <small>结束</small></div>
-                            <button class="back-btn" id="chainBackBtn2">← 返回游戏列表</button>
-                        </div>
-                        <div class="chain-container">
-                            <div class="chain-gameover">
-                                <div class="gameover-title">🏁 接龙结束！</div>
-                                <div class="gameover-stats">总长度：<strong>${total}</strong> 个单词</div>
-                                <div style="margin-top:8px;font-size:14px;color:#64748b;">${this.chainError || '再接再厉！'}</div>
-                            </div>
-                            <div class="chain-list" id="chainListOver" style="max-height:300px;">
-                                ${chainHtml}
-                            </div>
-                            <div class="chain-input-area" style="margin-top:12px;">
-                                <button class="chain-restart" id="chainRestartBtn2">🔄 再来一局</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML = html;
-
-                const chainList = document.getElementById('chainListOver');
-                if (chainList) {
-                    requestAnimationFrame(() => {
-                        chainList.scrollTop = chainList.scrollHeight;
-                    });
-                }
-
-                const backBtn = document.getElementById('chainBackBtn2');
-                if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-                const restartBtn = document.getElementById('chainRestartBtn2');
-                if (restartBtn) restartBtn.addEventListener('click', () => {
-                    this.initWordChainGame();
-                    this.renderWordChainGame();
-                });
-            },
-
-            // ============================================================
-            //  限时挑战 (Timed Challenge)
-            // ============================================================
-            renderTimedChallenge() {
-                const container = document.getElementById('rightPanel');
-                const activeWords = this.words.filter(w => !w.deleted);
-                if (activeWords.length < 3) {
-                    container.innerHTML =
-                        `<div class="game-container"><div class="empty-review">需要至少3个单词，当前仅 ${activeWords.length} 个</div></div>`;
-                    return;
-                }
-                const state = this.gameStates.timedChallenge || {};
-                if (!state.initialized) {
-                    state.questions = [];
-                    state.index = 0;
-                    state.score = 0;
-                    state.timeLeft = 30;
-                    state.total = 0;
-                    state.finished = false;
-                    state.timerId = null;
-                    state.showAnswer = false;
-                    state.correctAnswer = false;
-                    const pool = [...activeWords];
-                    const qs = [];
-                    for (let i = 0; i < 20; i++) {
-                        const w = pool[Math.floor(Math.random() * pool.length)];
-                        const sense = w.senses[0];
-                        if (!sense) continue;
-                        const isCorrect = Math.random() < 0.5;
-                        let displayDef = sense.definition;
-                        if (!isCorrect) {
-                            const others = activeWords.filter(ow => ow.id !== w.id);
-                            if (others.length > 0) {
-                                const other = others[Math.floor(Math.random() * others.length)];
-                                const otherSense = other.senses[0];
-                                if (otherSense) displayDef = otherSense.definition;
-                            }
-                        }
-                        qs.push({
-                            word: w.word,
-                            wordId: w.id,
-                            correctDef: sense.definition,
-                            displayDef: displayDef,
-                            isCorrect: isCorrect
-                        });
-                    }
-                    state.questions = qs;
-                    state.total = qs.length;
-                    state.initialized = true;
-                    state.finished = false;
-                    state.index = 0;
-                    state.score = 0;
-                    state.timeLeft = 30;
-                    state.showAnswer = false;
-                    state.correctAnswer = false;
-                    if (state.timerId) clearInterval(state.timerId);
-                    state.timerId = setInterval(() => {
-                        if (!this.isGameActive('timedChallenge')) {
-                            clearInterval(state.timerId);
-                            state.timerId = null;
-                            return;
-                        }
-                        if (state.finished) return;
-                        state.timeLeft--;
-                        if (state.timeLeft <= 0) {
-                            state.timeLeft = 0;
-                            state.finished = true;
-                            clearInterval(state.timerId);
-                            state.timerId = null;
-                            this.renderTimedChallenge();
-                        } else {
-                            this.renderTimedChallenge();
-                        }
-                    }, 1000);
-                    this.gameStates.timedChallenge = state;
-                }
-
-                if (state.finished || state.index >= state.total) {
-                    const finalScore = state.score;
-                    const totalQ = state.total;
-                    if (state.timerId) { clearInterval(state.timerId);
-                        state.timerId = null; }
-                    if (state.pendingTimeout) { clearTimeout(state.pendingTimeout);
-                        state.pendingTimeout = null; }
-                    container.innerHTML = `
-                        <div class="game-container">
-                            <div class="game-header">
-                                <div class="game-title">⏳ 限时挑战 <small>结果</small></div>
-                                <button class="back-btn" id="timedBackBtn">← 返回</button>
-                            </div>
-                            <div class="game-result">
-                                <div class="big-score">${finalScore} / ${totalQ}</div>
-                                <div class="sub">正确率 ${totalQ > 0 ? Math.round(finalScore/totalQ*100) : 0}%</div>
-                                <button id="timedRetryBtn">🔄 再来一局</button>
-                            </div>
-                        </div>
-                    `;
-                    const backBtn = document.getElementById('timedBackBtn');
-                    if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-                    const retryBtn = document.getElementById('timedRetryBtn');
-                    if (retryBtn) retryBtn.addEventListener('click', () => {
-                        this.stopGameTimers();
-                        delete this.gameStates.timedChallenge;
-                        this.renderTimedChallenge();
-                    });
-                    return;
-                }
-
-                const q = state.questions[state.index];
-                if (!q) { state.finished = true;
-                    this.renderTimedChallenge(); return; }
-
-                const handleAnswer = (correct) => {
-                    if (state.finished || state.showAnswer) return;
-                    this.recordReview(q.wordId, correct);
-                    if (correct) {
-                        state.score++;
-                        state.index++;
-                        if (state.index >= state.total) state.finished = true;
-                        this.renderTimedChallenge();
-                    } else {
-                        state.showAnswer = true;
-                        state.correctAnswer = q.isCorrect;
-                        this.renderTimedChallenge();
-                        state.pendingTimeout = setTimeout(() => {
-                            if (!this.isGameActive('timedChallenge')) return;
-                            state.showAnswer = false;
-                            state.index++;
-                            if (state.index >= state.total) state.finished = true;
-                            this.renderTimedChallenge();
-                        }, 1200);
-                    }
-                };
-
-                const isAnswering = state.showAnswer;
-                let feedbackHtml = '';
-                if (isAnswering) {
-                    feedbackHtml = `<div class="feedback-banner wrong">${state.correctAnswer ? '✅ 这个释义是正确的' : '❌ 这个释义是错误的'}</div>`;
-                }
-
-                const html = `
-                    <div class="game-container">
-                        <div class="game-header">
-                            <div class="game-title">⏳ 限时挑战 <small>判断正误</small></div>
-                            <button class="back-btn" id="timedBackBtn2">← 返回</button>
-                        </div>
-                        <div class="game-question">${this.escapeHtml(q.word)}</div>
-                        <div style="text-align:center;font-size:18px;margin-bottom:16px;">释义：${this.escapeHtml(q.displayDef)}</div>
-                        ${feedbackHtml}
-                        <div class="game-options" style="grid-template-columns:1fr 1fr;max-width:400px;">
-                            <button id="timedTrueBtn" ${isAnswering ? 'disabled' : ''}>✅ 正确</button>
-                            <button id="timedFalseBtn" ${isAnswering ? 'disabled' : ''}>❌ 错误</button>
-                        </div>
-                        <div class="game-status">
-                            <span>进度 ${state.index+1}/${state.total}</span>
-                            <span class="score">得分 ${state.score}</span>
-                            <span class="timer">⏱️ ${state.timeLeft}s</span>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML = html;
-
-                const backBtn = document.getElementById('timedBackBtn2');
-                if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-                if (!isAnswering) {
-                    document.getElementById('timedTrueBtn').addEventListener('click', () => handleAnswer(q.isCorrect));
-                    document.getElementById('timedFalseBtn').addEventListener('click', () => handleAnswer(!q.isCorrect));
-                }
-            },
-
-            // ============================================================
-            //  单词迷宫 (Word Maze)
-            // ============================================================
-            renderWordMaze() {
-                const container = document.getElementById('rightPanel');
-                const activeWords = this.words.filter(w => !w.deleted);
-                if (activeWords.length < 4) {
-                    container.innerHTML =
-                        `<div class="game-container"><div class="empty-review">需要至少4个单词，当前仅 ${activeWords.length} 个</div></div>`;
-                    return;
-                }
-                const state = this.gameStates.wordMaze || {};
-                if (!state.initialized) {
-                    state.questions = [];
-                    state.index = 0;
-                    state.lives = 3;
-                    state.correctCount = 0;
-                    state.total = 10;
-                    state.finished = false;
-                    state.showAnswer = false;
-                    state.correctAnswer = '';
-                    const pool = [...activeWords];
-                    for (let i = 0; i < state.total; i++) {
-                        const w = pool[Math.floor(Math.random() * pool.length)];
-                        const sense = w.senses[0];
-                        if (!sense) continue;
-                        const correctDef = sense.definition;
-                        let distractors = [];
-                        const others = activeWords.filter(ow => ow.id !== w.id);
-                        const shuffledOthers = others.sort(() => Math.random() - 0.5);
-                        for (const o of shuffledOthers) {
-                            const os = o.senses[0];
-                            if (os && os.definition !== correctDef && !distractors.includes(os.definition)) {
-                                distractors.push(os.definition);
-                            }
-                            if (distractors.length >= 3) break;
-                        }
-                        while (distractors.length < 3) {
-                            distractors.push('???');
-                        }
-                        const options = [correctDef, ...distractors.slice(0, 3)];
-                        for (let j = options.length - 1; j > 0; j--) {
-                            const r = Math.floor(Math.random() * (j + 1));
-                            [options[j], options[r]] = [options[r], options[j]];
-                        }
-                        state.questions.push({
-                            word: w.word,
-                            wordId: w.id,
-                            correctDef: correctDef,
-                            options: options
-                        });
-                    }
-                    state.total = state.questions.length;
-                    state.initialized = true;
-                    state.showAnswer = false;
-                    state.correctAnswer = '';
-                    this.gameStates.wordMaze = state;
-                }
-
-                if (state.finished || state.index >= state.total || state.lives <= 0) {
-                    const finalScore = state.correctCount || 0;
-                    const total = state.total;
-                    const passed = state.lives > 0;
-                    if (state.pendingTimeout) { clearTimeout(state.pendingTimeout);
-                        state.pendingTimeout = null; }
-                    container.innerHTML = `
-                        <div class="game-container">
-                            <div class="game-header">
-                                <div class="game-title">🧭 单词迷宫 <small>${passed ? '🎉 通关' : '💔 失败'}</small></div>
-                                <button class="back-btn" id="mazeBackBtn">← 返回</button>
-                            </div>
-                            <div class="game-result">
-                                <div class="big-score">${passed ? '🏆' : '😢'}</div>
-                                <div class="sub">答对 ${finalScore} / ${total} 题</div>
-                                <button id="mazeRetryBtn">🔄 重新挑战</button>
-                            </div>
-                        </div>
-                    `;
-                    const backBtn = document.getElementById('mazeBackBtn');
-                    if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-                    const retryBtn = document.getElementById('mazeRetryBtn');
-                    if (retryBtn) retryBtn.addEventListener('click', () => {
-                        this.stopGameTimers();
-                        delete this.gameStates.wordMaze;
-                        this.renderWordMaze();
-                    });
-                    return;
-                }
-
-                const q = state.questions[state.index];
-                if (!q) { state.finished = true;
-                    this.renderWordMaze(); return; }
-
-                const handleChoice = (selectedDef) => {
-                    if (state.finished || state.showAnswer) return;
-                    const correct = selectedDef === q.correctDef;
-                    this.recordReview(q.wordId, correct);
-                    if (correct) {
-                        state.correctCount = (state.correctCount || 0) + 1;
-                        state.index++;
-                        if (state.index >= state.total) state.finished = true;
-                        this.renderWordMaze();
-                    } else {
-                        state.showAnswer = true;
-                        state.correctAnswer = q.correctDef;
-                        state.lives--;
-                        if (state.lives <= 0) state.finished = true;
-                        this.renderWordMaze();
-                        if (!state.finished) {
-                            state.pendingTimeout = setTimeout(() => {
-                                if (!this.isGameActive('wordMaze')) return;
-                                state.showAnswer = false;
-                                state.correctAnswer = '';
-                                state.index++;
-                                if (state.index >= state.total) state.finished = true;
-                                this.renderWordMaze();
-                            }, 1200);
-                        }
-                    }
-                };
-
-                let pathHtml = '';
-                for (let i = 0; i < state.total; i++) {
-                    let cls = 'maze-step';
-                    if (i < state.index) cls += ' completed';
-                    else if (i === state.index) cls += ' active';
-                    else cls += '';
-                    pathHtml += `
-                        <div class="${cls}">
-                            <span class="dot"></span>
-                            <span>${i+1}</span>
-                        </div>
-                    `;
-                }
-
-                let feedbackHtml = '';
-                if (state.showAnswer) {
-                    feedbackHtml = `<div class="feedback-banner wrong">✅ 正确答案：${this.escapeHtml(state.correctAnswer)}</div>`;
-                }
-
-                const html = `
-                    <div class="game-container">
-                        <div class="game-header">
-                            <div class="game-title">🧭 单词迷宫 <small>选择正确释义前进</small></div>
-                            <button class="back-btn" id="mazeBackBtn2">← 返回</button>
-                        </div>
-                        <div class="maze-path">${pathHtml}</div>
-                        <div class="game-question" style="font-size:24px;">${this.escapeHtml(q.word)}</div>
-                        <div style="text-align:center;margin-bottom:8px;">❤️ 剩余生命 ${'❤️'.repeat(state.lives)}</div>
-                        ${feedbackHtml}
-                        <div class="game-options" style="max-width:500px;">
-                            ${q.options.map(opt => {
-                                let cls = '';
-                                if (state.showAnswer) {
-                                    if (opt === q.correctDef) cls = 'correct-answer';
-                                    else cls = 'wrong-answer';
-                                }
-                                return `<button class="maze-option ${cls}" data-def="${this.escapeHtml(opt)}" ${state.showAnswer ? 'disabled' : ''}>${this.escapeHtml(opt)}</button>`;
-                            }).join('')}
-                        </div>
-                        <div class="game-status">
-                            <span>关卡 ${state.index+1}/${state.total}</span>
-                            <span>❤️ ${state.lives}</span>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML = html;
-
-                const backBtn = document.getElementById('mazeBackBtn2');
-                if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
-                if (!state.showAnswer) {
-                    container.querySelectorAll('.maze-option').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const def = btn.dataset.def;
-                            handleChoice(def);
-                        });
-                    });
-                }
             },
 
             // ============================================================
@@ -4778,13 +4161,35 @@
             },
 
             renderOverview(container, word) {
-                const belongsTo = this.categories.filter(c => c.wordIds.includes(word.id));
                 const isDeleted = word.deleted === true;
                 const wordNotes = word.wordNotes || [];
                 const notesHtml = wordNotes.map((n, idx) => {
                     const isPrimary = idx === 0;
                     return `<div class="note-item ${isPrimary ? 'primary' : ''}" data-note-index="${idx}"><div class="note-text" contenteditable="true">${this.escapeHtml(n || '')}</div><div class="note-actions"><button class="delete-word-note" data-index="${idx}" title="删除注释">✕</button></div></div>`;
                 }).join('');
+                const core = word.core || {};
+                const morph = word.morphology || {};
+                const etym = word.etymology || {};
+                const coreBits = [];
+                if (core.feeling) coreBits.push(`<div class="core-feeling">${this.escapeHtml(core.feeling)}</div>`);
+                if (core.image) coreBits.push(`<div class="core-image">🖼️ ${this.escapeHtml(core.image)}</div>`);
+                if (Array.isArray(core.keywords) && core.keywords.length) {
+                    coreBits.push(`<div class="core-keywords">${core.keywords.map(k => `<span>${this.escapeHtml(k)}</span>`).join('')}</div>`);
+                }
+                if (Array.isArray(core.chain) && core.chain.length) {
+                    coreBits.push(`<div class="core-chain">${core.chain.map(n => `<span class="chain-node"><b>${this.escapeHtml(n.label || '')}</b><small>${this.escapeHtml(n.bridge || '')}</small></span>`).join('<span class="chain-arrow">→</span>')}</div>`);
+                }
+                const coreHtml = coreBits.length ? `<div class="detail-section core-section"><h4>🧭 核心感觉</h4>${coreBits.join('')}</div>` : '';
+                const rootBits = [];
+                if (Array.isArray(morph.parts) && morph.parts.length) {
+                    rootBits.push(`<div class="morph-parts">${morph.parts.map(p => `<span class="morph-part"><b>${this.escapeHtml(p.form || '')}</b> ${this.escapeHtml(p.meaning || '')}</span>`).join('<span class="chain-arrow">+</span>')}</div>`);
+                }
+                if (morph.literal) rootBits.push(`<div class="morph-literal">字面义：${this.escapeHtml(morph.literal)}</div>`);
+                if (Array.isArray(etym.path) && etym.path.length) {
+                    rootBits.push(`<div class="etym-path">${etym.path.map(p => `<span>${this.escapeHtml(p.form || '')}<small>${this.escapeHtml(p.language || '')}</small></span>`).join('<span class="chain-arrow">→</span>')}</div>`);
+                }
+                if (etym.story) rootBits.push(`<div class="etym-story">${this.escapeHtml(etym.story)}</div>`);
+                const rootHtml = rootBits.length ? `<div class="detail-section"><h4>🌱 词根与词源</h4>${rootBits.join('')}</div>` : '';
                 const senseListHtml = word.senses.map((s, idx) => {
                     const tags = [];
                     if (s.tone) tags.push('情感:' + s.tone);
@@ -4795,14 +4200,14 @@
                     if (s.formality) tags.push('语体:' + s.formality);
                     if (s.grammar) tags.push('语法:' + s.grammar);
                     const tagHtml = tags.length ? tags.map(t => `<span>${this.escapeHtml(t)}</span>`).join('') : '';
-                    return `<div class="overview-sense-item" data-sense-id="${s.id}"><div class="sense-def">${idx+1}. ${this.escapeHtml(s.definition || '')}</div>${s.example ? `<div class="sense-example">📝 ${this.escapeHtml(s.example)}</div>` : ''}${tagHtml ? `<div class="sense-tags">${tagHtml}</div>` : ''}</div>`;
+                    return `<div class="overview-sense-item" data-sense-id="${s.id}"><div class="sense-def">${idx+1}. ${this.escapeHtml(s.definition || '')}</div>${s.coreLink ? `<div class="sense-core-link">🧭 ${this.escapeHtml(s.coreLink)}</div>` : ''}${s.example ? `<div class="sense-example">📝 ${this.escapeHtml(s.example)}</div>` : ''}${tagHtml ? `<div class="sense-tags">${tagHtml}</div>` : ''}</div>`;
                 }).join('');
                 const senseOptions = word.senses.map((s, idx) =>
                     `<option value="${s.id}">释义 ${idx+1}: ${s.definition ? s.definition.slice(0, 30) : '（空）'}</option>`
                     ).join('');
                 const overviewOption = '<option value="__overview__" selected>📋 总览</option>';
                 let html =
-                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div><div class="detail-section"><h4>📋 单词总览</h4><h5 style="font-size:13px;color:#475569;margin-bottom:6px;">📚 释义列表</h5><div class="overview-sense-list">${senseListHtml}</div><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section"><h4>📂 所属分类</h4><div class="cat-tags">${belongsTo.length === 0 ? '<span class="text-muted">暂无分类</span>' : ''}${belongsTo.map(c => `<span class="cat-tag">${this.escapeHtml(c.name)}<button class="remove-cat" data-cat-id="${c.id}" data-word-id="${word.id}">✕</button></span>`).join('')}</div><div class="add-to-cat-form"><select id="addToCatSelect"><option value="">-- 加入分类 --</option>${this.categories.filter(c => !c.wordIds.includes(word.id)).map(c => `<option value="${c.id}">${this.escapeHtml(c.name)} (${this.categoryTypeLabel(c.type)})</option>`).join('')}</select><button id="addToCatBtn">加入</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveOverviewBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
+                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}${rootHtml}<div class="detail-section"><h4>📋 单词总览</h4><h5 style="font-size:13px;color:#475569;margin-bottom:6px;">📚 释义列表</h5><div class="overview-sense-list">${senseListHtml}</div><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveOverviewBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
                 container.innerHTML = html;
 
                 document.getElementById('addWordNoteBtn').addEventListener('click', () => {
@@ -4871,14 +4276,6 @@
                 }
                 document.getElementById('prevWordBtn').addEventListener('click', () => this.navigateWord(-1));
                 document.getElementById('nextWordBtn').addEventListener('click', () => this.navigateWord(1));
-                container.querySelectorAll('.remove-cat').forEach(btn => {
-                    btn.addEventListener('click', () => this.removeWordFromCategory(Number(btn.dataset.catId),
-                        Number(btn.dataset.wordId)));
-                });
-                const addBtn = document.getElementById('addToCatBtn');
-                const select = document.getElementById('addToCatSelect');
-                if (addBtn && select) addBtn.addEventListener('click', () => { const catId = Number(select.value);
-                    if (!catId) { alert('请选择一个分类'); return; } this.addWordToCategory(catId, word.id); });
                 document.getElementById('saveOverviewBtn').addEventListener('click', () => {
                     container.querySelectorAll('#wordNoteList .note-item').forEach((item, idx) => {
                         if (word.wordNotes && word.wordNotes[idx] !== undefined) word.wordNotes[idx] = item
@@ -4892,7 +4289,6 @@
             },
 
             renderSenseDetail(container, word, sense) {
-                const belongsTo = this.categories.filter(c => c.wordIds.includes(word.id));
                 const isDeleted = word.deleted === true;
                 const tokens = this.getSearchTokens();
                 const highlightPattern = tokens.slice().sort((a, b) => b.length - a.length)
@@ -4916,7 +4312,7 @@
                     return `<div class="note-item ${isPrimary ? 'primary' : ''}" data-note-index="${idx}"><div class="note-text" contenteditable="true">${highlightText(n || '')}</div><div class="note-actions"><button class="delete-note" data-index="${idx}" title="删除注释">✕</button></div></div>`;
                 }).join('');
                 let html =
-                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section"><h4>📂 所属分类</h4><div class="cat-tags">${belongsTo.length === 0 ? '<span class="text-muted">暂无分类</span>' : ''}${belongsTo.map(c => `<span class="cat-tag">${this.escapeHtml(c.name)}<button class="remove-cat" data-cat-id="${c.id}" data-word-id="${word.id}">✕</button></span>`).join('')}</div><div class="add-to-cat-form"><select id="addToCatSelect"><option value="">-- 加入分类 --</option>${this.categories.filter(c => !c.wordIds.includes(word.id)).map(c => `<option value="${c.id}">${this.escapeHtml(c.name)} (${this.categoryTypeLabel(c.type)})</option>`).join('')}</select><button id="addToCatBtn">加入</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveDetailBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
+                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveDetailBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
                 container.innerHTML = html;
 
                 document.getElementById('senseSwitcher').addEventListener('change', function() {
@@ -4986,15 +4382,6 @@
                 }
                 document.getElementById('prevWordBtn').addEventListener('click', () => this.navigateWord(-1));
                 document.getElementById('nextWordBtn').addEventListener('click', () => this.navigateWord(1));
-                container.querySelectorAll('.remove-cat').forEach(btn => {
-                    btn.addEventListener('click', () => this.removeWordFromCategory(Number(btn.dataset.catId),
-                        Number(btn.dataset.wordId)));
-                });
-                const addBtn2 = document.getElementById('addToCatBtn');
-                const select2 = document.getElementById('addToCatSelect');
-                if (addBtn2 && select2) addBtn2.addEventListener('click', () => { const catId = Number(select2
-                        .value);
-                    if (!catId) { alert('请选择一个分类'); return; } this.addWordToCategory(catId, word.id); });
                 document.getElementById('saveDetailBtn').addEventListener('click', () => {
                     sense.definition = document.getElementById('defEditor').innerText.trim();
                     sense.example = document.getElementById('exEditor').innerText.trim();
@@ -5068,94 +4455,6 @@
                 container.innerHTML = html;
             },
 
-            categoryTypeLabel(type) {
-                return { topic: '主题', synonym: '近义', root: '词根' }[type] || (type || '其他');
-            },
-            categoryTypeTitle(type) {
-                return { topic: '🗂 主题分类', synonym: '🔗 近义分类', root: '🌱 词根分类' }[type] ||
-                    `📁 ${this.escapeHtml(type || '其他分类')}`;
-            },
-
-            renderModalCatList() {
-                const container = document.getElementById('modalCatListContainer');
-                const groups = new Map();
-                this.categories.forEach(c => {
-                    const type = c.type || 'other';
-                    if (!groups.has(type)) groups.set(type, []);
-                    groups.get(type).push(c);
-                });
-                const order = ['topic', 'synonym', 'root'];
-                const types = [...groups.keys()].sort((a, b) => {
-                    const ia = order.indexOf(a);
-                    const ib = order.indexOf(b);
-                    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
-                });
-                let html = '';
-                if (types.length === 0) {
-                    html = '<p class="text-muted">暂无分类</p>';
-                } else {
-                    types.forEach(type => {
-                        html += `<div class="cat-group"><h4>${this.categoryTypeTitle(type)}</h4><ul class="cat-list-modal">${groups.get(type).map(cat => this.renderCatListItem(cat)).join('')}</ul></div>`;
-                    });
-                }
-                container.innerHTML = html;
-                container.querySelectorAll('.edit-cat').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const cat = this.categories.find(c => c.id === Number(btn.dataset.catId));
-                        if (!cat) return;
-                        const newName = prompt('修改分类名称：', cat.name);
-                        if (newName && newName.trim()) {
-                            const name = newName.trim();
-                            if (this.categories.some(c => c.id !== cat.id && c.type === cat.type && c.name === name)) {
-                                alert('该名称在此类型下已存在');
-                                return;
-                            }
-                            cat.name = name;
-                            this.saveData();
-                            this.render();
-                        }
-                    });
-                });
-                container.querySelectorAll('[data-action="delete"]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        if (confirm('确定删除此分类吗？（单词不会被删除）')) {
-                            this.categories = this.categories.filter(c => c.id !== Number(btn.dataset.catId));
-                            this.saveData();
-                            this.render();
-                        }
-                    });
-                });
-            },
-            renderCatListItem(cat) {
-                const wordList = cat.wordIds.map(id => this.words.find(w => w.id === id)).filter(Boolean);
-                return `<li><div class="cat-info"><span class="name">${this.escapeHtml(cat.name)}</span><span class="type-badge">${this.categoryTypeLabel(cat.type)}</span><span class="text-sm text-muted">(${wordList.length} 个)</span><span class="text-sm" style="font-size:12px;color:#94a3b8;">${wordList.map(w => this.escapeHtml(w.word)).join(', ')}</span></div><div class="cat-actions"><button class="edit-cat" data-cat-id="${cat.id}">✎ 编辑</button><button data-cat-id="${cat.id}" data-action="delete">🗑 删除</button></div></li>`;
-            },
-
-            addWordToCategory(catId, wordId) {
-                const cat = this.categories.find(c => c.id === catId);
-                if (!cat) return;
-                if (!cat.wordIds.includes(wordId)) { cat.wordIds.push(wordId);
-                    this.saveData();
-                    this.renderRightPanel();
-                    this.renderList(); } else alert('该单词已在分类中');
-            },
-            removeWordFromCategory(catId, wordId) {
-                const cat = this.categories.find(c => c.id === catId);
-                if (!cat) return;
-                cat.wordIds = cat.wordIds.filter(id => id !== wordId);
-                this.saveData();
-                this.renderRightPanel();
-                this.renderList();
-            },
-            addCategory(name, type) {
-                if (!name.trim()) { alert('请输入分类名称'); return false; }
-                if (this.categories.some(c => c.name === name.trim() && c.type === type)) { alert('该名称在此类型下已存在');
-                    return false; }
-                this.categories.push({ id: this.genId(), name: name.trim(), type: type, wordIds: [] });
-                this.saveData();
-                this.render();
-                return true;
-            },
             softDeleteWord(id) {
                 const w = this.words.find(w => w.id === id);
                 if (!w) return;
@@ -5184,7 +4483,6 @@
                 if (!w) return;
                 const wordName = w.word;
                 this.words = this.words.filter(w => w.id !== id);
-                this.categories.forEach(c => { c.wordIds = c.wordIds.filter(wid => wid !== id); });
                 this.searchIndex.removeWord(id);
                 this.saveData();
                 if (this.currentWordId === id) { this.currentWordId = null;
@@ -5368,7 +4666,6 @@
                 if (this.currentMode === 'recycle') {
                     if (!confirm(`确定永久删除选中的 ${ids.size} 个单词吗？此操作不可恢复！\n\n${suffix}`)) return;
                     this.words = this.words.filter(w => !ids.has(w.id));
-                    this.categories.forEach(c => { c.wordIds = c.wordIds.filter(id => !ids.has(id)); });
                     this.searchIndex.rebuild(this.words);
                     if (this.currentWordId && ids.has(this.currentWordId)) {
                         this.currentWordId = null;
@@ -5402,7 +4699,6 @@
                 if (recycleWords.length === 0) { this.showToast('♻️ 回收站已经是空的', 'info'); return; }
                 if (!confirm(`确定清空回收站吗？这将永久删除 ${recycleWords.length} 个单词，不可恢复！`)) return;
                 this.words = this.words.filter(w => !w.deleted);
-                this.categories.forEach(c => { c.wordIds = c.wordIds.filter(id => this.words.some(w => w.id === id)); });
                 this.searchIndex.rebuild(this.words);
                 this.selectedWordIds.clear();
                 this.saveData();
@@ -5443,92 +4739,269 @@
                 this.render();
             },
 
-            exportData() {
-                if (this.words.length === 0 && this.categories.length === 0) { this.showToast('⚠️ 没有数据可导出',
-                    'error'); return; }
-                const data = { version: '1.0', appVersion: '2.3.1', exportedAt: new Date().toISOString(), wordCount: this.words.length,
-                    categoryCount: this.categories.length, words: this.words, categories: this.categories };
+            openExportModal() {
+                document.getElementById('exportModalOverlay').classList.add('show');
+            },
+            closeExportModal() {
+                document.getElementById('exportModalOverlay').classList.remove('show');
+            },
+            csvEscape(value) {
+                const s = String(value == null ? '' : value);
+                return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            },
+            toCSV() {
+                const headers = ['word', 'phonetic', 'core', 'senses', 'examples', 'synonyms',
+                    'collocations', 'pitfall', 'level', 'topic', 'pos', 'mastery', 'reviewCount',
+                    'correctCount', 'addedDate', 'lastReviewDate', 'deleted'];
+                const rows = this.words.map(w => {
+                    const senses = w.senses || [];
+                    return [
+                        w.word, w.phonetic || '', (w.core && w.core.feeling) || '',
+                        senses.map(s => s.definition || '').filter(Boolean).join(' | '),
+                        senses.map(s => s.example || '').filter(Boolean).join(' | '),
+                        senses.map(s => s.synonyms || '').filter(Boolean).join(' | '),
+                        senses.map(s => s.collocations || '').filter(Boolean).join(' | '),
+                        senses.map(s => s.pitfall || '').filter(Boolean).join(' | '),
+                        (senses[0] && senses[0].level) || '', (senses[0] && senses[0].topic) || '',
+                        (senses[0] && senses[0].pos) || '', w.mastery || '',
+                        w.reviewCount || 0, w.correctCount || 0,
+                        w.addedDate ? new Date(w.addedDate).toISOString() : '',
+                        w.lastReviewDate ? new Date(w.lastReviewDate).toISOString() : '',
+                        w.deleted ? 'true' : 'false'
+                    ].map(v => this.csvEscape(v)).join(',');
+                });
+                return '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+            },
+            toMarkdown() {
+                const lines = ['# 智能单词本导出', '', `> 导出时间：${new Date().toLocaleString()}`, ''];
+                this.words.forEach(w => {
+                    lines.push(`## ${w.word}`);
+                    if (w.phonetic) lines.push(`- 音标：${w.phonetic}`);
+                    if (w.core && w.core.feeling) lines.push(`- 核心感觉：${w.core.feeling}`);
+                    if (w.core && w.core.image) lines.push(`- 画面：${w.core.image}`);
+                    if (w.morphology && w.morphology.literal) lines.push(`- 词根字面义：${w.morphology.literal}`);
+                    if (w.etymology && w.etymology.story) lines.push(`- 词源：${w.etymology.story}`);
+                    if (w.senses && w.senses.length) {
+                        lines.push('- 义项：');
+                        w.senses.forEach((s, i) => {
+                            lines.push(`  ${i + 1}. ${s.definition || '（空）'}`);
+                            if (s.example) lines.push(`     - 例句：${s.example}`);
+                            if (s.synonyms) lines.push(`     - 近义：${s.synonyms}`);
+                            if (s.collocations) lines.push(`     - 搭配：${s.collocations}`);
+                            if (s.pitfall) lines.push(`     - 易错：${s.pitfall}`);
+                        });
+                    }
+                    (w.wordNotes || []).filter(Boolean).forEach(n => lines.push(`- 笔记：${n}`));
+                    lines.push('');
+                });
+                return lines.join('\n');
+            },
+            toTXT() {
+                return this.words.map(w => w.word).filter(Boolean).join('\n') + '\n';
+            },
+            downloadFile(content, filename, mime) {
+                const blob = new Blob([content], { type: mime });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+            exportAs(format) {
+                if (this.words.length === 0) {
+                    this.showToast('⚠️ 没有数据可导出', 'error');
+                    return;
+                }
+                const dateStr = new Date().toISOString().slice(0, 10);
                 try {
-                    const json = JSON.stringify(data, null, 2);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const dateStr = new Date().toISOString().slice(0, 10);
-                    a.href = url;
-                    a.download = `单词本数据_${dateStr}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    this.showToast(`✅ 成功导出 ${this.words.length} 个单词，${this.categories.length} 个分类`, 'success');
-                } catch (err) { this.showToast('❌ 导出失败：' + err.message, 'error');
-                    console.error(err); }
+                    if (format === 'json') {
+                        const data = {
+                            app: '智能单词本',
+                            appVersion: '0.1',
+                            schemaVersion: 2,
+                            exportedAt: new Date().toISOString(),
+                            wordCount: this.words.length,
+                            words: this.words
+                        };
+                        this.downloadFile(JSON.stringify(data, null, 2),
+                            `单词本备份_${dateStr}.json`, 'application/json;charset=utf-8');
+                    } else if (format === 'csv') {
+                        this.downloadFile(this.toCSV(), `单词本表格_${dateStr}.csv`,
+                            'text/csv;charset=utf-8');
+                    } else if (format === 'md') {
+                        this.downloadFile(this.toMarkdown(), `单词本笔记_${dateStr}.md`,
+                            'text/markdown;charset=utf-8');
+                    } else if (format === 'txt') {
+                        this.downloadFile(this.toTXT(), `单词表_${dateStr}.txt`,
+                            'text/plain;charset=utf-8');
+                    } else {
+                        return;
+                    }
+                    this.closeExportModal();
+                    this.showToast(`✅ 已导出 ${this.words.length} 个单词（${format.toUpperCase()}）`, 'success');
+                } catch (err) {
+                    this.showToast('❌ 导出失败：' + err.message, 'error');
+                    console.error(err);
+                }
             },
-            importData(file) {
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
+            readFileText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(String(e.target.result || ''));
+                    reader.onerror = () => reject(reader.error || new Error('读取失败'));
+                    reader.readAsText(file);
+                });
+            },
+            parseCSV(text) {
+                text = String(text || '').replace(/^\uFEFF/, '');
+                const rows = [];
+                let row = [], cell = '', quoted = false;
+                for (let i = 0; i < text.length; i++) {
+                    const ch = text[i];
+                    if (quoted) {
+                        if (ch === '"') {
+                            if (text[i + 1] === '"') { cell += '"'; i++; }
+                            else quoted = false;
+                        } else cell += ch;
+                    } else if (ch === '"') {
+                        quoted = true;
+                    } else if (ch === ',') {
+                        row.push(cell); cell = '';
+                    } else if (ch === '\n' || ch === '\r') {
+                        if (ch === '\r' && text[i + 1] === '\n') i++;
+                        row.push(cell); cell = '';
+                        if (row.some(c => c.trim() !== '')) rows.push(row);
+                        row = [];
+                    } else {
+                        cell += ch;
+                    }
+                }
+                row.push(cell);
+                if (row.some(c => c.trim() !== '')) rows.push(row);
+                return rows;
+            },
+            parseImportText(fileName, text) {
+                const lower = fileName.toLowerCase();
+                if (lower.endsWith('.json')) {
+                    const data = JSON.parse(text);
+                    if (!data || !Array.isArray(data.words)) throw new Error('缺少 words 数组');
+                    return data.words;
+                }
+                if (lower.endsWith('.csv')) {
+                    const rows = this.parseCSV(text);
+                    if (rows.length < 2) return [];
+                    const headers = rows[0].map(h => h.trim().toLowerCase());
+                    const idx = name => headers.indexOf(name);
+                    const wordIdx = idx('word');
+                    if (wordIdx === -1) throw new Error('CSV 缺少 word 列');
+                    return rows.slice(1).map(r => {
+                        const word = (r[wordIdx] || '').trim();
+                        if (!word) return null;
+                        const sense = {
+                            id: this.genId(),
+                            definition: r[idx('senses')] || r[idx('definition')] || '',
+                            example: r[idx('examples')] || r[idx('example')] || '',
+                            synonyms: r[idx('synonyms')] || '',
+                            collocations: r[idx('collocations')] || '',
+                            pitfall: r[idx('pitfall')] || '',
+                            level: r[idx('level')] || '',
+                            topic: r[idx('topic')] || '',
+                            pos: r[idx('pos')] || '',
+                            tone: '', origin: '', formality: '', grammar: '', notes: ['']
+                        };
+                        return {
+                            word,
+                            phonetic: r[idx('phonetic')] || '',
+                            core: { feeling: r[idx('core')] || '', image: '', keywords: [], chain: [] },
+                            senses: [sense],
+                            mastery: r[idx('mastery')] || 'unknown',
+                            reviewCount: Number(r[idx('reviewcount')]) || 0,
+                            correctCount: Number(r[idx('correctcount')]) || 0,
+                            addedDate: Date.parse(r[idx('addeddate')]) || Date.now(),
+                            lastReviewDate: Date.parse(r[idx('lastreviewdate')]) || Date.now(),
+                            deleted: String(r[idx('deleted')] || '').toLowerCase() === 'true'
+                        };
+                    }).filter(Boolean);
+                }
+                // .txt / 无扩展名：一行一个单词
+                return text.split(/\r?\n/).map(line => line.split('\t')[0].trim())
+                    .filter(Boolean).map(word => ({
+                        word,
+                        senses: [{
+                            id: this.genId(), definition: '', example: '', synonyms: '',
+                            collocations: '', pitfall: '', tone: '', topic: '', pos: '', level: '',
+                            origin: '', formality: '', grammar: '', notes: ['']
+                        }],
+                        mastery: 'unknown', addedDate: Date.now(), lastReviewDate: Date.now(),
+                        deleted: false
+                    }));
+            },
+            async importFiles(files) {
+                if (!files || files.length === 0) return;
+                const allWords = [];
+                let skipped = 0;
+                let failedFiles = 0;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
                     try {
-                        const raw = e.target.result;
-                        const data = JSON.parse(raw);
-                        if (!data.words || !Array.isArray(data.words)) { this.showToast('❌ 无效的数据文件：缺少 words 字段',
-                                'error'); return; }
-                        const rawCats = Array.isArray(data.categories) ? data.categories : [];
-                        const cats = rawCats.filter(c => c && typeof c.name === 'string' && c.name.trim() &&
-                            Array.isArray(c.wordIds));
-                        const activeWords = this.words.filter(w => !w.deleted);
-                        const activeMap = new Map(activeWords.map(w => [w.word.toLowerCase(), w]));
-                        const conflicts = [];
-                        const nonConflictWords = [];
-                        const seen = new Set();
-                        let skipped = 0;
-                        for (const rawWord of data.words) {
-                            if (!rawWord || typeof rawWord.word !== 'string' || !rawWord.word.trim()) {
-                                skipped++;
-                                continue;
-                            }
-                            const key = rawWord.word.trim().toLowerCase();
-                            if (seen.has(key)) { skipped++;
-                                continue; }
-                            seen.add(key);
-                            let migrated;
-                            try {
-                                migrated = this.migrateWord({ ...rawWord, word: rawWord.word.trim() });
-                            } catch (err) {
-                                skipped++;
-                                continue;
-                            }
-                            if (!migrated.senses || migrated.senses.length === 0) { skipped++;
-                                continue; }
-                            const existing = activeMap.get(key);
-                            if (existing) conflicts.push({ imported: migrated, existing: existing });
-                            else nonConflictWords.push(migrated);
-                        }
-                        if (nonConflictWords.length === 0 && conflicts.length === 0) {
-                            this.showToast('⚠️ 文件中没有可导入的有效单词', 'error');
-                            return;
-                        }
-                        if (conflicts.length > 0) {
-                            this.importConflictData = { conflicts: conflicts, nonConflictWords: nonConflictWords,
-                                importedCategories: cats, totalWords: data.words.length,
-                                totalCats: cats.length, skippedCount: skipped };
-                            this.showConflictModal();
-                            return;
-                        }
-                        const skipMsg = skipped > 0 ? `\n已自动跳过 ${skipped} 条无效/重复记录。` : '';
-                        if (!confirm(
-                                `将导入 ${nonConflictWords.length} 个单词，${cats.length} 个分类。${skipMsg}\n确定继续吗？`
-                                )) return;
-                        this.importSkipped = skipped;
-                        this.doImport(nonConflictWords, cats);
-                    } catch (err) { this.showToast('❌ 文件解析失败：' + err.message, 'error');
-                        console.error(err); }
-                };
-                reader.onerror = () => this.showToast('❌ 读取文件失败', 'error');
-                reader.readAsText(file);
+                        this.showToast(`📥 读取 ${i + 1}/${files.length}：${file.name}`, 'info', 1000);
+                        const text = await this.readFileText(file);
+                        const words = this.parseImportText(file.name, text);
+                        allWords.push(...words);
+                    } catch (err) {
+                        failedFiles++;
+                        console.error(err);
+                        this.showToast(`⚠️ ${file.name} 解析失败：${err.message}`, 'error', 3000);
+                    }
+                }
+                this.startImport(allWords, files.length, failedFiles, skipped);
             },
-            doImport(wordsToImport, catsToImport, conflictResolutions) {
-                const oldToNewWordId = {};
+            startImport(rawWords, fileCount, failedFiles, skipped) {
+                const activeWords = this.words.filter(w => !w.deleted);
+                const activeMap = new Map(activeWords.map(w => [w.word.toLowerCase(), w]));
+                const conflicts = [];
+                const nonConflictWords = [];
+                const seen = new Set();
+                for (const rawWord of rawWords) {
+                    if (!rawWord || typeof rawWord.word !== 'string' || !rawWord.word.trim()) {
+                        skipped++;
+                        continue;
+                    }
+                    const key = rawWord.word.trim().toLowerCase();
+                    if (seen.has(key)) { skipped++; continue; }
+                    seen.add(key);
+                    let migrated;
+                    try {
+                        migrated = this.migrateWord({ ...rawWord, word: rawWord.word.trim() });
+                    } catch (err) { skipped++; continue; }
+                    if (!migrated.senses || migrated.senses.length === 0) { skipped++; continue; }
+                    const existing = activeMap.get(key);
+                    if (existing) conflicts.push({ imported: migrated, existing });
+                    else nonConflictWords.push(migrated);
+                }
+                const skippedMsg = skipped > 0 ? `，跳过 ${skipped} 条无效/重复记录` : '';
+                const failedMsg = failedFiles > 0 ? `，${failedFiles} 个文件解析失败` : '';
+                if (nonConflictWords.length === 0 && conflicts.length === 0) {
+                    this.showToast('⚠️ 没有可导入的有效单词', 'error');
+                    return;
+                }
+                this.importSkipped = skipped;
+                if (conflicts.length > 0) {
+                    this.importConflictData = {
+                        conflicts, nonConflictWords,
+                        skippedCount: skipped, fileCount,
+                        failedFiles
+                    };
+                    this.showConflictModal();
+                    return;
+                }
+                if (!confirm(`将导入 ${nonConflictWords.length} 个单词（来自 ${fileCount} 个文件）${skippedMsg}${failedMsg}。\n确定继续吗？`)) return;
+                this.doImport(nonConflictWords);
+            },
+            doImport(wordsToImport, conflictResolutions) {
                 if (conflictResolutions) {
                     for (const resolution of conflictResolutions) {
                         if (resolution.action !== 'overwrite') continue;
@@ -5536,7 +5009,6 @@
                         if (idx === -1) continue;
                         const old = this.words[idx];
                         const newWord = resolution.importedWord;
-                        oldToNewWordId[newWord.id] = resolution.existingId;
                         newWord.id = resolution.existingId;
                         newWord.addedDate = old.addedDate;
                         newWord.lastReviewDate = old.lastReviewDate;
@@ -5548,40 +5020,34 @@
                 }
                 const newWords = [];
                 for (const w of wordsToImport) {
-                    const newId = this.genId();
-                    oldToNewWordId[w.id] = newId;
-                    w.id = newId;
-                    w.senses = w.senses.map(s => { s.id = this.genId(); return s; });
+                    w.id = this.genId();
+                    const senseIdMap = {};
+                    w.senses = w.senses.map(s => {
+                        const oldId = s.id;
+                        s.id = this.genId();
+                        if (oldId !== undefined) senseIdMap[oldId] = s.id;
+                        return s;
+                    });
+                    if (w.core && Array.isArray(w.core.chain)) {
+                        w.core.chain.forEach(node => {
+                            if (node.senseId !== undefined && senseIdMap[node.senseId] !== undefined) {
+                                node.senseId = senseIdMap[node.senseId];
+                            }
+                        });
+                    }
                     if (!w.wordNotes) w.wordNotes = [];
                     w.deleted = false;
                     newWords.push(w);
                 }
                 this.words.push(...newWords);
-                let createdCats = 0;
-                let mergedCats = 0;
-                for (const c of (catsToImport || [])) {
-                    const name = String(c.name || '').trim();
-                    if (!name) continue;
-                    const type = String(c.type || 'topic');
-                    const mapped = [...new Set((c.wordIds || []).map(oldId => oldToNewWordId[oldId]).filter(id => id !== undefined))];
-                    if (mapped.length === 0) continue;
-                    const existing = this.categories.find(x => x.type === type && x.name === name);
-                    if (existing) {
-                        mapped.forEach(id => { if (!existing.wordIds.includes(id)) existing.wordIds.push(id); });
-                        mergedCats++;
-                    } else {
-                        this.categories.push({ id: this.genId(), name: name, type: type, wordIds: mapped });
-                        createdCats++;
-                    }
-                }
                 this.searchIndex.rebuild(this.words);
                 this.saveData();
                 this.render();
-                const totalImported = newWords.length + (conflictResolutions ? conflictResolutions.filter(r => r
-                    .action === 'overwrite').length : 0);
+                const totalImported = newWords.length + (conflictResolutions ? conflictResolutions.filter(r =>
+                    r.action === 'overwrite').length : 0);
                 const skipped = this.importSkipped || (this.importConflictData ? (this.importConflictData.skippedCount || 0) : 0);
                 const skipMsg = skipped > 0 ? `，跳过 ${skipped} 条` : '';
-                this.showToast(`✅ 成功导入 ${totalImported} 个单词，新增 ${createdCats} 个分类，合并 ${mergedCats} 个分类${skipMsg}`, 'success');
+                this.showToast(`✅ 成功导入 ${totalImported} 个单词${skipMsg}`, 'success');
                 this.importSkipped = 0;
                 this.importConflictData = null;
             },
@@ -5634,8 +5100,7 @@
                 });
                 if (unresolved > 0) { alert(`还有 ${unresolved} 个冲突未处理，请为每个冲突选择「覆盖」或「跳过」。`); return; }
                 this.hideConflictModal();
-                this.doImport(this.importConflictData.nonConflictWords, this.importConflictData.importedCategories,
-                    resolutions);
+                this.doImport(this.importConflictData.nonConflictWords, resolutions);
             },
 
             bindEvents() {
@@ -5707,20 +5172,6 @@
                     if (e.key === 'Escape') App.toggleAddWordForm(false);
                 });
 
-                const modal = document.getElementById('modalOverlay');
-                document.getElementById('openModalBtn').addEventListener('click', () => { modal.classList.add('show');
-                    App.renderModalCatList(); });
-                document.getElementById('closeModalBtn').addEventListener('click', () => modal.classList.remove(
-                'show'));
-                modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
-                document.getElementById('addCatBtn').addEventListener('click', () => {
-                    const name = document.getElementById('newCatName').value.trim();
-                    const type = document.getElementById('newCatType').value;
-                    if (App.addCategory(name, type)) { document.getElementById('newCatName').value = '';
-                        App.renderModalCatList();
-                        App.render(); }
-                });
-
                 document.getElementById('batchSelectAllBtn').addEventListener('click', () => App.batchSelectAll());
                 document.getElementById('batchDeleteBtn').addEventListener('click', () => App.batchDeleteWords());
                 document.getElementById('emptyRecycleBtn').addEventListener('click', () => App.emptyRecycleBin());
@@ -5749,12 +5200,20 @@
                 });
                 document.getElementById('confirmImportBtn').addEventListener('click', () => App.confirmConflictImport());
 
-                document.getElementById('exportBtn').addEventListener('click', () => App.exportData());
+                document.getElementById('exportBtn').addEventListener('click', () => App.openExportModal());
+                document.getElementById('closeExportModalBtn').addEventListener('click', () => App.closeExportModal());
+                document.getElementById('exportModalOverlay').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) App.closeExportModal();
+                });
+                document.querySelectorAll('.export-card').forEach(btn => {
+                    btn.addEventListener('click', () => App.exportAs(btn.dataset.format));
+                });
                 const fileInput = document.getElementById('fileInput');
                 document.getElementById('importBtn').addEventListener('click', () => fileInput.click());
-                fileInput.addEventListener('change', (e) => {
-                    if (fileInput.files && fileInput.files.length > 0) { App.importData(fileInput.files[0]);
-                        fileInput.value = ''; }
+                fileInput.addEventListener('change', () => {
+                    const files = Array.from(fileInput.files || []);
+                    fileInput.value = '';
+                    if (files.length > 0) App.importFiles(files);
                 });
 
                 document.addEventListener('keydown', (e) => {

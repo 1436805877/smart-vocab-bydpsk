@@ -1,0 +1,89 @@
+{
+  "app": "智能单词本",
+  "appVersion": "0.1",
+  "schemaVersion": 2,
+  "exportedAt": "2026-10-19T00:00:00.000Z",
+  "wordCount": 1,
+  "words": [
+    {
+      "id": 30011,
+      "word": "profound",
+      "phonetic": "/prəˈfaʊnd/",
+      "core": {
+        "feeling": "从表面一直向下探到底，深到根基",
+        "image": "钻头穿过层层土层，直到井底",
+        "keywords": ["深", "彻底", "根基", "深远"],
+        "antonym": "superficial",
+        "chain": [
+          { "stage": "本义", "label": "物理上的深", "bridge": "空间上从表面到底部", "senseId": 300111 },
+          { "stage": "引申", "label": "思想/感受深刻", "bridge": "空间深度 → 心理深度", "senseId": 300112 },
+          { "stage": "引申", "label": "影响深远", "bridge": "深度 → 时间/范围", "senseId": 300113 }
+        ]
+      },
+      "morphology": {
+        "parts": [
+          { "type": "prefix", "form": "pro-", "meaning": "向前" },
+          { "type": "root", "form": "fund", "meaning": "底部", "origin": "Latin fundus" }
+        ],
+        "literal": "向前到底部",
+        "rootFamilyId": "fund"
+      },
+      "etymology": {
+        "type": "scholarly",
+        "path": [
+          { "form": "fundus", "language": "Latin", "meaning": "底部" },
+          { "form": "profundus", "language": "Latin", "meaning": "深的" },
+          { "form": "profound", "language": "English", "meaning": "深刻的" }
+        ],
+        "story": "拉丁语 profundus = pro + fundus，本义“向前到底”，由空间深度引申出程度、思想、影响的深。",
+        "confidence": "high"
+      },
+      "synonymGroupIds": ["depth-intensity"],
+      "confusableWith": [
+        { "word": "superficial", "dimension": "反义/深度" }
+      ],
+      "senses": [
+        {
+          "id": 300111,
+          "order": 1,
+          "isCore": true,
+          "stage": "本义",
+          "coreLink": "核心感觉的直接体现：从表面向下到底",
+          "defZh": "深刻的；深远的",
+          "defEn": "very great or intense; far-reaching",
+          "example": "The industrial revolution had a profound impact on social structures.",
+          "exampleZh": "工业革命对社会结构产生了深远影响。",
+          "collocations": ["profound impact", "profound effect"],
+          "synonyms": ["deep", "far-reaching"],
+          "antonyms": ["superficial"],
+          "pos": "adj.",
+          "topic": "society",
+          "register": "formal",
+          "notes": ["写作高频词"]
+        },
+        {
+          "id": 300112,
+          "order": 2,
+          "isCore": false,
+          "stage": "引申",
+          "coreLink": "从“物理深度”延伸到“思想/感受的深度”",
+          "defZh": "渊博的；深沉的",
+          "defEn": "very great or extensive",
+          "example": "He is a man of profound learning and wisdom.",
+          "exampleZh": "他是一个学识渊博、充满智慧的人。",
+          "collocations": ["profound knowledge", "profound silence"],
+          "synonyms": ["deep", "extensive"],
+          "antonyms": ["shallow"],
+          "pos": "adj.",
+          "topic": "education",
+          "register": "formal",
+          "notes": ["形容学识或气氛"]
+        }
+      ],
+      "mastery": "learning",
+      "addedDate": 1725696000000,
+      "lastReviewDate": 1725696000000,
+      "deleted": false
+    }
+  ]
+}
