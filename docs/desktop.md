@@ -15,6 +15,15 @@ npm install
 npm start
 ```
 
+如果 Electron 下载很慢，可以用国内镜像：
+
+```powershell
+$env:ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/'
+$env:ELECTRON_BUILDER_BINARIES_MIRROR = 'https://npmmirror.com/mirrors/electron-builder-binaries/'
+npm install
+npm start
+```
+
 如果 `npm install` 因网络/权限无法下载 Electron，可改用 GitHub Actions 构建：
 
 > Actions → **Build Windows app** → Run workflow
@@ -31,6 +40,13 @@ npm run dist
 
 - `release/SmartVocab-0.1.0-x64.exe`（NSIS 安装包）
 - `release/SmartVocab-0.1.0-portable.exe`（便携版）
+
+如果 `electron-builder` 在本机被权限/网络卡住，可以先生成免安装便携版：
+
+```bash
+npm run portable
+# 输出 release/portable/SmartVocab.exe
+```
 
 > 未签名的安装包会触发 Windows SmartScreen；点“更多信息 → 仍要运行”。正式版再考虑代码签名证书。
 

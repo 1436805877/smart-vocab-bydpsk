@@ -13,7 +13,10 @@ const pkg = JSON.parse(await fsp.readFile(path.join(electronDir, 'package.json')
 const version = pkg.version;
 const zipPath = path.join(root, `.electron-v${version}-win32-x64.zip`);
 const distDir = path.join(electronDir, 'dist');
-const url = `https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-win32-x64.zip`;
+const mirror = process.env.ELECTRON_MIRROR || '';
+const url = mirror
+  ? `${mirror.replace(/\/$/, '')}/${version}/electron-v${version}-win32-x64.zip`
+  : `https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-win32-x64.zip`;
 
 if (fs.existsSync(path.join(distDir, 'electron.exe'))) {
   console.log('Electron already installed:', path.join(distDir, 'electron.exe'));

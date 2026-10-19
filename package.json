@@ -10,6 +10,7 @@
     "start": "electron .",
     "dev": "electron .",
     "pack": "electron-builder --dir",
+    "portable": "node scripts/package-portable.mjs",
     "dist": "electron-builder --win nsis portable --publish never"
   },
   "devDependencies": {
@@ -21,6 +22,7 @@
     "productName": "智能单词本",
     "copyright": "Copyright © 2026 Mokiklok",
     "asar": true,
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
