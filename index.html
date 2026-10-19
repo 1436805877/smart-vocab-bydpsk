@@ -1382,6 +1382,97 @@
             color: #94a3b8;
             font-size: 12px;
         }
+        .deck-page {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 4px 0 24px;
+        }
+        .deck-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .deck-sub {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .deck-new {
+            display: flex;
+            gap: 8px;
+            margin: 18px 0 14px;
+        }
+        .deck-new input {
+            flex: 1;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 14px;
+        }
+        .deck-new button {
+            border: none;
+            background: #4f46e5;
+            color: white;
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .deck-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .deck-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            flex-wrap: wrap;
+        }
+        .deck-card.active {
+            border-color: #818cf8;
+            background: #eef2ff;
+        }
+        .deck-name {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 15px;
+        }
+        .deck-meta {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        .deck-card-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .deck-card-actions button {
+            border: 1px solid #cbd5e1;
+            background: white;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #334155;
+        }
+        .deck-card-actions .deck-delete {
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+        .deck-hint {
+            margin-top: 14px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.6;
+        }
         .root-family {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -3874,15 +3965,108 @@
                 select.innerHTML = [
                     `<option value="all">全部词库（${this.words.filter(w => !w.deleted).length}）</option>`,
                     ...this.decks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' 🔒' : ''}</option>`),
+                    '<option value="__manage__">⚙️ 管理词库</option>',
                     '<option value="__new__">＋ 新建词库</option>'
                 ].join('');
                 select.value = this.activeDeckId;
             },
 
+            async renameDeck(id) {
+                const deck = this.decks.find(d => d.id === id);
+                if (!deck || deck.readOnly) return;
+                const name = prompt('重命名词库：', deck.name);
+                if (!name || !name.trim() || name.trim() === deck.name) return;
+                if (this.decks.some(d => d.id !== id && d.name === name.trim())) {
+                    this.showToast('同名词库已存在', 'info');
+                    return;
+                }
+                deck.name = name.trim();
+                deck.updatedAt = Date.now();
+                await this.saveData(true);
+                this.render();
+            },
+
+            async deleteDeck(id) {
+                const deck = this.decks.find(d => d.id === id);
+                if (!deck) return;
+                if (deck.id === 'default') {
+                    this.showToast('默认词库不能删除', 'info');
+                    return;
+                }
+                if (deck.readOnly) {
+                    this.showToast('标准词库不能删除', 'info');
+                    return;
+                }
+                const count = [...this.deckWords].filter(k => k.startsWith(id + ':')).length;
+                if (!confirm(`删除词库「${deck.name}」？\n只会解除 ${count} 个单词与这个词库的关联，不会删除单词本身。`)) return;
+                this.decks = this.decks.filter(d => d.id !== id);
+                for (const key of [...this.deckWords]) {
+                    if (key.startsWith(id + ':')) this.deckWords.delete(key);
+                }
+                if (this.activeDeckId === id) this.activeDeckId = 'all';
+                try { localStorage.setItem('smartVocabActiveDeck', this.activeDeckId); } catch (e) { /* ignore */ }
+                await this.saveData(true);
+                this.render();
+            },
+
+            renderDeckManager(container) {
+                const counts = {};
+                this.deckWords.forEach(key => {
+                    const deckId = key.slice(0, key.lastIndexOf(':'));
+                    counts[deckId] = (counts[deckId] || 0) + 1;
+                });
+                const cards = this.decks.map(d => `
+                    <div class="deck-card ${d.id === this.activeDeckId ? 'active' : ''}">
+                        <div class="deck-card-main">
+                            <div class="deck-name">${this.escapeHtml(d.name)} ${d.readOnly ? '🔒' : ''}</div>
+                            <div class="deck-meta">${d.kind === 'standard' ? '标准词库' : '用户词库'} · ${counts[d.id] || 0} 个单词${d.id === this.activeDeckId ? ' · 当前使用' : ''}</div>
+                        </div>
+                        <div class="deck-card-actions">
+                            <button class="deck-use" data-id="${this.escapeHtml(d.id)}">${d.id === this.activeDeckId ? '✓ 当前' : '使用'}</button>
+                            ${d.readOnly ? '' : `<button class="deck-rename" data-id="${this.escapeHtml(d.id)}">重命名</button>`}
+                            ${d.id === 'default' || d.readOnly ? '' : `<button class="deck-delete" data-id="${this.escapeHtml(d.id)}">删除</button>`}
+                        </div>
+                    </div>
+                `).join('');
+                container.innerHTML = `
+                    <div class="deck-page">
+                        <div class="deck-hero">
+                            <div>
+                                <div class="deck-title">🗂️ 词库管理</div>
+                                <div class="deck-sub">同一个单词可以在多个词库；学习进度按义项共享，不随词库复制。</div>
+                            </div>
+                        </div>
+                        <div class="deck-new">
+                            <input id="newDeckName" type="text" placeholder="新词库名称" maxlength="40">
+                            <button id="newDeckBtn">＋ 新建词库</button>
+                        </div>
+                        <div class="deck-list">${cards || '<div class="backup-empty">还没有词库。</div>'}</div>
+                        <div class="deck-hint">标准词库为只读；用户词库可以新建、重命名、删除。删除词库不会删除单词本身。</div>
+                    </div>
+                `;
+                const newBtn = document.getElementById('newDeckBtn');
+                const newInput = document.getElementById('newDeckName');
+                if (newBtn && newInput) newBtn.addEventListener('click', async () => {
+                    if (!newInput.value.trim()) return;
+                    await this.createDeck(newInput.value.trim());
+                    newInput.value = '';
+                    this.render();
+                });
+                container.querySelectorAll('.deck-use').forEach(btn => {
+                    btn.addEventListener('click', () => this.setActiveDeck(btn.dataset.id));
+                });
+                container.querySelectorAll('.deck-rename').forEach(btn => {
+                    btn.addEventListener('click', () => this.renameDeck(btn.dataset.id));
+                });
+                container.querySelectorAll('.deck-delete').forEach(btn => {
+                    btn.addEventListener('click', () => this.deleteDeck(btn.dataset.id));
+                });
+            },
+
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.3.0',
+                    appVersion: '0.3.1',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -4568,6 +4752,10 @@
                 }
                 if (this.currentMode === 'backup') {
                     this.renderBackupPage(panel);
+                    return;
+                }
+                if (this.currentMode === 'decks') {
+                    this.renderDeckManager(panel);
                     return;
                 }
                 if (this.currentMode === 'review') {
@@ -7683,7 +7871,9 @@
                 document.getElementById('batchManageBtn').addEventListener('click', () => this.toggleBatchMode());
 
                 document.getElementById('deckSelect').addEventListener('change', function() {
-                    if (this.value === '__new__') {
+                    if (this.value === '__manage__') {
+                        App.setMode('decks');
+                    } else if (this.value === '__new__') {
                         const name = prompt('新词库名称：');
                         if (name && name.trim()) App.createDeck(name.trim());
                         else App.updateDeckSelect();
