@@ -908,6 +908,12 @@
             border-radius: 8px;
             padding: 6px 10px;
         }
+        .root-explanation {
+            margin-top: 8px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: #475569;
+        }
         .root-family {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -2897,6 +2903,14 @@
                         badge: '辨析',
                         render: () => this.renderSynonymChallenge()
                     },
+                    rootChallenge: {
+                        id: 'rootChallenge',
+                        name: '词根拆解',
+                        icon: '🌱',
+                        desc: '拆词根、看字面义、连同根词',
+                        badge: '词根',
+                        render: () => this.renderRootChallenge()
+                    },
                     spellingChallenge: {
                         id: 'spellingChallenge',
                         name: '拼写挑战',
@@ -4090,6 +4104,247 @@
                                 if (state.index >= state.total) state.finished = true;
                                 this.renderSynonymChallenge();
                             }, 1600);
+                        });
+                    });
+                }
+            },
+
+            // ============================================================
+            //  词根拆解（0.2 新增）
+            // ============================================================
+            renderRootChallenge() {
+                const container = document.getElementById('rightPanel');
+                const candidates = this.words.filter(w => !w.deleted && w.morphology &&
+                    Array.isArray(w.morphology.parts) &&
+                    w.morphology.parts.some(p => p && p.form && p.meaning));
+                if (candidates.length === 0) {
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🌱 词根拆解</div>
+                                <button class="back-btn" id="rootBackBtn">← 返回</button>
+                            </div>
+                            <div class="empty-review">
+                                还没有可用的词根数据。<br>
+                                导入包含 <code>morphology.parts</code> 的 v2 数据后即可开始。<br>
+                                <span style="font-size:13px;">当前可拆解单词：0 个</span>
+                            </div>
+                        </div>
+                    `;
+                    const back = document.getElementById('rootBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    return;
+                }
+                const state = this.gameStates.rootChallenge || {};
+                if (!state.initialized) {
+                    state.questions = [];
+                    state.index = 0;
+                    state.score = 0;
+                    state.finished = false;
+                    state.showAnswer = false;
+                    state.selected = '';
+                    state.pendingTimeout = null;
+                    const uniq = arr => [...new Set(arr.filter(Boolean))];
+                    const allMeanings = uniq(candidates.flatMap(w => (w.morphology.parts || [])
+                        .map(p => p && p.meaning)));
+                    const allLiterals = uniq(candidates.map(w => w.morphology.literal));
+                    const familyGroups = this.extras.rootFamilies || [];
+                    const allFamilyWords = uniq(familyGroups.flatMap(g => (g.members || [])
+                        .map(m => m && m.word)));
+                    const shuffle = arr => {
+                        const a = [...arr];
+                        for (let i = a.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [a[i], a[j]] = [a[j], a[i]];
+                        }
+                        return a;
+                    };
+                    const used = new Set();
+                    for (let attempt = 0; attempt < 80 && state.questions.length < 10; attempt++) {
+                        const w = candidates[Math.floor(Math.random() * candidates.length)];
+                        const parts = (w.morphology.parts || []).filter(p => p && p.form && p.meaning);
+                        if (parts.length === 0) continue;
+                        const rootPart = parts.find(p => p.type === 'root') || parts[parts.length - 1];
+                        const family = w.morphology.rootFamilyId
+                            ? familyGroups.find(g => g.id === w.morphology.rootFamilyId) : null;
+                        const partsText = parts.map(p => `${p.form}（${p.meaning}）`).join(' + ');
+                        let q = null;
+
+                        // 同根词题：有家族且家族里至少有一个非本词的成员
+                        if (family && Array.isArray(family.members) && family.members.length >= 2 && Math.random() < 0.35) {
+                            const correct = family.members.find(m => m && m.word &&
+                                String(m.word).toLowerCase() !== String(w.word).toLowerCase());
+                            if (correct) {
+                                const options = shuffle(uniq([correct.word,
+                                    ...family.members.map(m => m && m.word),
+                                    ...allFamilyWords.filter(x => String(x).toLowerCase() !== String(w.word).toLowerCase())
+                                ])).slice(0, 4);
+                                if (options.length >= 2) {
+                                    q = {
+                                        type: 'family',
+                                        word: w.word,
+                                        prompt: `下面哪个词与「${w.word}」同根？`,
+                                        options,
+                                        answer: correct.word,
+                                        explanation: `词根 ${family.root || rootPart.form} = ${family.meaning || rootPart.meaning}；${partsText}${w.morphology.literal ? `，字面义：${w.morphology.literal}` : ''}`,
+                                        parts,
+                                        wordId: w.id
+                                    };
+                                }
+                            }
+                        }
+
+                        // 字面义题
+                        if (!q && w.morphology.literal && allLiterals.length >= 2) {
+                            const options = shuffle(uniq([w.morphology.literal, ...allLiterals])).slice(0, 4);
+                            if (options.length >= 2) {
+                                q = {
+                                    type: 'literal',
+                                    word: w.word,
+                                    prompt: `「${w.word}」的词根字面义是？`,
+                                    options,
+                                    answer: w.morphology.literal,
+                                    explanation: `${partsText}`,
+                                    parts,
+                                    wordId: w.id
+                                };
+                            }
+                        }
+
+                        // 词根含义题
+                        if (!q && rootPart && allMeanings.length >= 2) {
+                            const options = shuffle(uniq([rootPart.meaning, ...allMeanings])).slice(0, 4);
+                            if (options.length >= 2) {
+                                q = {
+                                    type: 'meaning',
+                                    word: w.word,
+                                    prompt: `「${w.word}」中的词根「${rootPart.form}」是什么意思？`,
+                                    options,
+                                    answer: rootPart.meaning,
+                                    explanation: `${partsText}${w.morphology.literal ? `；字面义：${w.morphology.literal}` : ''}`,
+                                    parts,
+                                    wordId: w.id
+                                };
+                            }
+                        }
+
+                        if (!q) continue;
+                        const key = `${q.type}|${w.id}|${q.answer}`;
+                        if (used.has(key)) continue;
+                        used.add(key);
+                        state.questions.push(q);
+                    }
+                    state.total = state.questions.length;
+                    state.initialized = true;
+                    this.gameStates.rootChallenge = state;
+                }
+
+                if (state.total === 0) {
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🌱 词根拆解</div>
+                                <button class="back-btn" id="rootBackBtn">← 返回</button>
+                            </div>
+                            <div class="empty-review">词根数据不足，暂时无法出题。</div>
+                        </div>
+                    `;
+                    const back = document.getElementById('rootBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    return;
+                }
+
+                if (state.finished || state.index >= state.total) {
+                    const finalScore = state.score;
+                    const total = state.total;
+                    if (state.pendingTimeout) { clearTimeout(state.pendingTimeout);
+                        state.pendingTimeout = null; }
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🌱 词根拆解 <small>结果</small></div>
+                                <button class="back-btn" id="rootBackBtn">← 返回</button>
+                            </div>
+                            <div class="game-result">
+                                <div class="big-score">${finalScore} / ${total}</div>
+                                <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
+                                <button id="rootRetryBtn">🔄 再来一局</button>
+                            </div>
+                        </div>
+                    `;
+                    const back = document.getElementById('rootBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    const retry = document.getElementById('rootRetryBtn');
+                    if (retry) retry.addEventListener('click', () => {
+                        this.stopGameTimers();
+                        delete this.gameStates.rootChallenge;
+                        this.renderRootChallenge();
+                    });
+                    return;
+                }
+
+                const q = state.questions[state.index];
+                if (!q) { state.finished = true;
+                    this.renderRootChallenge(); return; }
+                const isAnswering = state.showAnswer;
+                const correct = state.selected === q.answer;
+                const feedback = isAnswering
+                    ? `<div class="feedback-banner ${correct ? 'correct' : 'wrong'}">
+                        ${correct ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                        <div class="root-explanation">${this.escapeHtml(q.explanation || '')}</div>
+                    </div>`
+                    : '';
+                const partsHtml = (q.parts || []).map(p =>
+                    `<span class="morph-part"><b>${this.escapeHtml(p.form || '')}</b> ${this.escapeHtml(p.meaning || '')}</span>`).join('<span class="chain-arrow">+</span>');
+                let html = `
+                    <div class="game-container">
+                        <div class="game-header">
+                            <div class="game-title">🌱 词根拆解 <small>拆开看字面义</small></div>
+                            <button class="back-btn" id="rootBackBtn2">← 返回</button>
+                        </div>
+                        <div class="core-recall-word" style="font-size:42px;margin:18px 0 4px;">${this.escapeHtml(q.word || '')}</div>
+                        <div class="game-question" style="font-size:19px;line-height:1.6;">${this.escapeHtml(q.prompt)}</div>
+                        ${feedback}
+                        <div class="game-options" style="max-width:600px;">
+                            ${q.options.map(opt => {
+                                let cls = '';
+                                if (isAnswering) {
+                                    if (opt === q.answer) cls = 'correct-answer';
+                                    else if (opt === state.selected) cls = 'wrong-answer';
+                                }
+                                return `<button class="root-option ${cls}" data-answer="${this.escapeHtml(opt)}" ${isAnswering ? 'disabled' : ''}>${this.escapeHtml(opt)}</button>`;
+                            }).join('')}
+                        </div>
+                        ${isAnswering && partsHtml ? `<div class="morph-parts" style="justify-content:center;margin-top:14px;">${partsHtml}</div>` : ''}
+                        <div class="game-status">
+                            <span>进度 ${state.index + 1}/${state.total}</span>
+                            <span class="score">得分 ${state.score}</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML = html;
+
+                const back = document.getElementById('rootBackBtn2');
+                if (back) back.addEventListener('click', () => this.leaveGame());
+                if (!isAnswering) {
+                    container.querySelectorAll('.root-option').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            if (state.showAnswer || state.finished) return;
+                            const selected = btn.dataset.answer;
+                            const correctAnswer = selected === q.answer;
+                            state.selected = selected;
+                            state.showAnswer = true;
+                            if (correctAnswer) state.score++;
+                            this.recordReview(q.wordId, correctAnswer);
+                            this.renderRootChallenge();
+                            state.pendingTimeout = setTimeout(() => {
+                                if (!this.isGameActive('rootChallenge')) return;
+                                state.showAnswer = false;
+                                state.selected = '';
+                                state.index++;
+                                if (state.index >= state.total) state.finished = true;
+                                this.renderRootChallenge();
+                            }, 1700);
                         });
                     });
                 }
