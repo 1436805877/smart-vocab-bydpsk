@@ -855,6 +855,79 @@
             padding: 2px 12px;
             font-size: 12px;
         }
+        .syn-group {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+        .syn-group:last-child {
+            margin-bottom: 0;
+        }
+        .syn-title {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .syn-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .syn-member,
+        .root-member {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+            background: white;
+            border: 1px solid #dbeafe;
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 13px;
+            color: #334155;
+        }
+        .syn-member b,
+        .root-member b {
+            color: #1d4ed8;
+        }
+        .syn-member small {
+            color: #94a3b8;
+        }
+        .syn-contrast {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.6;
+        }
+        .syn-mnemonic {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #7c3aed;
+            background: #f5f3ff;
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+        .root-family {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+        .root-family-head {
+            font-size: 15px;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .root-family-head b {
+            color: #15803d;
+            font-size: 17px;
+        }
+        .root-family-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
         .core-chain,
         .morph-parts,
         .etym-path {
@@ -2632,7 +2705,7 @@
             constructor() {
                 this.db = null;
                 this.DB_NAME = 'SmartVocabDB_v9';
-                this.DB_VERSION = 1;
+                this.DB_VERSION = 2;
             }
             async init() {
                 return new Promise((resolve, reject) => {
@@ -2647,6 +2720,9 @@
                             wStore.createIndex('by_word', 'word', { unique: false });
                             wStore.createIndex('by_deleted', 'deleted', { unique: false });
                         }
+                        if (!db.objectStoreNames.contains('extras')) {
+                            db.createObjectStore('extras', { keyPath: 'key' });
+                        }
                     };
                 });
             }
@@ -2659,12 +2735,38 @@
                     req.onerror = () => reject(req.error);
                 });
             }
+            async getExtras() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('extras', 'readonly');
+                    const req = tx.objectStore('extras').getAll();
+                    req.onsuccess = () => {
+                        const out = { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
+                        (req.result || []).forEach(row => {
+                            if (row && row.key) out[row.key] = row.value;
+                        });
+                        resolve(out);
+                    };
+                    req.onerror = () => reject(req.error);
+                });
+            }
             async saveWords(words) {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('words', 'readwrite');
                     const store = tx.objectStore('words');
                     store.clear();
                     for (const w of words) store.put(w);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }
+            async saveExtras(extras) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('extras', 'readwrite');
+                    const store = tx.objectStore('extras');
+                    store.clear();
+                    ['rootFamilies', 'synonymGroups', 'confusionPairs'].forEach(key => {
+                        store.put({ key, value: Array.isArray(extras[key]) ? extras[key] : [] });
+                    });
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject(tx.error);
                 });
@@ -2727,6 +2829,7 @@
             db: new VocabDB(),
             searchIndex: new SearchIndex(),
             words: [],
+            extras: { rootFamilies: [], synonymGroups: [], confusionPairs: [] },
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -2785,6 +2888,14 @@
                         desc: '看单词先回忆核心感觉，再揭示答案',
                         badge: '核心',
                         render: () => this.renderCoreRecallGame()
+                    },
+                    synonymChallenge: {
+                        id: 'synonymChallenge',
+                        name: '近义辨析',
+                        icon: '⚖️',
+                        desc: '在一组近义词里选出最贴合语境的一个',
+                        badge: '辨析',
+                        render: () => this.renderSynonymChallenge()
                     },
                     spellingChallenge: {
                         id: 'spellingChallenge',
@@ -2847,6 +2958,7 @@
                 const doSave = async () => {
                     try {
                         await this.db.saveWords(this.words);
+                        await this.db.saveExtras(this.extras);
                         if (seq === this.saveSeq) this.dataDirty = false;
                     } catch (e) { console.error('Save failed:', e); }
                 };
@@ -2862,6 +2974,7 @@
                 const seq = ++this.saveSeq;
                 try {
                     await this.db.saveWords(this.words);
+                    await this.db.saveExtras(this.extras);
                     if (seq === this.saveSeq) this.dataDirty = false;
                 } catch (e) { console.error('Flush save failed:', e); }
             },
@@ -2896,6 +3009,12 @@
 
             async loadData() {
                 let words = await this.db.getAllWords();
+                const extras = await this.db.getExtras();
+                this.extras = {
+                    rootFamilies: Array.isArray(extras.rootFamilies) ? extras.rootFamilies : [],
+                    synonymGroups: Array.isArray(extras.synonymGroups) ? extras.synonymGroups : [],
+                    confusionPairs: Array.isArray(extras.confusionPairs) ? extras.confusionPairs : [],
+                };
                 if (words.length === 0) {
                     const oldWords = localStorage.getItem('myWordsData_v8_2');
                     if (oldWords) { try { words = JSON.parse(oldWords); } catch (e) {} localStorage.removeItem(
@@ -3803,6 +3922,180 @@
             },
 
             // ============================================================
+            //  近义辨析（0.2 新增）
+            // ============================================================
+            renderSynonymChallenge() {
+                const container = document.getElementById('rightPanel');
+                const groups = (this.extras.synonymGroups || []).filter(g =>
+                    g && Array.isArray(g.members) && g.members.filter(m => m && m.word).length >= 2);
+                if (groups.length === 0) {
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">⚖️ 近义辨析</div>
+                                <button class="back-btn" id="synBackBtn">← 返回</button>
+                            </div>
+                            <div class="empty-review">
+                                还没有可用的近义组。<br>
+                                导入包含 <code>synonymGroups</code> 的 v2 数据后即可开始。<br>
+                                <span style="font-size:13px;">当前近义组：${(this.extras.synonymGroups || []).length} 个</span>
+                            </div>
+                        </div>
+                    `;
+                    const back = document.getElementById('synBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    return;
+                }
+                const state = this.gameStates.synonymChallenge || {};
+                if (!state.initialized) {
+                    state.questions = [];
+                    state.index = 0;
+                    state.score = 0;
+                    state.finished = false;
+                    state.showAnswer = false;
+                    state.selected = '';
+                    state.pendingTimeout = null;
+                    const used = new Set();
+                    for (let attempt = 0; attempt < 40 && state.questions.length < 10; attempt++) {
+                        const group = groups[Math.floor(Math.random() * groups.length)];
+                        const members = group.members.filter(m => m && m.word);
+                        const target = members[Math.floor(Math.random() * members.length)];
+                        const options = [];
+                        const seen = new Set();
+                        [target, ...members].forEach(m => {
+                            const key = String(m.word).toLowerCase();
+                            if (!seen.has(key) && options.length < 4) { seen.add(key); options.push(m.word); }
+                        });
+                        if (options.length < 2) continue;
+                        for (let i = options.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [options[i], options[j]] = [options[j], options[i]];
+                        }
+                        const colls = Array.isArray(target.collocations) ? target.collocations :
+                            (target.collocations ? [target.collocations] : []);
+                        const coll = colls.find(c => String(c).toLowerCase().includes(String(target.word).toLowerCase()));
+                        const promptType = coll ? 'collocation' : 'nuance';
+                        const prompt = coll
+                            ? String(coll).replace(new RegExp(this.escapeRegex(target.word), 'ig'), '_____')
+                            : `哪个词的核心辨析是：${target.nuance || target.word}`;
+                        const qKey = group.id + '|' + target.word.toLowerCase();
+                        if (used.has(qKey)) continue;
+                        used.add(qKey);
+                        const linked = this.words.find(w => !w.deleted && w.word.toLowerCase() === String(target.word).toLowerCase());
+                        state.questions.push({
+                            groupId: group.id,
+                            groupName: group.name || '近义组',
+                            word: target.word,
+                            wordId: linked ? linked.id : null,
+                            promptType,
+                            prompt,
+                            options,
+                            answer: target.word,
+                            nuance: target.nuance || '',
+                            mnemonic: group.mnemonic || ''
+                        });
+                    }
+                    state.total = state.questions.length;
+                    state.initialized = true;
+                    this.gameStates.synonymChallenge = state;
+                }
+
+                if (state.finished || state.index >= state.total) {
+                    const finalScore = state.score;
+                    const total = state.total;
+                    if (state.pendingTimeout) { clearTimeout(state.pendingTimeout);
+                        state.pendingTimeout = null; }
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">⚖️ 近义辨析 <small>结果</small></div>
+                                <button class="back-btn" id="synBackBtn">← 返回</button>
+                            </div>
+                            <div class="game-result">
+                                <div class="big-score">${finalScore} / ${total}</div>
+                                <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
+                                <button id="synRetryBtn">🔄 再来一局</button>
+                            </div>
+                        </div>
+                    `;
+                    const back = document.getElementById('synBackBtn');
+                    if (back) back.addEventListener('click', () => this.leaveGame());
+                    const retry = document.getElementById('synRetryBtn');
+                    if (retry) retry.addEventListener('click', () => {
+                        this.stopGameTimers();
+                        delete this.gameStates.synonymChallenge;
+                        this.renderSynonymChallenge();
+                    });
+                    return;
+                }
+
+                const q = state.questions[state.index];
+                if (!q) { state.finished = true;
+                    this.renderSynonymChallenge(); return; }
+                const isAnswering = state.showAnswer;
+                const feedback = isAnswering
+                    ? `<div class="feedback-banner ${state.selected === q.answer ? 'correct' : 'wrong'}">
+                        ${state.selected === q.answer ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                        ${q.nuance ? `<div style="margin-top:6px;font-size:13px;">${this.escapeHtml(q.nuance)}</div>` : ''}
+                        ${q.mnemonic ? `<div style="margin-top:4px;font-size:12px;opacity:.8;">💡 ${this.escapeHtml(q.mnemonic)}</div>` : ''}
+                    </div>`
+                    : '';
+                let html = `
+                    <div class="game-container">
+                        <div class="game-header">
+                            <div class="game-title">⚖️ 近义辨析 <small>${this.escapeHtml(q.groupName)}</small></div>
+                            <button class="back-btn" id="synBackBtn2">← 返回</button>
+                        </div>
+                        <div class="game-question" style="font-size:20px;line-height:1.6;">${q.promptType === 'collocation' ? this.escapeHtml(q.prompt) : this.escapeHtml(q.prompt)}</div>
+                        <div style="text-align:center;color:#64748b;font-size:13px;margin-bottom:12px;">
+                            ${q.promptType === 'collocation' ? '选出最适合填入空格的单词' : '根据核心辨析选出对应的单词'}
+                        </div>
+                        ${feedback}
+                        <div class="game-options" style="max-width:560px;">
+                            ${q.options.map(opt => {
+                                let cls = '';
+                                if (isAnswering) {
+                                    if (opt === q.answer) cls = 'correct-answer';
+                                    else if (opt === state.selected) cls = 'wrong-answer';
+                                }
+                                return `<button class="syn-option ${cls}" data-word="${this.escapeHtml(opt)}" ${isAnswering ? 'disabled' : ''}>${this.escapeHtml(opt)}</button>`;
+                            }).join('')}
+                        </div>
+                        <div class="game-status">
+                            <span>进度 ${state.index + 1}/${state.total}</span>
+                            <span class="score">得分 ${state.score}</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML = html;
+
+                const back = document.getElementById('synBackBtn2');
+                if (back) back.addEventListener('click', () => this.leaveGame());
+                if (!isAnswering) {
+                    container.querySelectorAll('.syn-option').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            if (state.showAnswer || state.finished) return;
+                            const selected = btn.dataset.word;
+                            const correct = selected === q.answer;
+                            state.selected = selected;
+                            state.showAnswer = true;
+                            if (correct) state.score++;
+                            if (q.wordId) this.recordReview(q.wordId, correct);
+                            this.renderSynonymChallenge();
+                            state.pendingTimeout = setTimeout(() => {
+                                if (!this.isGameActive('synonymChallenge')) return;
+                                state.showAnswer = false;
+                                state.selected = '';
+                                state.index++;
+                                if (state.index >= state.total) state.finished = true;
+                                this.renderSynonymChallenge();
+                            }, 1600);
+                        });
+                    });
+                }
+            },
+
+            // ============================================================
             //  拼写挑战 (Spelling Challenge)
             // ============================================================
             renderSpellingChallenge() {
@@ -4540,6 +4833,17 @@
                 }
                 if (etym.story) rootBits.push(`<div class="etym-story">${this.escapeHtml(etym.story)}</div>`);
                 const rootHtml = rootBits.length ? `<div class="detail-section"><h4>🌱 词根与词源</h4>${rootBits.join('')}</div>` : '';
+                const wordSynGroups = (word.synonymGroupIds || [])
+                    .map(id => (this.extras.synonymGroups || []).find(g => g.id === id))
+                    .filter(Boolean);
+                const synHtml = wordSynGroups.length ? `<div class="detail-section syn-section"><h4>⚖️ 近义辨析</h4>${wordSynGroups.map(g => {
+                    const members = (g.members || []).map(m => `<span class="syn-member"><b>${this.escapeHtml(m.word || '')}</b>${m.nuance ? ` · ${this.escapeHtml(m.nuance)}` : ''}${m.register ? ` <small>${this.escapeHtml(m.register)}</small>` : ''}</span>`).join('');
+                    const contrasts = (g.contrasts || []).map(c => `<div class="syn-contrast">${this.escapeHtml(c.a || '')} vs ${this.escapeHtml(c.b || '')}：${this.escapeHtml(c.difference || '')}</div>`).join('');
+                    return `<div class="syn-group"><div class="syn-title">${this.escapeHtml(g.name || '近义组')}</div><div class="syn-members">${members}</div>${contrasts}${g.mnemonic ? `<div class="syn-mnemonic">💡 ${this.escapeHtml(g.mnemonic)}</div>` : ''}</div>`;
+                }).join('')}</div>` : '';
+                const rootFamily = (word.morphology && word.morphology.rootFamilyId)
+                    ? (this.extras.rootFamilies || []).find(g => g.id === word.morphology.rootFamilyId) : null;
+                const rootFamilyHtml = rootFamily ? `<div class="detail-section"><h4>🌳 同根家族</h4><div class="root-family"><div class="root-family-head"><b>${this.escapeHtml(rootFamily.root || '')}</b> ${this.escapeHtml(rootFamily.meaning || '')}</div><div class="root-family-members">${(rootFamily.members || []).map(m => `<span class="root-member"><b>${this.escapeHtml(m.word || '')}</b>${m.meaning ? ` · ${this.escapeHtml(m.meaning)}` : ''}</span>`).join('')}</div>${rootFamily.mnemonic ? `<div class="syn-mnemonic">💡 ${this.escapeHtml(rootFamily.mnemonic)}</div>` : ''}</div></div>` : '';
                 const senseListHtml = word.senses.map((s, idx) => {
                     const tags = [];
                     if (s.tone) tags.push('情感:' + s.tone);
@@ -4557,7 +4861,7 @@
                     ).join('');
                 const overviewOption = '<option value="__overview__" selected>📋 总览</option>';
                 let html =
-                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}${rootHtml}<div class="detail-section"><h4>📋 单词总览</h4><h5 style="font-size:13px;color:#475569;margin-bottom:6px;">📚 释义列表</h5><div class="overview-sense-list">${senseListHtml}</div><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveOverviewBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
+                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}${rootHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>📋 单词总览</h4><h5 style="font-size:13px;color:#475569;margin-bottom:6px;">📚 释义列表</h5><div class="overview-sense-list">${senseListHtml}</div><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveOverviewBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
                 container.innerHTML = html;
 
                 document.getElementById('addWordNoteBtn').addEventListener('click', () => {
@@ -4770,6 +5074,8 @@
                 const accuracy = totalReviews > 0 ? Math.round(totalCorrect / totalReviews * 100) : 0;
                 const coreReady = activeWords.filter(w => w.core && w.core.feeling &&
                     w.core.quality !== 'needs-review').length;
+                const synGroupCount = (this.extras.synonymGroups || []).length;
+                const rootFamilyCount = (this.extras.rootFamilies || []).length;
                 const fields = ['tone', 'topic', 'pos', 'level', 'origin', 'formality', 'grammar'];
                 const stats = {};
                 fields.forEach(f => stats[f] = {});
@@ -4788,7 +5094,7 @@
                 const dailyCounts = last7days.map(date => activeWords.filter(w => new Date(w.addedDate)
                     .toISOString().slice(0, 10) === date).length);
                 let html =
-                    `<h3 style="margin-bottom:20px;">📊 数据统计</h3><div class="stats-grid"><div class="stat-card"><div class="number">${totalWords}</div><div class="label">总单词数（活跃）</div></div><div class="stat-card"><div class="number">${totalSenses}</div><div class="label">总释义数</div></div><div class="stat-card" style="border-color: #6366f1;"><div class="number">${coreReady}</div><div class="label">🧭 核心感觉就绪</div></div><div class="stat-card"><div class="number">${mastered}</div><div class="label">✅ 已掌握</div></div><div class="stat-card"><div class="number">${learning}</div><div class="label">🔄 学习中</div></div><div class="stat-card"><div class="number">${unknown}</div><div class="label">❓ 未标记</div></div><div class="stat-card" style="border-color: #f59e0b;"><div class="number">${dueForReview}</div><div class="label">🔔 待复习</div></div><div class="stat-card" style="border-color: #8b5cf6;"><div class="number">${totalReviews}</div><div class="label">🎮 累计复习</div></div><div class="stat-card" style="border-color: #10b981;"><div class="number">${accuracy}%</div><div class="label">🎯 平均正确率</div></div><div class="stat-card" style="border-color: #94a3b8;"><div class="number">${deletedCount}</div><div class="label">♻️ 回收站</div></div></div>`;
+                    `<h3 style="margin-bottom:20px;">📊 数据统计</h3><div class="stats-grid"><div class="stat-card"><div class="number">${totalWords}</div><div class="label">总单词数（活跃）</div></div><div class="stat-card"><div class="number">${totalSenses}</div><div class="label">总释义数</div></div><div class="stat-card" style="border-color: #6366f1;"><div class="number">${coreReady}</div><div class="label">🧭 核心感觉就绪</div></div><div class="stat-card" style="border-color: #0ea5e9;"><div class="number">${synGroupCount}</div><div class="label">⚖️ 近义组</div></div><div class="stat-card" style="border-color: #22c55e;"><div class="number">${rootFamilyCount}</div><div class="label">🌳 词根家族</div></div><div class="stat-card"><div class="number">${mastered}</div><div class="label">✅ 已掌握</div></div><div class="stat-card"><div class="number">${learning}</div><div class="label">🔄 学习中</div></div><div class="stat-card"><div class="number">${unknown}</div><div class="label">❓ 未标记</div></div><div class="stat-card" style="border-color: #f59e0b;"><div class="number">${dueForReview}</div><div class="label">🔔 待复习</div></div><div class="stat-card" style="border-color: #8b5cf6;"><div class="number">${totalReviews}</div><div class="label">🎮 累计复习</div></div><div class="stat-card" style="border-color: #10b981;"><div class="number">${accuracy}%</div><div class="label">🎯 平均正确率</div></div><div class="stat-card" style="border-color: #94a3b8;"><div class="number">${deletedCount}</div><div class="label">♻️ 回收站</div></div></div>`;
                 const fieldLabels = { tone: '😊 情感色彩', topic: '📚 主题', pos: '📌 词性', level: '⭐ 难度',
                     origin: '🌍 来源', formality: '📝 语体', grammar: '📖 语法属性' };
                 fields.forEach(f => {
@@ -5188,11 +5494,14 @@
                     if (format === 'json') {
                         const data = {
                             app: '智能单词本',
-                            appVersion: '0.1',
+                            appVersion: '0.1.1',
                             schemaVersion: 2,
                             exportedAt: new Date().toISOString(),
                             wordCount: this.words.length,
-                            words: this.words
+                            words: this.words,
+                            rootFamilies: this.extras.rootFamilies || [],
+                            synonymGroups: this.extras.synonymGroups || [],
+                            confusionPairs: this.extras.confusionPairs || []
                         };
                         nativeSave = this.downloadFile(JSON.stringify(data, null, 2),
                             `单词本备份_${dateStr}.json`, 'application/json;charset=utf-8');
@@ -5255,19 +5564,27 @@
             },
             parseImportText(fileName, text) {
                 const lower = fileName.toLowerCase();
+                const emptyExtras = { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
                 if (lower.endsWith('.json')) {
                     const data = JSON.parse(text);
                     if (!data || !Array.isArray(data.words)) throw new Error('缺少 words 数组');
-                    return data.words;
+                    return {
+                        words: data.words,
+                        extras: {
+                            rootFamilies: Array.isArray(data.rootFamilies) ? data.rootFamilies : [],
+                            synonymGroups: Array.isArray(data.synonymGroups) ? data.synonymGroups : [],
+                            confusionPairs: Array.isArray(data.confusionPairs) ? data.confusionPairs : []
+                        }
+                    };
                 }
                 if (lower.endsWith('.csv')) {
                     const rows = this.parseCSV(text);
-                    if (rows.length < 2) return [];
+                    if (rows.length < 2) return { words: [], extras: emptyExtras };
                     const headers = rows[0].map(h => h.trim().toLowerCase());
                     const idx = name => headers.indexOf(name);
                     const wordIdx = idx('word');
                     if (wordIdx === -1) throw new Error('CSV 缺少 word 列');
-                    return rows.slice(1).map(r => {
+                    const words = rows.slice(1).map(r => {
                         const word = (r[wordIdx] || '').trim();
                         if (!word) return null;
                         const sense = {
@@ -5295,9 +5612,10 @@
                             deleted: String(r[idx('deleted')] || '').toLowerCase() === 'true'
                         };
                     }).filter(Boolean);
+                    return { words, extras: emptyExtras };
                 }
                 // .txt / 无扩展名：一行一个单词
-                return text.split(/\r?\n/).map(line => line.split('\t')[0].trim())
+                const words = text.split(/\r?\n/).map(line => line.split('\t')[0].trim())
                     .filter(Boolean).map(word => ({
                         word,
                         senses: [{
@@ -5308,10 +5626,51 @@
                         mastery: 'unknown', addedDate: Date.now(), lastReviewDate: Date.now(),
                         deleted: false
                     }));
+                return { words, extras: emptyExtras };
+            },
+            mergeExtras(target, source) {
+                const memberKey = (m) => {
+                    if (!m) return '';
+                    if (m.word) return 'w:' + String(m.word).toLowerCase();
+                    if (m.a || m.b) return 'p:' + String(m.a || '') + '|' + String(m.b || '');
+                    return JSON.stringify(m);
+                };
+                const mergeMembers = (a, b) => {
+                    const out = [...(Array.isArray(a) ? a : [])];
+                    const seen = new Set(out.map(memberKey));
+                    (Array.isArray(b) ? b : []).forEach(m => {
+                        const k = memberKey(m);
+                        if (k && !seen.has(k)) { seen.add(k); out.push(m); }
+                    });
+                    return out;
+                };
+                ['rootFamilies', 'synonymGroups', 'confusionPairs'].forEach(key => {
+                    const map = new Map((target[key] || []).map(x => [x.id, x]));
+                    (source[key] || []).forEach(raw => {
+                        if (!raw || !raw.id) return;
+                        const item = JSON.parse(JSON.stringify(raw));
+                        const existing = map.get(item.id);
+                        if (!existing) { map.set(item.id, item); return; }
+                        existing.members = mergeMembers(existing.members, item.members);
+                        if (key === 'synonymGroups') {
+                            existing.contrasts = mergeMembers(existing.contrasts, item.contrasts);
+                            existing.dimensions = (existing.dimensions && existing.dimensions.length) ? existing.dimensions : (item.dimensions || []);
+                            existing.mnemonic = existing.mnemonic || item.mnemonic || '';
+                        }
+                        if (key === 'rootFamilies') {
+                            existing.meaning = existing.meaning || item.meaning || '';
+                            existing.origin = existing.origin || item.origin || '';
+                            existing.mnemonic = existing.mnemonic || item.mnemonic || '';
+                        }
+                    });
+                    target[key] = [...map.values()];
+                });
+                return target;
             },
             async importFiles(files) {
                 if (!files || files.length === 0) return;
                 const allWords = [];
+                const allExtras = { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
                 let skipped = 0;
                 let failedFiles = 0;
                 for (let i = 0; i < files.length; i++) {
@@ -5319,17 +5678,18 @@
                     try {
                         this.showToast(`📥 读取 ${i + 1}/${files.length}：${file.name}`, 'info', 1000);
                         const text = await this.readFileText(file);
-                        const words = this.parseImportText(file.name, text);
-                        allWords.push(...words);
+                        const parsed = this.parseImportText(file.name, text);
+                        allWords.push(...(parsed.words || []));
+                        this.mergeExtras(allExtras, parsed.extras || {});
                     } catch (err) {
                         failedFiles++;
                         console.error(err);
                         this.showToast(`⚠️ ${file.name} 解析失败：${err.message}`, 'error', 3000);
                     }
                 }
-                this.startImport(allWords, files.length, failedFiles, skipped);
+                this.startImport(allWords, files.length, failedFiles, skipped, allExtras);
             },
-            startImport(rawWords, fileCount, failedFiles, skipped) {
+            startImport(rawWords, fileCount, failedFiles, skipped, extrasToImport) {
                 const activeWords = this.words.filter(w => !w.deleted);
                 const activeMap = new Map(activeWords.map(w => [w.word.toLowerCase(), w]));
                 const conflicts = [];
@@ -5354,7 +5714,9 @@
                 }
                 const skippedMsg = skipped > 0 ? `，跳过 ${skipped} 条无效/重复记录` : '';
                 const failedMsg = failedFiles > 0 ? `，${failedFiles} 个文件解析失败` : '';
-                if (nonConflictWords.length === 0 && conflicts.length === 0) {
+                const groupCount = ['rootFamilies', 'synonymGroups', 'confusionPairs']
+                    .reduce((n, k) => n + ((extrasToImport && extrasToImport[k]) ? extrasToImport[k].length : 0), 0);
+                if (nonConflictWords.length === 0 && conflicts.length === 0 && groupCount === 0) {
                     this.showToast('⚠️ 没有可导入的有效单词', 'error');
                     return;
                 }
@@ -5363,15 +5725,15 @@
                     this.importConflictData = {
                         conflicts, nonConflictWords,
                         skippedCount: skipped, fileCount,
-                        failedFiles
+                        failedFiles, extrasToImport
                     };
                     this.showConflictModal();
                     return;
                 }
-                if (!confirm(`将导入 ${nonConflictWords.length} 个单词（来自 ${fileCount} 个文件）${skippedMsg}${failedMsg}。\n确定继续吗？`)) return;
-                this.doImport(nonConflictWords);
+                if (!confirm(`将导入 ${nonConflictWords.length} 个单词、${groupCount} 组词根/近义数据（来自 ${fileCount} 个文件）${skippedMsg}${failedMsg}。\n确定继续吗？`)) return;
+                this.doImport(nonConflictWords, null, extrasToImport);
             },
-            doImport(wordsToImport, conflictResolutions) {
+            doImport(wordsToImport, conflictResolutions, extrasToImport) {
                 if (conflictResolutions) {
                     for (const resolution of conflictResolutions) {
                         if (resolution.action !== 'overwrite') continue;
@@ -5410,6 +5772,7 @@
                     newWords.push(w);
                 }
                 this.words.push(...newWords);
+                if (extrasToImport) this.mergeExtras(this.extras, extrasToImport);
                 this.searchIndex.rebuild(this.words);
                 this.saveData();
                 this.render();
@@ -5470,7 +5833,8 @@
                 });
                 if (unresolved > 0) { alert(`还有 ${unresolved} 个冲突未处理，请为每个冲突选择「覆盖」或「跳过」。`); return; }
                 this.hideConflictModal();
-                this.doImport(this.importConflictData.nonConflictWords, resolutions);
+                this.doImport(this.importConflictData.nonConflictWords, resolutions,
+                    this.importConflictData.extrasToImport);
             },
 
             bindEvents() {
