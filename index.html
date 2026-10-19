@@ -2080,10 +2080,19 @@
             max-width: 720px;
             width: 100%;
             border-radius: 24px;
-            padding: 28px 32px;
+            padding: 0;
             max-height: 85vh;
-            overflow-y: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        .conflict-header {
+            flex-shrink: 0;
+            padding: 24px 30px 10px;
+            background: white;
+            border-bottom: 1px solid #eef2f7;
+            z-index: 2;
         }
         .conflict-modal h2 {
             font-size: 20px;
@@ -2100,8 +2109,9 @@
         .conflict-modal .conflict-actions {
             display: flex;
             gap: 10px;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
+            align-items: center;
         }
         .conflict-modal .conflict-actions button {
             border: none;
@@ -2130,6 +2140,10 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            overflow-y: auto;
+            padding: 12px 30px 24px;
+            flex: 1;
+            min-height: 0;
         }
         .conflict-item {
             background: #f8fafc;
@@ -2190,13 +2204,13 @@
             background: #22c55e;
             border: none;
             color: white;
-            padding: 8px 32px;
+            padding: 6px 18px;
             border-radius: 30px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
-            width: 100%;
+            margin: 0 0 0 auto;
+            width: auto;
         }
         .conflict-modal .confirm-import-btn:hover {
             background: #16a34a;
@@ -3378,15 +3392,17 @@
     <!-- 冲突弹窗 -->
     <div class="conflict-modal-overlay" id="conflictModalOverlay">
         <div class="conflict-modal">
-            <button class="close-modal" id="closeConflictModalBtn">✕</button>
-            <h2>⚠️ 检测到导入冲突</h2>
-            <p class="conflict-subtitle">以下单词与现有单词本中的单词同名，请选择处理方式。</p>
-            <div class="conflict-actions">
-                <button class="overwrite-all" id="overwriteAllBtn">🔄 全部覆盖</button>
-                <button class="skip-all" id="skipAllBtn">⏭ 全部跳过</button>
+            <div class="conflict-header">
+                <button class="close-modal" id="closeConflictModalBtn">✕</button>
+                <h2>⚠️ 检测到导入冲突</h2>
+                <p class="conflict-subtitle">以下单词与现有单词本中的单词同名，请选择处理方式。</p>
+                <div class="conflict-actions">
+                    <button class="overwrite-all" id="overwriteAllBtn">🔄 全部覆盖</button>
+                    <button class="skip-all" id="skipAllBtn">⏭ 全部跳过</button>
+                    <button class="confirm-import-btn" id="confirmImportBtn">✅ 确认导入</button>
+                </div>
             </div>
             <div class="conflict-list" id="conflictListContainer"></div>
-            <button class="confirm-import-btn" id="confirmImportBtn">✅ 确认导入</button>
         </div>
     </div>
 
@@ -3679,6 +3695,8 @@
             progress: new Map(),
             backups: [],
             fileBackups: [],
+            mirrorInfo: null,
+            mirrorTimer: null,
             lastBackupAt: 0,
             decks: [],
             deckWords: new Set(),
@@ -3735,6 +3753,7 @@
                     this.currentSenseId = null; }
                 this.render();
                 this.autoBackupIfNeeded().catch(e => console.error(e));
+                this.saveMirror();
                 setInterval(() => this.autoBackupIfNeeded(), 6 * 3600 * 1000);
             },
 
@@ -3850,6 +3869,7 @@
                                 return { key, deckId: key.slice(0, i), wordId: Number(key.slice(i + 1)) };
                             }));
                         }
+                        this.saveMirror();
                         if (seq === this.saveSeq) this.dataDirty = false;
                     } catch (e) { console.error('Save failed:', e); }
                 };
@@ -3874,6 +3894,7 @@
                             return { key, deckId: key.slice(0, i), wordId: Number(key.slice(i + 1)) };
                         }));
                     }
+                    this.saveMirror();
                     if (seq === this.saveSeq) this.dataDirty = false;
                 } catch (e) { console.error('Flush save failed:', e); }
             },
@@ -4422,7 +4443,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.3.3',
+                    appVersion: '0.3.4',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -4442,6 +4463,16 @@
             backupFileName(date = new Date()) {
                 const pad = n => String(n).padStart(2, '0');
                 return `wordbook-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.json`;
+            },
+
+            saveMirror() {
+                if (!window.desktop || typeof window.desktop.mirrorSave !== 'function' || !this.decksLoaded) return;
+                clearTimeout(this.mirrorTimer);
+                this.mirrorTimer = setTimeout(async () => {
+                    try {
+                        await window.desktop.mirrorSave(JSON.stringify(this.buildExportData()));
+                    } catch (e) { console.error('Mirror save failed:', e); }
+                }, 1200);
             },
 
             async createBackup(reason = 'manual') {
@@ -4508,6 +4539,14 @@
                     } catch (e) { this.fileBackups = []; }
                 } else {
                     this.fileBackups = [];
+                }
+                if (window.desktop && typeof window.desktop.mirrorInfo === 'function') {
+                    try {
+                        const info = await window.desktop.mirrorInfo();
+                        this.mirrorInfo = info && info.ok && !info.empty ? info : null;
+                    } catch (e) { this.mirrorInfo = null; }
+                } else {
+                    this.mirrorInfo = null;
                 }
             },
 
@@ -4586,6 +4625,24 @@
                     await this.restoreFromData(data, '本地备份');
                 } catch (e) {
                     this.showToast('读取备份失败：' + e.message, 'error');
+                }
+            },
+
+            async restoreMirror() {
+                if (!window.desktop || typeof window.desktop.mirrorLoad !== 'function') return;
+                try {
+                    const res = await window.desktop.mirrorLoad();
+                    if (!res || !res.ok || !res.payload) {
+                        this.showToast('SQLite 镜像里还没有数据', 'info');
+                        return;
+                    }
+                    const data = JSON.parse(res.payload);
+                    if (!confirm(`将从 SQLite 镜像恢复（${new Date(res.savedAt).toLocaleString()}），覆盖当前数据。\n恢复前会自动备份当前数据。确定继续吗？`)) return;
+                    await this.restoreFromData(data, 'SQLite 镜像');
+                    this._backupLoaded = false;
+                    this.renderRightPanel();
+                } catch (e) {
+                    this.showToast('从 SQLite 镜像恢复失败：' + e.message, 'error');
                 }
             },
 
@@ -5452,6 +5509,11 @@
                             <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;">
                             <span class="backup-hint">也可以继续用「导出 → JSON」手动保存。</span>
                         </div>
+                        ${window.desktop ? `
+                        <div class="backup-section-title">SQLite 镜像（桌面）</div>
+                        <div class="backup-list">
+                            ${this.mirrorInfo ? `<div class="backup-card"><div class="backup-card-main"><div class="backup-date">${this.escapeHtml(fmt(this.mirrorInfo.savedAt))}</div><div class="backup-meta">${this.mirrorInfo.size ? Math.round(this.mirrorInfo.size / 1024) + ' KB · ' : ''}本地 SQLite 快照</div></div><div class="backup-card-actions"><button class="backup-secondary" id="restoreMirrorBtn">恢复镜像</button></div></div>` : '<div class="backup-empty">还没有 SQLite 镜像；保存一次数据后会自动生成。</div>'}
+                        </div>` : ''}
                         <div class="backup-section-title">桌面本地备份</div>
                         <div class="backup-list">${desktopCards}</div>
                         <div class="backup-folder-row">
@@ -5506,6 +5568,8 @@
                         await window.desktop.openBackupFolder();
                     }
                 });
+                const mirrorBtn = document.getElementById('restoreMirrorBtn');
+                if (mirrorBtn) mirrorBtn.addEventListener('click', () => this.restoreMirror());
             },
 
             renderReviewCenter(container) {

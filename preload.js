@@ -11,4 +11,7 @@ contextBridge.exposeInMainWorld('desktop', {
   listBackups: () => ipcRenderer.invoke('backup:list'),
   readBackup: (name) => ipcRenderer.invoke('backup:read', { name }),
   openBackupFolder: () => ipcRenderer.invoke('backup:openFolder'),
+  mirrorSave: (payload) => ipcRenderer.invoke('db:mirrorSave', payload),
+  mirrorLoad: () => ipcRenderer.invoke('db:mirrorLoad'),
+  mirrorInfo: () => ipcRenderer.invoke('db:mirrorInfo'),
 });

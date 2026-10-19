@@ -182,6 +182,19 @@ function backupDir() {
   return path.join(app.getPath('userData'), 'backups');
 }
 
+let mirrorDb = null;
+function getMirrorDb() {
+  if (mirrorDb) return mirrorDb;
+  const { DatabaseSync } = require('node:sqlite');
+  mirrorDb = new DatabaseSync(path.join(app.getPath('userData'), 'wordbook-mirror.db'));
+  mirrorDb.exec(`CREATE TABLE IF NOT EXISTS mirror (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    saved_at INTEGER NOT NULL,
+    payload TEXT NOT NULL
+  )`);
+  return mirrorDb;
+}
+
 function safeBackupName(name) {
   const base = path.basename(String(name || ''));
   return /^[A-Za-z0-9._-]+\.json$/.test(base) ? base : null;
@@ -213,6 +226,36 @@ ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('app:openDataFolder', async () => {
   await shell.openPath(app.getPath('userData'));
   return { ok: true, path: app.getPath('userData') };
+});
+ipcMain.handle('db:mirrorSave', async (_event, payload) => {
+  try {
+    const db = getMirrorDb();
+    const text = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
+    db.prepare('INSERT OR REPLACE INTO mirror (id, saved_at, payload) VALUES (1, ?, ?)')
+      .run(Date.now(), text);
+    return { ok: true };
+  } catch (error) {
+    log('mirror save failed', error);
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('db:mirrorLoad', async () => {
+  try {
+    const row = getMirrorDb().prepare('SELECT saved_at, payload FROM mirror WHERE id = 1').get();
+    if (!row) return { ok: true, empty: true };
+    return { ok: true, savedAt: row.saved_at, payload: row.payload };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('db:mirrorInfo', async () => {
+  try {
+    const row = getMirrorDb().prepare('SELECT saved_at, length(payload) AS size FROM mirror WHERE id = 1').get();
+    if (!row) return { ok: true, empty: true };
+    return { ok: true, savedAt: row.saved_at, size: row.size };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
 });
 ipcMain.handle('backup:list', async () => {
   try {
