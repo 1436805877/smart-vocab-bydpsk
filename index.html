@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.2 beta（义项级 SRS 测试版）
+    智能单词本 v0.3 beta（多词库测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.2 beta</title>
+    <title>智能单词本 v0.3 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -3060,7 +3060,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.2 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.3 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -3090,6 +3090,7 @@
                         <button class="batch-btn batch-cancel" id="batchCancelBtn">✕ 退出</button>
                     </div>
                     <div class="panel-header">
+                        <span class="mode-title">词库<select id="deckSelect"><option value="all">全部词库</option></select></span>
                         <span class="mode-title">分组依据<select id="groupBySelect">
                             <option value="hierarchy">📂 层级列表</option>
                             <option value="alphabetical">🔤 字母</option>
@@ -3181,7 +3182,7 @@
             constructor() {
                 this.db = null;
                 this.DB_NAME = 'SmartVocabDB_v9';
-                this.DB_VERSION = 4;
+                this.DB_VERSION = 5;
             }
             async init() {
                 return new Promise((resolve, reject) => {
@@ -3204,6 +3205,12 @@
                         }
                         if (!db.objectStoreNames.contains('backups')) {
                             db.createObjectStore('backups', { keyPath: 'id' });
+                        }
+                        if (!db.objectStoreNames.contains('decks')) {
+                            db.createObjectStore('decks', { keyPath: 'id' });
+                        }
+                        if (!db.objectStoreNames.contains('deckWords')) {
+                            db.createObjectStore('deckWords', { keyPath: 'key' });
                         }
                     };
                 });
@@ -3269,6 +3276,42 @@
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('backups', 'readwrite');
                     tx.objectStore('backups').delete(id);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }
+            async getDecks() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('decks', 'readonly');
+                    const req = tx.objectStore('decks').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+            async saveDecks(decks) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('decks', 'readwrite');
+                    const store = tx.objectStore('decks');
+                    store.clear();
+                    for (const d of decks) store.put(d);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }
+            async getDeckWords() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('deckWords', 'readonly');
+                    const req = tx.objectStore('deckWords').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+            async saveDeckWords(records) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('deckWords', 'readwrite');
+                    const store = tx.objectStore('deckWords');
+                    store.clear();
+                    for (const r of records) store.put(r);
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject(tx.error);
                 });
@@ -3358,6 +3401,10 @@
             backups: [],
             fileBackups: [],
             lastBackupAt: 0,
+            decks: [],
+            deckWords: new Set(),
+            activeDeckId: 'all',
+            decksLoaded: false,
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -3390,6 +3437,7 @@
             async init() {
                 await this.db.init();
                 await this.loadData();
+                await this.loadDecks();
                 this.seedIdSequence();
                 this.buildIndex();
                 this.registerGames();
@@ -3508,6 +3556,13 @@
                         await this.db.saveWords(this.words);
                         await this.db.saveExtras(this.extras);
                         await this.db.saveProgress([...this.progress.values()]);
+                        if (this.decksLoaded) {
+                            await this.db.saveDecks(this.decks);
+                            await this.db.saveDeckWords([...this.deckWords].map(key => {
+                                const i = key.lastIndexOf(':');
+                                return { key, deckId: key.slice(0, i), wordId: Number(key.slice(i + 1)) };
+                            }));
+                        }
                         if (seq === this.saveSeq) this.dataDirty = false;
                     } catch (e) { console.error('Save failed:', e); }
                 };
@@ -3525,6 +3580,13 @@
                     await this.db.saveWords(this.words);
                     await this.db.saveExtras(this.extras);
                     await this.db.saveProgress([...this.progress.values()]);
+                    if (this.decksLoaded) {
+                        await this.db.saveDecks(this.decks);
+                        await this.db.saveDeckWords([...this.deckWords].map(key => {
+                            const i = key.lastIndexOf(':');
+                            return { key, deckId: key.slice(0, i), wordId: Number(key.slice(i + 1)) };
+                        }));
+                    }
                     if (seq === this.saveSeq) this.dataDirty = false;
                 } catch (e) { console.error('Flush save failed:', e); }
             },
@@ -3735,10 +3797,92 @@
                 await this.saveData(true);
             },
 
+            deckKey(deckId, wordId) {
+                return `${deckId}:${wordId}`;
+            },
+
+            async loadDecks() {
+                let decks = await this.db.getDecks();
+                let records = await this.db.getDeckWords();
+                if (!decks.length) {
+                    const now = Date.now();
+                    decks = [{ id: 'default', name: '我的词库', kind: 'user', readOnly: false, createdAt: now, updatedAt: now }];
+                    records = this.words.map(w => ({ key: this.deckKey('default', w.id), deckId: 'default', wordId: w.id }));
+                    await this.db.saveDecks(decks);
+                    await this.db.saveDeckWords(records);
+                } else {
+                    // 老数据升级：没有归属的单词放进默认词库
+                    const defaultDeck = decks.find(d => d.id === 'default') || decks[0];
+                    const assigned = new Set(records.map(r => r.wordId));
+                    const add = [];
+                    this.words.forEach(w => {
+                        if (!assigned.has(w.id)) {
+                            const rec = { key: this.deckKey(defaultDeck.id, w.id), deckId: defaultDeck.id, wordId: w.id };
+                            records.push(rec);
+                            add.push(rec);
+                        }
+                    });
+                    if (add.length) await this.db.saveDeckWords(records);
+                }
+                this.decks = decks;
+                this.deckWords = new Set(records.map(r => r.key));
+                this.decksLoaded = true;
+                const saved = localStorage.getItem('smartVocabActiveDeck');
+                this.activeDeckId = (saved === 'all' || decks.some(d => d.id === saved)) ? saved : 'all';
+            },
+
+            defaultDeckId() {
+                const d = this.decks.find(x => x.id === 'default') || this.decks[0];
+                return d ? d.id : null;
+            },
+
+            wordInActiveDeck(word) {
+                if (this.activeDeckId === 'all') return true;
+                return !!word && this.deckWords.has(this.deckKey(this.activeDeckId, word.id));
+            },
+
+            async createDeck(name) {
+                const clean = String(name || '').trim();
+                if (!clean) return null;
+                if (this.decks.some(d => d.name === clean)) {
+                    this.showToast('同名词库已存在', 'info');
+                    return null;
+                }
+                const now = Date.now();
+                const deck = { id: `deck-${now}-${Math.random().toString(36).slice(2, 6)}`, name: clean, kind: 'user', readOnly: false, createdAt: now, updatedAt: now };
+                this.decks.push(deck);
+                await this.db.saveDecks(this.decks);
+                this.setActiveDeck(deck.id);
+                return deck;
+            },
+
+            setActiveDeck(id) {
+                if (id !== 'all' && !this.decks.some(d => d.id === id)) id = 'all';
+                this.activeDeckId = id;
+                try { localStorage.setItem('smartVocabActiveDeck', id); } catch (e) { /* ignore */ }
+                this.render();
+            },
+
+            updateDeckSelect() {
+                const select = document.getElementById('deckSelect');
+                if (!select) return;
+                const counts = {};
+                this.deckWords.forEach(key => {
+                    const deckId = key.slice(0, key.lastIndexOf(':'));
+                    counts[deckId] = (counts[deckId] || 0) + 1;
+                });
+                select.innerHTML = [
+                    `<option value="all">全部词库（${this.words.filter(w => !w.deleted).length}）</option>`,
+                    ...this.decks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' 🔒' : ''}</option>`),
+                    '<option value="__new__">＋ 新建词库</option>'
+                ].join('');
+                select.value = this.activeDeckId;
+            },
+
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.2.2',
+                    appVersion: '0.3.0',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -3746,7 +3890,12 @@
                     rootFamilies: this.extras.rootFamilies || [],
                     synonymGroups: this.extras.synonymGroups || [],
                     confusionPairs: this.extras.confusionPairs || [],
-                    progress: [...this.progress.values()]
+                    progress: [...this.progress.values()],
+                    decks: this.decks,
+                    deckWords: [...this.deckWords].map(key => {
+                        const i = key.lastIndexOf(':');
+                        return { key, deckId: key.slice(0, i), wordId: Number(key.slice(i + 1)) };
+                    })
                 };
             },
 
@@ -3851,6 +4000,21 @@
                     if (p.wrongCount > 0 && p.wrongActive === undefined) p.wrongActive = true;
                     if (typeof p.consecutiveCorrect !== 'number') p.consecutiveCorrect = 0;
                 });
+                if (Array.isArray(data.decks) && data.decks.length) {
+                    this.decks = data.decks.filter(d => d && d.id).map(d => ({ ...d }));
+                    this.deckWords = new Set((Array.isArray(data.deckWords) ? data.deckWords : [])
+                        .filter(r => r && r.key).map(r => r.key));
+                    const missing = this.words.filter(w => !this.decks.some(d =>
+                        this.deckWords.has(this.deckKey(d.id, w.id))));
+                    const defaultDeck = this.decks.find(d => d.id === 'default') || this.decks[0];
+                    missing.forEach(w => this.deckWords.add(this.deckKey(defaultDeck.id, w.id)));
+                } else {
+                    const now = Date.now();
+                    this.decks = [{ id: 'default', name: '我的词库', kind: 'user', readOnly: false, createdAt: now, updatedAt: now }];
+                    this.deckWords = new Set(this.words.map(w => this.deckKey('default', w.id)));
+                }
+                this.activeDeckId = 'all';
+                this.decksLoaded = true;
                 this.seedIdSequence();
                 this.buildIndex();
                 this.currentWordId = this.words[0] ? this.words[0].id : null;
@@ -4002,8 +4166,12 @@
             },
 
             getDisplayWords() {
-                return this.currentMode === 'recycle' ? this.words.filter(w => w.deleted === true) : this.words.filter(w =>
+                let list = this.currentMode === 'recycle' ? this.words.filter(w => w.deleted === true) : this.words.filter(w =>
                     w.deleted !== true);
+                if (this.currentMode !== 'recycle' && this.activeDeckId !== 'all') {
+                    list = list.filter(w => this.deckWords.has(this.deckKey(this.activeDeckId, w.id)));
+                }
+                return list;
             },
 
             // 0.2 起：出题随机选义项，而不是永远只考 senses[0]
@@ -4151,6 +4319,7 @@
                 this.renderRightPanel();
                 this.updateSearchClearBtn();
                 this.updateNavButtons();
+                this.updateDeckSelect();
                 this.updateGroupBySelect();
                 this.updateAlphaNav();
             },
@@ -4424,7 +4593,7 @@
                 const out = [];
                 for (const p of this.progress.values()) {
                     if (!p || !p.wrongActive || !this.isProgressActive(p)) continue;
-                    const w = this.words.find(x => x.id === p.wordId && !x.deleted);
+                    const w = this.words.find(x => x.id === p.wordId && !x.deleted && this.wordInActiveDeck(x));
                     const s = w && (w.senses || []).find(x => x && x.id === p.senseId);
                     if (w && s) out.push({ wordId: w.id, senseId: s.id, word: w, sense: s, progress: p, type: 'wrong' });
                 }
@@ -4437,7 +4606,7 @@
                 let freshWords = 0;
                 let freshSenses = 0;
                 for (const w of this.words) {
-                    if (w.deleted) continue;
+                    if (w.deleted || !this.wordInActiveDeck(w)) continue;
                     let hasFresh = false;
                     for (const s of (w.senses || [])) {
                         if (!s || !s.definition) continue;
@@ -4455,7 +4624,7 @@
                 const due = [];
                 const fresh = [];
                 for (const w of this.words) {
-                    if (w.deleted) continue;
+                    if (w.deleted || !this.wordInActiveDeck(w)) continue;
                     let pickedFresh = false;
                     (w.senses || []).forEach(s => {
                         if (!s || !s.definition) return;
@@ -7381,6 +7550,7 @@
                 this.doImport(nonConflictWords, null, extrasToImport, progressToImport);
             },
             doImport(wordsToImport, conflictResolutions, extrasToImport, progressToImport) {
+                const targetDeckId = this.activeDeckId !== 'all' ? this.activeDeckId : this.defaultDeckId();
                 if (conflictResolutions) {
                     for (const resolution of conflictResolutions) {
                         if (resolution.action !== 'overwrite') continue;
@@ -7395,6 +7565,7 @@
                         newWord.correctCount = old.correctCount || 0;
                         newWord.deleted = false;
                         this.words[idx] = newWord;
+                        if (targetDeckId) this.deckWords.add(this.deckKey(targetDeckId, newWord.id));
                     }
                 }
                 const newWords = [];
@@ -7419,6 +7590,7 @@
                     newWords.push(w);
                 }
                 this.words.push(...newWords);
+                if (targetDeckId) newWords.forEach(w => this.deckWords.add(this.deckKey(targetDeckId, w.id)));
                 if (extrasToImport) this.mergeExtras(this.extras, extrasToImport);
                 if (Array.isArray(progressToImport)) {
                     progressToImport.forEach(p => {
@@ -7509,6 +7681,16 @@
                 });
                 document.getElementById('randomBtn').addEventListener('click', () => this.goRandom());
                 document.getElementById('batchManageBtn').addEventListener('click', () => this.toggleBatchMode());
+
+                document.getElementById('deckSelect').addEventListener('change', function() {
+                    if (this.value === '__new__') {
+                        const name = prompt('新词库名称：');
+                        if (name && name.trim()) App.createDeck(name.trim());
+                        else App.updateDeckSelect();
+                    } else {
+                        App.setActiveDeck(this.value);
+                    }
+                });
 
                 document.getElementById('groupBySelect').addEventListener('change', function() {
                     const form = document.getElementById('addWordForm');
