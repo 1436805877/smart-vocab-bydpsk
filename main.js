@@ -195,6 +195,68 @@ function getMirrorDb() {
   return mirrorDb;
 }
 
+let appDb = null;
+const DB_STORES = ['words', 'extras', 'progress', 'decks', 'deckWords', 'backups'];
+function getAppDb() {
+  if (appDb) return appDb;
+  const { DatabaseSync } = require('node:sqlite');
+  appDb = new DatabaseSync(path.join(app.getPath('userData'), 'wordbook.db'));
+  appDb.exec(`
+    CREATE TABLE IF NOT EXISTS objects (
+      store TEXT NOT NULL,
+      key TEXT NOT NULL,
+      json TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (store, key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_objects_store ON objects(store);
+  `);
+  return appDb;
+}
+
+function rowKey(store, row) {
+  if (store === 'words' || store === 'decks' || store === 'backups') return String(row.id);
+  return String(row.key);
+}
+
+function assertStore(store) {
+  if (!DB_STORES.includes(store)) throw new Error('未知数据表：' + store);
+}
+
+function dbReadAll(db, store) {
+  assertStore(store);
+  return db.prepare('SELECT json FROM objects WHERE store = ? ORDER BY key').all(store)
+    .map(row => JSON.parse(row.json));
+}
+
+function dbCounts(db) {
+  const counts = {};
+  for (const store of DB_STORES) {
+    counts[store] = db.prepare('SELECT COUNT(*) AS n FROM objects WHERE store = ?').get(store).n;
+  }
+  return counts;
+}
+
+function dbImportAll(db, payload) {
+  const data = payload || {};
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    for (const store of DB_STORES) {
+      db.prepare('DELETE FROM objects WHERE store = ?').run(store);
+      const rows = Array.isArray(data[store]) ? data[store] : [];
+      const stmt = db.prepare('INSERT INTO objects (store, key, json, updated_at) VALUES (?, ?, ?, ?)');
+      for (const row of rows) {
+        if (!row) continue;
+        stmt.run(store, rowKey(store, row), JSON.stringify(row), Date.now());
+      }
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+    throw error;
+  }
+}
+
 function safeBackupName(name) {
   const base = path.basename(String(name || ''));
   return /^[A-Za-z0-9._-]+\.json$/.test(base) ? base : null;
@@ -227,6 +289,77 @@ ipcMain.handle('app:openDataFolder', async () => {
   await shell.openPath(app.getPath('userData'));
   return { ok: true, path: app.getPath('userData') };
 });
+ipcMain.handle('db:info', async () => {
+  try {
+    const db = getAppDb();
+    return { ok: true, counts: dbCounts(db), path: path.join(app.getPath('userData'), 'wordbook.db') };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('db:getAll', async (_event, store) => {
+  try {
+    assertStore(store);
+    return { ok: true, rows: dbReadAll(getAppDb(), store) };
+  } catch (error) {
+    return { ok: false, error: String(error), rows: [] };
+  }
+});
+ipcMain.handle('db:replaceStore', async (_event, payload) => {
+  const { store, rows = [] } = payload || {};
+  try {
+    assertStore(store);
+    const db = getAppDb();
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('DELETE FROM objects WHERE store = ?').run(store);
+      const stmt = db.prepare('INSERT INTO objects (store, key, json, updated_at) VALUES (?, ?, ?, ?)');
+      for (const row of rows) {
+        if (!row) continue;
+        stmt.run(store, rowKey(store, row), JSON.stringify(row), Date.now());
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* ignore */ }
+      throw error;
+    }
+    return { ok: true, count: rows.length };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('db:importAll', async (_event, payload) => {
+  try {
+    dbImportAll(getAppDb(), payload);
+    return { ok: true, counts: dbCounts(getAppDb()) };
+  } catch (error) {
+    log('db import failed', error);
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('db:put', async (_event, payload) => {
+  const { store, row } = payload || {};
+  try {
+    assertStore(store);
+    if (!row) throw new Error('缺少数据行');
+    getAppDb().prepare('INSERT OR REPLACE INTO objects (store, key, json, updated_at) VALUES (?, ?, ?, ?)')
+      .run(store, rowKey(store, row), JSON.stringify(row), Date.now());
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('db:delete', async (_event, payload) => {
+  const { store, key } = payload || {};
+  try {
+    assertStore(store);
+    getAppDb().prepare('DELETE FROM objects WHERE store = ? AND key = ?').run(store, String(key));
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+
 ipcMain.handle('db:mirrorSave', async (_event, payload) => {
   try {
     const db = getMirrorDb();

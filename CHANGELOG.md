@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 — 2026-10-19
+
+### 新增
+
+- 桌面版 SQLite 主存储：
+  - `%APPDATA%\smart-vocab\wordbook.db`；
+  - words / extras / progress / decks / deckWords / backups 六类数据；
+  - SQLite 打开/读写失败自动回退 IndexedDB。
+- 首次升级自动迁移：
+  - 从 IndexedDB 读取；
+  - 迁移前写一份 `wordbook-migration-*.json` 备份；
+  - 单事务写入 SQLite；
+  - 校验单词/义项进度/词库数量；
+  - 校验失败清空 SQLite 并回退 IndexedDB。
+- 设置页显示当前存储：SQLite 主存储 / IndexedDB 回退。
+
+### 说明
+
+- 网页版仍用 IndexedDB。
+- SQLite 镜像 `wordbook-mirror.db` 仍保留，作为额外兜底。
+- 4036 标准词库仍未内置。
+
 ## 0.3.4 — 2026-10-19
 
 ### 新增

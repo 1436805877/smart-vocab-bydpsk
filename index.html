@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.3 beta（多词库测试版）
+    智能单词本 v0.4 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.3 beta</title>
+    <title>智能单词本 v0.4 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -3307,7 +3307,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.3 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -3636,6 +3636,129 @@
         }
 
         // ============================================================
+        //  SQLite 数据层（桌面版主存储，失败时回退 IndexedDB）
+        // ============================================================
+        class SQLiteStore {
+            constructor() {
+                this.bridge = window.desktop || null;
+                this.mode = 'sqlite';
+            }
+
+            async init() {
+                if (!this.bridge || typeof this.bridge.dbInfo !== 'function') {
+                    throw new Error('SQLite bridge 不可用');
+                }
+                const info = await this.bridge.dbInfo();
+                if (!info || !info.ok) throw new Error(info && info.error || 'SQLite 打开失败');
+                if (!info.counts || !info.counts.words) {
+                    const idb = new VocabDB();
+                    await idb.init();
+                    const words = await idb.getAllWords();
+                    if (words.length > 0) await this.migrateFromIdb(idb, words);
+                }
+            }
+
+            async migrateFromIdb(idb, words) {
+                const extras = await idb.getExtras();
+                const progress = await idb.getProgress();
+                const decks = await idb.getDecks();
+                const deckWords = await idb.getDeckWords();
+                const backups = await idb.getBackups();
+                const extraRows = ['rootFamilies', 'synonymGroups', 'confusionPairs']
+                    .map(key => ({ key, value: extras[key] || [] }));
+                const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
+                const backupData = {
+                    app: '智能单词本', appVersion: '0.4.0', schemaVersion: 3,
+                    exportedAt: new Date().toISOString(),
+                    wordCount: words.length,
+                    words,
+                    rootFamilies: extras.rootFamilies || [],
+                    synonymGroups: extras.synonymGroups || [],
+                    confusionPairs: extras.confusionPairs || [],
+                    progress, decks, deckWords
+                };
+                if (typeof this.bridge.saveBackup === 'function') {
+                    const saved = await this.bridge.saveBackup(JSON.stringify(backupData, null, 2),
+                        `wordbook-migration-${Date.now()}.json`);
+                    if (!saved || !saved.ok) throw new Error('迁移前备份失败，已停止迁移');
+                }
+                const res = await this.bridge.dbImportAll(payload);
+                if (!res || !res.ok) throw new Error(res && res.error || 'SQLite 迁移失败');
+                const check = await this.bridge.dbInfo();
+                if (!check || !check.ok || !check.counts || check.counts.words !== words.length ||
+                    check.counts.progress !== progress.length || check.counts.decks !== decks.length) {
+                    try {
+                        await this.bridge.dbImportAll({ words: [], extras: [], progress: [], decks: [], deckWords: [], backups: [] });
+                    } catch (e) { /* ignore */ }
+                    throw new Error('迁移校验失败，已回退 IndexedDB');
+                }
+            }
+
+            async getAllWords() {
+                const res = await this.bridge.dbGetAll('words');
+                if (!res.ok) throw new Error(res.error);
+                return res.rows || [];
+            }
+            async saveWords(words) {
+                const res = await this.bridge.dbReplaceStore('words', words);
+                if (!res.ok) throw new Error(res.error);
+            }
+            async getExtras() {
+                const res = await this.bridge.dbGetAll('extras');
+                if (!res.ok) throw new Error(res.error);
+                const out = { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
+                (res.rows || []).forEach(row => { if (row && row.key) out[row.key] = row.value || []; });
+                return out;
+            }
+            async saveExtras(extras) {
+                const rows = ['rootFamilies', 'synonymGroups', 'confusionPairs']
+                    .map(key => ({ key, value: Array.isArray(extras[key]) ? extras[key] : [] }));
+                const res = await this.bridge.dbReplaceStore('extras', rows);
+                if (!res.ok) throw new Error(res.error);
+            }
+            async getProgress() {
+                const res = await this.bridge.dbGetAll('progress');
+                if (!res.ok) throw new Error(res.error);
+                return res.rows || [];
+            }
+            async saveProgress(progress) {
+                const res = await this.bridge.dbReplaceStore('progress', progress);
+                if (!res.ok) throw new Error(res.error);
+            }
+            async getDecks() {
+                const res = await this.bridge.dbGetAll('decks');
+                if (!res.ok) throw new Error(res.error);
+                return res.rows || [];
+            }
+            async saveDecks(decks) {
+                const res = await this.bridge.dbReplaceStore('decks', decks);
+                if (!res.ok) throw new Error(res.error);
+            }
+            async getDeckWords() {
+                const res = await this.bridge.dbGetAll('deckWords');
+                if (!res.ok) throw new Error(res.error);
+                return res.rows || [];
+            }
+            async saveDeckWords(records) {
+                const res = await this.bridge.dbReplaceStore('deckWords', records);
+                if (!res.ok) throw new Error(res.error);
+            }
+            async getBackups() {
+                const res = await this.bridge.dbGetAll('backups');
+                if (!res.ok) throw new Error(res.error);
+                return res.rows || [];
+            }
+            async saveBackup(snapshot) {
+                const res = await this.bridge.dbPut('backups', snapshot);
+                if (!res.ok) throw new Error(res.error);
+            }
+            async deleteBackup(id) {
+                const res = await this.bridge.dbDelete('backups', id);
+                if (!res.ok) throw new Error(res.error);
+            }
+        }
+
+        // ============================================================
         //  搜索索引（子串匹配）
         // ============================================================
         // v2.3.1：不再要求「整词精确命中」。为每个单词缓存一份小写可搜索文本，
@@ -3689,6 +3812,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
+            storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
             extras: { rootFamilies: [], synonymGroups: [], confusionPairs: [] },
@@ -3739,9 +3863,37 @@
             gameStates: {},
 
             async init() {
-                await this.db.init();
-                await this.loadData();
-                await this.loadDecks();
+                try {
+                    if (window.desktop && typeof window.desktop.dbInfo === 'function') {
+                        this.db = new SQLiteStore();
+                        await this.db.init();
+                        this.storageMode = 'sqlite';
+                    } else {
+                        this.db = new VocabDB();
+                        await this.db.init();
+                        this.storageMode = 'indexeddb';
+                    }
+                } catch (e) {
+                    console.error('SQLite 初始化失败，回退 IndexedDB:', e);
+                    this.db = new VocabDB();
+                    await this.db.init();
+                    this.storageMode = 'indexeddb';
+                }
+                try {
+                    await this.loadData();
+                    await this.loadDecks();
+                } catch (e) {
+                    if (this.storageMode === 'sqlite') {
+                        console.error('SQLite 读取失败，回退 IndexedDB:', e);
+                        this.db = new VocabDB();
+                        await this.db.init();
+                        this.storageMode = 'indexeddb';
+                        await this.loadData();
+                        await this.loadDecks();
+                    } else {
+                        throw e;
+                    }
+                }
                 this.loadSettings();
                 this.seedIdSequence();
                 this.buildIndex();
@@ -4427,6 +4579,7 @@
                             <button class="backup-primary" id="settingsSaveBtn">保存设置</button>
                             <span class="backup-hint">快捷键：Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做</span>
                         </div>
+                        <div class="backup-hint" style="margin-top:10px;">当前桌面存储：${this.storageMode === 'sqlite' ? 'SQLite 主存储' : 'IndexedDB（回退）'}</div>
                     </div>
                 `;
                 const save = document.getElementById('settingsSaveBtn');
@@ -4443,7 +4596,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.3.4',
+                    appVersion: '0.4.0',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,

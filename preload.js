@@ -14,4 +14,10 @@ contextBridge.exposeInMainWorld('desktop', {
   mirrorSave: (payload) => ipcRenderer.invoke('db:mirrorSave', payload),
   mirrorLoad: () => ipcRenderer.invoke('db:mirrorLoad'),
   mirrorInfo: () => ipcRenderer.invoke('db:mirrorInfo'),
+  dbInfo: () => ipcRenderer.invoke('db:info'),
+  dbGetAll: (store) => ipcRenderer.invoke('db:getAll', store),
+  dbReplaceStore: (store, rows) => ipcRenderer.invoke('db:replaceStore', { store, rows }),
+  dbImportAll: (payload) => ipcRenderer.invoke('db:importAll', payload),
+  dbPut: (store, row) => ipcRenderer.invoke('db:put', { store, row }),
+  dbDelete: (store, key) => ipcRenderer.invoke('db:delete', { store, key }),
 });
