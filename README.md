@@ -58,7 +58,14 @@ python -m http.server 8080
 
 ## GitHub Pages
 
-仓库推送到 GitHub 后，在 **Settings → Pages** 选择 `main` 分支根目录即可，`index.html` 会被直接托管。
+本目录已经是一个本地 Git 仓库，`main` 分支上有初始提交。推送到 GitHub 后，在 **Settings → Pages** 选择 `main` 分支根目录即可，`index.html` 会被直接托管。
+
+```bash
+git remote add origin https://github.com/<你的账号>/<仓库名>.git
+git push -u origin main
+```
+
+如果需要我继续在本地提交，只需保持这个目录不变；远端推送需要你先在本机完成 GitHub 登录（Git Credential Manager）或提供已配置好的远端地址。
 
 ## 开发说明
 
