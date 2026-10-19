@@ -52,21 +52,26 @@ python -m http.server 8080
 
 ## 路线图
 
+完整的应用化规划见 [docs/app-roadmap.md](docs/app-roadmap.md)。
+
 - `0.1.x`：数据层与详情页、导入导出、基础清理。
 - `0.2`：词根库、近义场、核心回忆/词根拆解/义项链/近义辨析等复习题型。
-- `0.3`：义项级 SRS、每日队列、错题本。
-- 后续：PWA / 手机端、备份、可选同步。
+- `0.3`：义项级 SRS、每日队列、错题本、SQLite 与备份。
+- `0.4`：PWA，可安装到 Windows/手机。
+- `0.5`：Electron 桌面版，Windows 安装包与自动更新。
+- `1.0`：稳定数据迁移、签名、备份恢复。
 
-## GitHub Pages
+## GitHub / Pages
 
-本目录已经是一个本地 Git 仓库，`main` 分支上有初始提交。推送到 GitHub 后，在 **Settings → Pages** 选择 `main` 分支根目录即可，`index.html` 会被直接托管。
+仓库：[1436805877/smart-vocab-bydpsk](https://github.com/1436805877/smart-vocab-bydpsk)
 
-```bash
-git remote add origin https://github.com/<你的账号>/<仓库名>.git
-git push -u origin main
+在仓库 **Settings → Pages** 选择 `main` 分支根目录即可托管网页版：
+
+```text
+https://1436805877.github.io/smart-vocab-bydpsk/
 ```
 
-如果需要我继续在本地提交，只需保持这个目录不变；远端推送需要你先在本机完成 GitHub 登录（Git Credential Manager）或提供已配置好的远端地址。
+本地仓库已配置专用 Deploy Key，当前可以直接 `git push` / `git pull`。
 
 ## 开发说明
 
