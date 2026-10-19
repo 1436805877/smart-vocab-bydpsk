@@ -50,6 +50,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "installDir": "$LOCALAPPDATA\\SmartVocab",
       "createDesktopShortcut": true,
       "shortcutName": "智能单词本",
       "deleteAppDataOnUninstall": false
