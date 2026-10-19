@@ -1895,6 +1895,68 @@
             gap: 12px;
             margin-top: 18px;
         }
+        .import-mode-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .import-mode-card {
+            text-align: left;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 12px 14px;
+            cursor: pointer;
+        }
+        .import-mode-card strong {
+            display: block;
+            font-size: 15px;
+            color: #1e293b;
+            margin-bottom: 3px;
+        }
+        .import-mode-card span {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+        .import-mode-card.active {
+            border-color: #818cf8;
+            background: #eef2ff;
+        }
+        .import-fields {
+            margin: 12px 0;
+        }
+        .import-fields label {
+            display: block;
+            font-size: 13px;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        .import-fields input,
+        .import-fields select {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 14px;
+        }
+        .import-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .import-choose-btn {
+            border: none;
+            background: #4f46e5;
+            color: white;
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
         .export-card {
             display: flex;
             flex-direction: column;
@@ -3354,6 +3416,40 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="importModalOverlay">
+        <div class="modal" style="max-width:640px;">
+            <button class="close-modal" id="closeImportModalBtn">✕</button>
+            <h2>📥 导入单词</h2>
+            <p class="text-sm text-muted">先选择导入方式，再选择文件。普通导入会读取 JSON 里的词库归属；没有归属时进入当前词库。</p>
+            <div class="import-mode-grid">
+                <button class="import-mode-card active" data-import-mode="normal">
+                    <strong>📥 普通导入</strong>
+                    <span>按文件里的词库信息导入；没有词库信息则进当前词库</span>
+                </button>
+                <button class="import-mode-card" data-import-mode="new">
+                    <strong>🆕 导入为新词库</strong>
+                    <span>所有文件进入一个新词库，可指定名称</span>
+                </button>
+                <button class="import-mode-card" data-import-mode="existing">
+                    <strong>📂 导入到已有词库</strong>
+                    <span>所有文件进入你选中的词库</span>
+                </button>
+            </div>
+            <div id="importNewFields" class="import-fields" style="display:none;">
+                <label>新词库名称</label>
+                <input type="text" id="importDeckName" maxlength="60" placeholder="留空则使用文件名或 JSON 里的词库名">
+            </div>
+            <div id="importExistingFields" class="import-fields" style="display:none;">
+                <label>导入到</label>
+                <select id="importTargetDeck"></select>
+            </div>
+            <div class="import-actions">
+                <button class="import-choose-btn" id="importChooseFilesBtn">选择文件并导入</button>
+                <button class="back-btn" id="importCancelBtn">取消</button>
+            </div>
+        </div>
+    </div>
+
     <input type="file" id="fileInput" accept=".json,.csv,.txt" multiple />
     <div class="toast" id="toast"></div>
 
@@ -3594,6 +3690,7 @@
             undoStack: [],
             redoStack: [],
             applyingUndo: false,
+            importOptions: { mode: 'normal', newDeckName: '', targetDeckId: null },
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -4111,31 +4208,6 @@
                 this.render();
             },
 
-            async importAsNewDeck(file) {
-                if (!file) return;
-                try {
-                    const text = await this.readFileText(file);
-                    const parsed = this.parseImportText(file.name, text);
-                    if (!parsed.words || !parsed.words.length) {
-                        this.showToast('文件里没有可导入的单词', 'error');
-                        return;
-                    }
-                    let data = {};
-                    try { data = JSON.parse(text); } catch (e) { /* csv/txt */ }
-                    const base = (data.deck && data.deck.name) || data.deckName || data.name ||
-                        file.name.replace(/\.[^.]+$/, '') || '导入词库';
-                    let name = String(base).trim() || '导入词库';
-                    let n = 2;
-                    while (this.decks.some(d => d.name === name)) name = `${base} (${n++})`;
-                    const deck = await this.createDeck(name);
-                    if (!deck) return;
-                    this.showToast(`📥 正在导入到新词库「${name}」`, 'info', 1500);
-                    this.startImport(parsed.words, 1, 0, 0, parsed.extras, parsed.progress);
-                } catch (e) {
-                    this.showToast('导入新词库失败：' + e.message, 'error');
-                }
-            },
-
             renderDeckManager(container) {
                 const counts = {};
                 this.deckWords.forEach(key => {
@@ -4166,8 +4238,6 @@
                         <div class="deck-new">
                             <input id="newDeckName" type="text" placeholder="新词库名称" maxlength="40">
                             <button id="newDeckBtn">＋ 新建词库</button>
-                            <button id="importNewDeckBtn" class="deck-import-btn">📥 导入新词库</button>
-                            <input type="file" id="deckImportInput" accept=".json,.csv,.txt" style="display:none;">
                         </div>
                         <div class="deck-list">${cards || '<div class="backup-empty">还没有词库。</div>'}</div>
                         <div class="deck-hint">标准词库为只读；用户词库可以新建、重命名、删除。删除词库不会删除单词本身。</div>
@@ -4180,14 +4250,6 @@
                     await this.createDeck(newInput.value.trim());
                     newInput.value = '';
                     this.render();
-                });
-                const importBtn = document.getElementById('importNewDeckBtn');
-                const importInput = document.getElementById('deckImportInput');
-                if (importBtn && importInput) importBtn.addEventListener('click', () => importInput.click());
-                if (importInput) importInput.addEventListener('change', async () => {
-                    const file = importInput.files && importInput.files[0];
-                    if (file) await this.importAsNewDeck(file);
-                    importInput.value = '';
                 });
                 container.querySelectorAll('.deck-use').forEach(btn => {
                     btn.addEventListener('click', () => this.setActiveDeck(btn.dataset.id));
@@ -4360,7 +4422,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.3.2',
+                    appVersion: '0.3.3',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -7736,6 +7798,49 @@
                 this.render();
             },
 
+            openImportModal() {
+                const overlay = document.getElementById('importModalOverlay');
+                if (!overlay) return;
+                const target = document.getElementById('importTargetDeck');
+                if (target) {
+                    const defaultId = this.activeDeckId !== 'all' ? this.activeDeckId : this.defaultDeckId();
+                    target.innerHTML = this.decks.filter(d => !d.readOnly).map(d =>
+                        `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}</option>`).join('');
+                    if (defaultId) target.value = defaultId;
+                }
+                const nameInput = document.getElementById('importDeckName');
+                if (nameInput) nameInput.value = '';
+                this.setImportMode('normal');
+                overlay.classList.add('show');
+            },
+
+            closeImportModal() {
+                const overlay = document.getElementById('importModalOverlay');
+                if (overlay) overlay.classList.remove('show');
+            },
+
+            setImportMode(mode) {
+                this.importOptions.mode = mode;
+                document.querySelectorAll('.import-mode-card').forEach(card => {
+                    card.classList.toggle('active', card.dataset.importMode === mode);
+                });
+                const newFields = document.getElementById('importNewFields');
+                const existingFields = document.getElementById('importExistingFields');
+                if (newFields) newFields.style.display = mode === 'new' ? 'block' : 'none';
+                if (existingFields) existingFields.style.display = mode === 'existing' ? 'block' : 'none';
+            },
+
+            startImportPicker() {
+                const nameInput = document.getElementById('importDeckName');
+                const target = document.getElementById('importTargetDeck');
+                this.importOptions.newDeckName = nameInput ? nameInput.value.trim() : '';
+                this.importOptions.targetDeckId = target ? target.value : null;
+                this.closeImportModal();
+                const input = document.getElementById('fileInput');
+                if (input) { input.value = '';
+                    input.click(); }
+            },
+
             askText(title, defaultValue = '') {
                 return new Promise(resolve => {
                     const overlay = document.getElementById('textPromptOverlay');
@@ -7935,7 +8040,9 @@
                             synonymGroups: Array.isArray(data.synonymGroups) ? data.synonymGroups : [],
                             confusionPairs: Array.isArray(data.confusionPairs) ? data.confusionPairs : []
                         },
-                        progress: Array.isArray(data.progress) ? data.progress : []
+                        progress: Array.isArray(data.progress) ? data.progress : [],
+                        decks: Array.isArray(data.decks) ? data.decks : [],
+                        deckWords: Array.isArray(data.deckWords) ? data.deckWords : []
                     };
                 }
                 if (lower.endsWith('.csv')) {
@@ -8028,11 +8135,14 @@
                 });
                 return target;
             },
-            async importFiles(files) {
+            async importFiles(files, options = {}) {
                 if (!files || files.length === 0) return;
                 const allWords = [];
                 const allExtras = { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
                 const allProgress = [];
+                const deckMap = new Map();
+                const allDeckWords = [];
+                const fileNames = [];
                 let skipped = 0;
                 let failedFiles = 0;
                 for (let i = 0; i < files.length; i++) {
@@ -8044,15 +8154,26 @@
                         allWords.push(...(parsed.words || []));
                         this.mergeExtras(allExtras, parsed.extras || {});
                         if (Array.isArray(parsed.progress)) allProgress.push(...parsed.progress);
+                        (parsed.decks || []).forEach(d => { if (d && d.id) deckMap.set(d.id, d); });
+                        if (Array.isArray(parsed.deckWords)) allDeckWords.push(...parsed.deckWords);
+                        fileNames.push(file.name);
                     } catch (err) {
                         failedFiles++;
                         console.error(err);
                         this.showToast(`⚠️ ${file.name} 解析失败：${err.message}`, 'error', 3000);
                     }
                 }
-                this.startImport(allWords, files.length, failedFiles, skipped, allExtras, allProgress);
+                const deckPlan = {
+                    mode: options.mode || 'normal',
+                    newDeckName: options.newDeckName || '',
+                    targetDeckId: options.targetDeckId || null,
+                    sourceDecks: [...deckMap.values()],
+                    sourceDeckWords: allDeckWords,
+                    fileNames
+                };
+                this.startImport(allWords, files.length, failedFiles, skipped, allExtras, allProgress, deckPlan);
             },
-            startImport(rawWords, fileCount, failedFiles, skipped, extrasToImport, progressToImport) {
+            startImport(rawWords, fileCount, failedFiles, skipped, extrasToImport, progressToImport, deckPlan) {
                 const activeWords = this.words.filter(w => !w.deleted);
                 const activeMap = new Map(activeWords.map(w => [w.word.toLowerCase(), w]));
                 const conflicts = [];
@@ -8088,15 +8209,78 @@
                     this.importConflictData = {
                         conflicts, nonConflictWords,
                         skippedCount: skipped, fileCount,
-                        failedFiles, extrasToImport, progressToImport
+                        failedFiles, extrasToImport, progressToImport, deckPlan
                     };
                     this.showConflictModal();
                     return;
                 }
                 if (!confirm(`将导入 ${nonConflictWords.length} 个单词、${groupCount} 组词根/近义数据（来自 ${fileCount} 个文件）${skippedMsg}${failedMsg}。\n确定继续吗？`)) return;
-                this.doImport(nonConflictWords, null, extrasToImport, progressToImport);
+                this.doImport(nonConflictWords, null, extrasToImport, progressToImport, deckPlan);
             },
-            doImport(wordsToImport, conflictResolutions, extrasToImport, progressToImport) {
+            assignImportedDecks(newWords, oldIdMap, plan) {
+                const fallback = (id) => id && this.decks.some(d => d.id === id && !d.readOnly) ? id : this.defaultDeckId();
+                const targetId = plan && plan.targetDeckId ? fallback(plan.targetDeckId) : null;
+                const currentId = this.activeDeckId !== 'all' ? fallback(this.activeDeckId) : null;
+                if (!plan || plan.mode === 'existing') {
+                    const id = targetId || currentId || this.defaultDeckId();
+                    if (id) newWords.forEach(w => this.deckWords.add(this.deckKey(id, w.id)));
+                    return;
+                }
+                if (plan.mode === 'new') {
+                    let base = (plan.newDeckName || '').trim() ||
+                        (plan.sourceDecks && plan.sourceDecks[0] && plan.sourceDecks[0].name) ||
+                        ((plan.fileNames && plan.fileNames[0]) ? plan.fileNames[0].replace(/\.[^.]+$/, '') : '') ||
+                        '导入词库';
+                    let name = base;
+                    let n = 2;
+                    while (this.decks.some(d => d.name === name)) name = `${base} (${n++})`;
+                    const now = Date.now();
+                    const deck = { id: `deck-${now}-${Math.random().toString(36).slice(2, 6)}`, name,
+                        kind: 'user', readOnly: false, createdAt: now, updatedAt: now };
+                    this.decks.push(deck);
+                    newWords.forEach(w => this.deckWords.add(this.deckKey(deck.id, w.id)));
+                    return;
+                }
+
+                // normal：优先按 JSON 里的词库归属导入
+                const sourceDecks = plan.sourceDecks || [];
+                const sourceDeckWords = plan.sourceDeckWords || [];
+                const deckIdMap = new Map();
+                sourceDecks.forEach(sd => {
+                    if (!sd || !sd.id) return;
+                    let existing = this.decks.find(d => d.id === sd.id) ||
+                        this.decks.find(d => d.name === sd.name);
+                    if (!existing) {
+                        let id = sd.id;
+                        if (this.decks.some(d => d.id === id)) id = `deck-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                        existing = { ...sd, id, readOnly: false, kind: sd.kind || 'user', updatedAt: Date.now() };
+                        this.decks.push(existing);
+                    }
+                    deckIdMap.set(sd.id, existing.id);
+                });
+                const assigned = new Set();
+                sourceDeckWords.forEach(record => {
+                    if (!record) return;
+                    let deckId = record.deckId;
+                    let wordId = record.wordId;
+                    if ((!deckId || wordId === undefined) && record.key) {
+                        const i = String(record.key).lastIndexOf(':');
+                        if (i > 0) { deckId = String(record.key).slice(0, i); wordId = String(record.key).slice(i + 1); }
+                    }
+                    const localDeck = deckIdMap.get(deckId);
+                    const localWord = oldIdMap.get(String(wordId));
+                    if (localDeck && localWord) {
+                        this.deckWords.add(this.deckKey(localDeck, localWord));
+                        assigned.add(localWord);
+                    }
+                });
+                const fallbackId = currentId || this.defaultDeckId();
+                if (fallbackId) newWords.forEach(w => {
+                    if (!assigned.has(w.id)) this.deckWords.add(this.deckKey(fallbackId, w.id));
+                });
+            },
+
+            doImport(wordsToImport, conflictResolutions, extrasToImport, progressToImport, deckPlan) {
                 this.pushUndo('导入单词');
                 const targetDeckId = this.activeDeckId !== 'all' ? this.activeDeckId : this.defaultDeckId();
                 if (conflictResolutions) {
@@ -8117,8 +8301,11 @@
                     }
                 }
                 const newWords = [];
+                const oldIdMap = new Map();
                 for (const w of wordsToImport) {
+                    const oldWordId = w.id;
                     w.id = this.genId();
+                    if (oldWordId !== undefined) oldIdMap.set(String(oldWordId), w.id);
                     const senseIdMap = {};
                     w.senses = w.senses.map(s => {
                         const oldId = s.id;
@@ -8138,7 +8325,7 @@
                     newWords.push(w);
                 }
                 this.words.push(...newWords);
-                if (targetDeckId) newWords.forEach(w => this.deckWords.add(this.deckKey(targetDeckId, w.id)));
+                this.assignImportedDecks(newWords, oldIdMap, deckPlan);
                 if (extrasToImport) this.mergeExtras(this.extras, extrasToImport);
                 if (Array.isArray(progressToImport)) {
                     progressToImport.forEach(p => {
@@ -8210,7 +8397,8 @@
                 if (unresolved > 0) { alert(`还有 ${unresolved} 个冲突未处理，请为每个冲突选择「覆盖」或「跳过」。`); return; }
                 this.hideConflictModal();
                 this.doImport(this.importConflictData.nonConflictWords, resolutions,
-                    this.importConflictData.extrasToImport, this.importConflictData.progressToImport);
+                    this.importConflictData.extrasToImport, this.importConflictData.progressToImport,
+                    this.importConflictData.deckPlan);
             },
 
             bindEvents() {
@@ -8335,11 +8523,20 @@
                     btn.addEventListener('click', () => App.exportAs(btn.dataset.format));
                 });
                 const fileInput = document.getElementById('fileInput');
-                document.getElementById('importBtn').addEventListener('click', () => fileInput.click());
+                document.getElementById('importBtn').addEventListener('click', () => App.openImportModal());
+                document.getElementById('closeImportModalBtn').addEventListener('click', () => App.closeImportModal());
+                document.getElementById('importCancelBtn').addEventListener('click', () => App.closeImportModal());
+                document.getElementById('importChooseFilesBtn').addEventListener('click', () => App.startImportPicker());
+                document.querySelectorAll('.import-mode-card').forEach(card => {
+                    card.addEventListener('click', () => App.setImportMode(card.dataset.importMode));
+                });
+                document.getElementById('importModalOverlay').addEventListener('click', (e) => {
+                    if (e.target === e.currentTarget) App.closeImportModal();
+                });
                 fileInput.addEventListener('change', () => {
                     const files = Array.from(fileInput.files || []);
                     fileInput.value = '';
-                    if (files.length > 0) App.importFiles(files);
+                    if (files.length > 0) App.importFiles(files, { ...App.importOptions });
                 });
 
                 document.addEventListener('keydown', (e) => {
