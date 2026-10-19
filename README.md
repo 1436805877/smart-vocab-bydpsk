@@ -50,6 +50,12 @@ python -m http.server 8080
 
 完整的示例见 `data/example-v2.json`，schema 说明见 `docs/data-schema-v2.md`。
 
+旧版 v1 数据转换见 [docs/data-conversion.md](docs/data-conversion.md)，脚本：
+
+```bash
+node scripts/convert-v1-to-v2.mjs 旧数据.json 新数据.v2.json
+```
+
 ## 路线图
 
 完整的应用化规划见 [docs/app-roadmap.md](docs/app-roadmap.md)。

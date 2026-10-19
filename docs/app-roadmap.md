@@ -26,12 +26,14 @@
 | Capacitor | 原生壳 + Web | 中 | iOS/Android | 插件 | 要上手机应用商店 |
 | Flutter / RN | 原生 | 高 | 支持 | 成熟 | 完全重写，不建议现在做 |
 
-### 我的建议
+### 本项目的选择（2026-10 确认）
 
-- **第一步：PWA。** 几天内就能在 Windows/Android 上“安装”成一个独立窗口，离线可用，更新即时，不用签名、不用装 Rust。
-- **第二步：Electron 桌面版。** 对编程小白最友好：Node 已装，GitHub Actions 可以直接构建 `.exe`，自动更新成熟；缺点是体积大。
-- **长期可选：Tauri。** 如果 1.0 后在意安装包大小/内存，再评估迁移；不要一开始就为此卡住。
-- **手机：先 PWA。** 真要上架 App Store / Google Play，再用 Capacitor 包一层；iOS 需要 Mac 和 Apple 开发者账号。
+- **Windows 优先，做真正的桌面安装包。** 选择 **Electron**：Node 已装，GitHub Actions 可以直接构建 `.exe`，自动更新成熟；缺点是安装包 80–150 MB。
+- **手机端后做，一步到位。** 选择 **Capacitor**：复用同一套 UI，包成 Android/iOS 应用；不先做 PWA 过渡。
+- **其他平台不做。** 不单独维护 macOS/Linux 桌面版，也不把网页版当正式产品；网页版只作为开发和预览入口。
+- **PWA 不是必须阶段。** 如果某天想快速在手机浏览器里试玩，可以加 manifest，但不作为发布目标。
+- **Tauri 暂不采用。** 它的体积更小，但需要 Rust + VS Build Tools；当前阶段优先把 Windows 版做稳。
+
 
 ## 3. 推荐阶段
 
@@ -42,26 +44,19 @@
 - 义项级复习进度、每日队列、错题本。
 - 这一步决定“这个 App 值不值得装”，优先级最高。
 
-### 0.3 数据层与备份（打包前必须做）
+### 0.3 数据层、备份与旧数据转换（打包前必须做）
 
 - 把 `VocabDB` 抽成 `DataStore` 接口：
-  - `IndexedDBStore`（Web/PWA）
-  - `SQLiteStore`（桌面/手机）
+  - `IndexedDBStore`（Web 开发/预览）
+  - `SQLiteStore`（Windows/手机）
   - `MemoryStore`（测试）
 - 数据模型加 `schemaVersion`、`updatedAt`、`deletedAt`。
 - 如果计划多设备同步，现在就把 ID 改成 UUID；否则以后迁移很痛。
 - 自动备份：每天/每次退出前导出 JSON 或复制 SQLite；保留最近 7 份。
 - 导入导出继续保留，作为跨设备迁移的“最小可用方案”。
+- 提供 **v1 → v2 转换脚本**（`scripts/convert-v1-to-v2.mjs`）：保留旧 `wordNotes`，抽取核心感觉/逻辑链/词源/同根词/近义组；抽不到的字段留空，后续 AI 重构。
 
-### 0.4 PWA（最低成本的“应用化”）
-
-- `manifest.webmanifest` + 192/512 图标 + `service worker`。
-- Windows/Android 可“安装”，独立窗口、离线打开。
-- GitHub Pages 自动部署。
-- 仍用 IndexedDB；加“备份提醒”，避免清缓存丢数据。
-- 这一步不解决“真正安装包”，但能让日常使用脱离浏览器标签页。
-
-### 0.5 桌面版（Electron 优先）
+### 0.4 Windows 桌面版（Electron）
 
 - Electron 主进程加载构建后的静态文件。
 - `preload` 暴露安全 API：文件选择、备份、导入、导出、打开数据目录。
@@ -72,12 +67,14 @@
 - 代码签名后补；未签名时 SmartScreen 会提示“更多信息 → 仍要运行”。
 - GitHub Actions 在 `windows-latest` 上构建并上传 Release，不依赖你本机装打包工具。
 
-### 0.6 手机版（按需）
+### 0.5 手机版（Capacitor，一步到位）
 
-- 先 PWA；需要应用商店时用 Capacitor。
+- 复用同一套 Web UI，用 Capacitor 包成 Android/iOS 应用。
+- SQLite 通过 Capacitor 插件存到应用沙盒；导出/分享走系统文件选择器。
 - Android：Android Studio / GitHub Actions 出 APK。
-- iOS：需要 Mac + Xcode + Apple 开发者账号（$99/年）。
+- iOS：需要 Mac + Xcode + Apple 开发者账号（$99/年），或用 macOS CI 构建。
 - 手机 UI 需要单独适配：底部导航、全屏详情、触控友好的复习按钮。
+- 不做 PWA 过渡；先把 Windows 版打磨好，再进入手机端。
 
 ### 1.0 稳定版
 
@@ -143,11 +140,11 @@ facet_progress(key, word_id, sense_id, facet, due_at,
 
 ## 6. 分发与更新
 
-- **网页/PWA**：GitHub Pages。
 - **Windows**：GitHub Releases 提供 `.exe` 安装包 + 便携版。
-- **自动更新**：Electron `electron-updater` 或 Tauri updater，读取 GitHub Releases。
+- **自动更新**：Electron `electron-updater`，读取 GitHub Releases。
 - **签名**：正式版建议买 Windows 代码签名证书；没有签名也能用，但会有 SmartScreen 警告。
-- **手机**：先 PWA；上架再走 Google Play（$25 一次性）和 Apple（$99/年）。
+- **手机**：Capacitor 打包；Android APK 可直接分发，应用商店后置；iOS 需要 Apple 开发者账号。
+- **网页**：GitHub Pages 只作为开发预览，不作为正式产品。
 - **CI**：GitHub Actions 构建安装包、跑测试、发布 Release；你只下载成品。
 
 ## 7. 主要风险
@@ -161,13 +158,20 @@ facet_progress(key, word_id, sense_id, facet, due_at,
 
 ## 8. 需要你决定的事
 
-1. **主平台**：Windows 桌面优先，还是手机优先，还是两者都要？
-2. **工具链**：愿意在本机装 Node/Rust/VS Build Tools/Android Studio，还是希望全部用 GitHub Actions 构建、自己只下载安装包？
-3. **分发**：只自己用 + GitHub 下载，还是要上应用商店？
-4. **数据**：单机 + 手动备份就够，还是必须多设备同步？
-5. **外观**：保留现在这套界面，还是桌面版重新设计一套更“应用化”的布局？
+已确认：
+
+- 主平台：**Windows 优先，手机后做**。
+- 其他平台：**不做**。
+- 手机端：**Capacitor 一步到位，不走 PWA 过渡**。
+
+还需要确认：
+
+1. **工具链**：愿意在本机装 Node/VS Build Tools/Android Studio，还是希望全部用 GitHub Actions 构建、自己只下载安装包？
+2. **分发**：只自己用 + GitHub 下载，还是要上应用商店？
+3. **数据**：单机 + 手动备份就够，还是必须多设备同步？
+4. **外观**：保留现在这套界面，还是桌面版重新设计一套更“应用化”的布局？
 
 我的默认建议：
 
-> **0.2 学习内核 → 0.3 SQLite/备份 → 0.4 PWA → 0.5 Electron 桌面版 → 0.6 手机按需 → 1.0。**
-> 先让你在 Windows 上双击安装、离线使用；手机先用 PWA，不急着上架。
+> **0.2 学习内核 → 0.3 SQLite/备份/旧数据转换 → 0.4 Electron Windows 桌面版 → 0.5 Capacitor 手机端 → 1.0。**
+> 先让你在 Windows 上双击安装、离线使用；手机端等 Windows 稳定后再一步到位。
