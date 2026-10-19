@@ -12,6 +12,14 @@ desktop.ini
 *_ed25519
 *.pem
 
+# Node / Electron
+node_modules/
+release/
+dist/
+.npm-cache/
+npm-debug.log*
+.electron-*.zip
+
 # Local test artifacts
 _test*.js
 _smoke*.html

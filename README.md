@@ -15,6 +15,18 @@ python -m http.server 8080
 
 数据保存在浏览器 IndexedDB（`SmartVocabDB_v9`）。换浏览器或清理缓存前，请先用「导出 → JSON」备份。
 
+## Windows 桌面版
+
+0.1 已加入 Electron 桌面壳：
+
+```bash
+npm install
+npm start        # 开发运行
+npm run dist     # 生成 Windows 安装包 + 便携版
+```
+
+详细说明见 [docs/desktop.md](docs/desktop.md)。如果本机无法下载 Electron，可在 GitHub Actions 里手动运行 **Build Windows app**，从 Artifacts 下载安装包。
+
 ## 0.1 的范围
 
 - 删除「所属分类」功能，减少旧版遗留的概念和数据。

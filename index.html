@@ -5031,6 +5031,19 @@
                 return this.words.map(w => w.word).filter(Boolean).join('\n') + '\n';
             },
             downloadFile(content, filename, mime) {
+                if (window.desktop && typeof window.desktop.saveTextFile === 'function') {
+                    const kind = (filename.split('.').pop() || 'txt').toLowerCase();
+                    window.desktop.saveTextFile({ content, defaultName: filename, kind })
+                        .then(result => {
+                            if (result && result.ok) {
+                                this.showToast(`✅ 已保存到 ${result.filePath}`, 'success', 3500);
+                            } else if (result && result.canceled) {
+                                this.showToast('已取消保存', 'info');
+                            }
+                        })
+                        .catch(err => this.showToast('❌ 保存失败：' + err.message, 'error'));
+                    return true;
+                }
                 const blob = new Blob([content], { type: mime });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -5040,6 +5053,7 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+                return false;
             },
             exportAs(format) {
                 if (this.words.length === 0) {
@@ -5048,6 +5062,7 @@
                 }
                 const dateStr = new Date().toISOString().slice(0, 10);
                 try {
+                    let nativeSave = false;
                     if (format === 'json') {
                         const data = {
                             app: '智能单词本',
@@ -5057,22 +5072,24 @@
                             wordCount: this.words.length,
                             words: this.words
                         };
-                        this.downloadFile(JSON.stringify(data, null, 2),
+                        nativeSave = this.downloadFile(JSON.stringify(data, null, 2),
                             `单词本备份_${dateStr}.json`, 'application/json;charset=utf-8');
                     } else if (format === 'csv') {
-                        this.downloadFile(this.toCSV(), `单词本表格_${dateStr}.csv`,
+                        nativeSave = this.downloadFile(this.toCSV(), `单词本表格_${dateStr}.csv`,
                             'text/csv;charset=utf-8');
                     } else if (format === 'md') {
-                        this.downloadFile(this.toMarkdown(), `单词本笔记_${dateStr}.md`,
+                        nativeSave = this.downloadFile(this.toMarkdown(), `单词本笔记_${dateStr}.md`,
                             'text/markdown;charset=utf-8');
                     } else if (format === 'txt') {
-                        this.downloadFile(this.toTXT(), `单词表_${dateStr}.txt`,
+                        nativeSave = this.downloadFile(this.toTXT(), `单词表_${dateStr}.txt`,
                             'text/plain;charset=utf-8');
                     } else {
                         return;
                     }
                     this.closeExportModal();
-                    this.showToast(`✅ 已导出 ${this.words.length} 个单词（${format.toUpperCase()}）`, 'success');
+                    if (!nativeSave) {
+                        this.showToast(`✅ 已导出 ${this.words.length} 个单词（${format.toUpperCase()}）`, 'success');
+                    }
                 } catch (err) {
                     this.showToast('❌ 导出失败：' + err.message, 'error');
                     console.error(err);

@@ -131,12 +131,33 @@ review_events(id, at, word_id, sense_id, facet, item_type,
 
 facet_progress(key, word_id, sense_id, facet, due_at,
                interval, ease, reps, lapses, last_grade);
+
+-- 词库：标准库 + 用户自建/导入库
+decks(id, uid, name, kind, version, description,
+      source, read_only, created_at, updated_at);
+
+deck_words(deck_id, word_id, position);
 ```
 
 - 内容字段用 JSON 存，避免为每个新题型改表结构。
 - 复习事件单独存，方便统计、遗忘曲线、错题本。
 - 同步需要 `uid` / `updated_at` / `deleted_at`；不同步可以暂缓。
 - 备份：SQLite 文件 + JSON 导出双保险；迁移前先备份。
+
+### 5.1 标准词库 + 用户词库
+
+你的设想是：**4000+ 核心词作为内置标准库，用户还可以自由加入其他数据库**。建议这样落地：
+
+- **标准库（standard deck）**：随安装包内置，只读；有 `version`，升级时按 `uid` 合并，不覆盖用户的学习记录。
+- **用户词库（user decks）**：用户自己添加的词、导入的 JSON 包、第三方词库，每个包一个 deck；可启用/停用/删除。
+- **单词与词库多对多**：同一个词可以同时属于“六级核心”和“我的生词”；复习进度按词/义项共享，不按 deck 复制。
+- **复习队列**：可选择“当前词库”“全部启用词库”“只看生词/错题”；统计也按词库出。
+- **数据隔离**：标准库内容只读；用户笔记、掌握度、复习记录写在用户数据里，标准库更新不会冲掉。
+- **导入包格式**：`{ id, name, version, wordCount, words, rootFamilies, synonymGroups }`；导入时作为新 deck，冲突按 `uid`/word 合并。
+- **体积**：4036 词 × 8 条笔记会比较大；标准库用 SQLite 或压缩 JSON 放安装包，首次启动导入/建立索引，避免每次全量解析。
+- **版权**：内置词库内容来源要确认授权；第三方词库导入时保留 `source` 字段。
+
+这一步放在 0.3 数据层一起做，比现在直接塞 JSON 更稳。
 
 ## 6. 分发与更新
 
