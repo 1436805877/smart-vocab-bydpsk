@@ -44,18 +44,20 @@ function extractCore(notes) {
   const core = { feeling: '', image: '', keywords: [], chain: [] };
   if (!note) return core;
 
-  const feeling = note.match(/核心感觉[：:]\s*([^\n]+)/);
+  const feeling = note.match(/核心感觉[：:]\s*([^。\n]+)/);
   if (feeling) core.feeling = clean(feeling[1]).replace(/^[“"']|[”"']$/g, '').replace(/[。；;]$/, '');
 
-  const image = note.match(/(?:核心画面|画面)[：:]\s*([^\n]+)/);
+  const image = note.match(/(?:核心画面|画面)[：:]\s*([^。\n]+)/);
   if (image) core.image = clean(image[1]);
 
-  const keywords = note.match(/关键词[：:]\s*([^\n]+)/);
+  const keywords = note.match(/关键词[：:]\s*([^。\n]+)/);
   if (keywords) core.keywords = clean(keywords[1]).split(/[、,，/]/).map(s => s.trim()).filter(Boolean);
 
-  const chainMatches = [...note.matchAll(/逻辑链[：:]\s*([^\n]+)/g)];
-  if (chainMatches.length) {
-    const parts = clean(chainMatches[chainMatches.length - 1][1]).split(/→|->/).map(s => s.trim()).filter(Boolean);
+  // 注意：标题里也可能出现“逻辑链：”，取最后一个冒号后的内容，避免抓到标题
+  const chainIdx = Math.max(note.lastIndexOf('逻辑链：'), note.lastIndexOf('逻辑链:'));
+  if (chainIdx >= 0) {
+    const after = note.slice(chainIdx + 4).split(/\n/)[0];
+    const parts = clean(after).replace(/[。；;]$/, '').split(/→|->/).map(s => s.trim()).filter(Boolean);
     core.chain = parts.map((label, i) => ({
       stage: i === 0 ? '本义' : '引申',
       label: label.replace(/[。；;]$/, ''),
@@ -71,7 +73,9 @@ function extractMorphology(notes) {
   if (!note) return result;
 
   const text = stripTitle(note);
-  const literal = text.match(/本义[：:\s]*[“"]([^”"]+)[”"]/) || text.match(/本义[：:]\s*([^，。\n]+)/);
+  const literal = text.match(/本义(?:为)?[：:\s]*[“"]([^”"]+)[”"]/) ||
+    text.match(/本义(?:为)?[：:]\s*([^，。\n]+)/) ||
+    text.match(/路径[：:]\s*[“"]([^”"]+)[”"]/);
   if (literal) result.literal = clean(literal[1]);
 
   // 优先只从“由 A（x）+ B（y）构成”里取词素，避免把词源语言词误当词根
@@ -125,16 +129,15 @@ function extractSynonymGroup(notes, word) {
   const text = stripTitle(note);
   const members = [];
   const seen = new Set();
-  text.split(/\n/).forEach(line => {
-    const m = line.match(/^\s*([A-Za-z][A-Za-z' -]{1,40})\s*[（(]([^）)]{1,120})[）)]\s*$/);
-    if (m) {
-      const w = m[1].trim();
-      if (!seen.has(w.toLowerCase())) {
-        seen.add(w.toLowerCase());
-        members.push({ word: w, nuance: clean(m[2]) });
-      }
-    }
-  });
+  // 兼容两种排版：每行一个词，或 "Word（...）| Word（...）" 一行
+  const memberRe = /([A-Za-z][A-Za-z' -]{1,40})\s*[（(]([^）)]{1,120})[）)]/g;
+  let m;
+  while ((m = memberRe.exec(text)) && members.length < 12) {
+    const w = m[1].trim();
+    if (seen.has(w.toLowerCase())) continue;
+    seen.add(w.toLowerCase());
+    members.push({ word: w, nuance: clean(m[2]) });
+  }
   if (members.length === 0) return null;
   const mnemonic = text.match(/口诀[：:]\s*([^\n]+)/);
   return {

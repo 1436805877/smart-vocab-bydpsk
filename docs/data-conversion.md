@@ -106,6 +106,11 @@ node scripts/convert-v1-to-v2.mjs 旧数据.json 新数据.v2.json
    - 搜索、导出是否正常；
 5. 确认无误后再清理旧数据。
 
+> ⚠️ 0.1 目前只持久化 `words`，`rootFamilies` / `synonymGroups` / `confusionPairs` 要等 0.2 的数据层才入库。所以：
+> - 转换后的 `新数据.v2.json` 请保留为**母版**；
+> - 不要把 0.1 重新导出的 JSON 当作唯一备份，否则会丢掉顶层共享库；
+> - 0.2 会把这三个库接入 SQLite/IndexedDB，到时再用母版导入一次。
+
 ## 6. 推荐的三阶段转换
 
 ### 阶段 A：无损迁移（先做）
