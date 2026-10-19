@@ -13,5 +13,11 @@ _smoke*.html
 *.log
 *.tmp
 
+# Personal exports (do not commit your own vocabulary data)
+单词本备份_*.json
+单词本表格_*.csv
+单词本笔记_*.md
+单词表_*.txt
+
 # Python
 __pycache__/
