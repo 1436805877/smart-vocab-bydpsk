@@ -7,6 +7,11 @@ desktop.ini
 .vscode/
 .idea/
 
+# Local secrets / SSH keys (never commit)
+.secrets/
+*_ed25519
+*.pem
+
 # Local test artifacts
 _test*.js
 _smoke*.html
