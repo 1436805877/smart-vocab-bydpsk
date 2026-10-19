@@ -27,6 +27,10 @@ npm run dist     # 生成 Windows 安装包 + 便携版
 
 详细说明见 [docs/desktop.md](docs/desktop.md)。如果本机无法下载 Electron，可在 GitHub Actions 里手动运行 **Build Windows app**，从 Artifacts 下载安装包。
 
+Release 页面（安装包构建完成后）：
+
+https://github.com/1436805877/smart-vocab-bydpsk/releases
+
 本机已生成免安装便携版：
 
 ```text
