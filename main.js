@@ -1,15 +1,61 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
+const os = require('node:os');
 
 const APP_ID = 'com.mokiklok.smartvocab';
 let mainWindow = null;
 
+// 启动日志：便携版目录和临时目录各写一份，方便排查“双击没反应”
+const logFiles = [
+  path.join(path.dirname(process.execPath), 'startup.log'),
+  path.join(os.tmpdir(), 'smartvocab-startup.log'),
+];
+function writeLog(line) {
+  const text = `[${new Date().toISOString()}] ${line}\n`;
+  for (const file of logFiles) {
+    try { fsSync.appendFileSync(file, text, 'utf8'); } catch { /* ignore */ }
+  }
+}
+function log(...args) {
+  writeLog(args.map(v => {
+    if (v instanceof Error) return v.stack || v.message;
+    if (typeof v === 'object') {
+      try { return JSON.stringify(v); } catch { return String(v); }
+    }
+    return String(v);
+  }).join(' '));
+}
+
+process.on('uncaughtException', (err) => {
+  log('UNCAUGHT EXCEPTION', err);
+  try {
+    dialog.showErrorBox('智能单词本启动失败', String(err && err.stack || err));
+  } catch { /* ignore */ }
+});
+process.on('unhandledRejection', (err) => log('UNHANDLED REJECTION', err));
+
+log('=== startup ===');
+log({
+  electron: process.versions.electron,
+  chrome: process.versions.chrome,
+  node: process.versions.node,
+  platform: process.platform,
+  arch: process.arch,
+  execPath: process.execPath,
+  resourcesPath: process.resourcesPath,
+  argv: process.argv,
+});
+
 const gotLock = app.requestSingleInstanceLock();
+log('singleInstanceLock:', gotLock);
 if (!gotLock) {
+  log('another instance is running, quitting');
   app.quit();
 } else {
   app.on('second-instance', () => {
+    log('second-instance');
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -18,6 +64,7 @@ if (!gotLock) {
 }
 
 function createWindow() {
+  log('createWindow');
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 920,
@@ -35,7 +82,22 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  mainWindow.webContents.on('did-finish-load', () => {
+    log('did-finish-load OK');
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, code, desc, url) => {
+    log('did-fail-load', { code, desc, url });
+  });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    log('render-process-gone', details);
+  });
+  mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+    log('preload-error', { preloadPath, error: String(error && error.stack || error) });
+  });
+
+  mainWindow.loadFile(path.join(__dirname, 'index.html')).catch(err => {
+    log('loadFile failed', err);
+  });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -149,15 +211,24 @@ ipcMain.handle('file:openText', async (_event, payload) => {
 });
 
 app.whenReady().then(() => {
+  log('app ready');
   app.setAppUserModelId(APP_ID);
+  log('userData:', app.getPath('userData'));
   buildMenu();
+  log('menu built');
   createWindow();
+  log('window created');
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}).catch(err => {
+  log('whenReady failed', err);
+  try { dialog.showErrorBox('智能单词本启动失败', String(err && err.stack || err)); } catch { /* ignore */ }
+  app.quit();
 });
 
 app.on('window-all-closed', () => {
+  log('window-all-closed');
   if (process.platform !== 'darwin') app.quit();
 });
