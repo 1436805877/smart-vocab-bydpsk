@@ -1838,6 +1838,123 @@
             color: #94a3b8;
         }
 
+        /* 核心回忆 */
+        .core-recall-game {
+            text-align: center;
+        }
+        .core-recall-word {
+            font-size: 52px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 28px 0 6px;
+            color: #0f172a;
+        }
+        .core-recall-phonetic {
+            color: #64748b;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+        .core-recall-prompt {
+            color: #64748b;
+            font-size: 14px;
+            margin: 18px 0;
+        }
+        .core-recall-reveal-wrap {
+            margin: 20px 0;
+        }
+        .core-recall-reveal-wrap button {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 30px;
+            background: #4f46e5;
+            color: white;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .core-recall-reveal-wrap button:hover {
+            background: #4338ca;
+        }
+        .core-recall-answer {
+            max-width: 680px;
+            margin: 18px auto;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: #f8fafc;
+            text-align: left;
+        }
+        .core-recall-answer.legacy .core-recall-feeling {
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1.8;
+            color: #334155;
+            white-space: pre-wrap;
+        }
+        .core-recall-feeling {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+        .core-recall-image {
+            margin-top: 10px;
+            color: #475569;
+            font-size: 14px;
+        }
+        .core-recall-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .core-recall-keywords span {
+            background: #4f46e5;
+            color: white;
+            border-radius: 30px;
+            padding: 2px 12px;
+            font-size: 12px;
+        }
+        .core-recall-chain {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .core-recall-hint {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .core-recall-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 16px 0 4px;
+        }
+        .core-recall-actions button {
+            border: none;
+            border-radius: 30px;
+            padding: 10px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .core-recall-actions button:hover {
+            background: #cbd5e1;
+        }
+        .core-recall-actions button[data-grade="2"] {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .core-recall-actions button[data-grade="2"]:hover {
+            background: #bbf7d0;
+        }
+
         /* 单词接龙游戏 */
         .wordchain-game .chain-container {
             max-width: 700px;
@@ -2618,6 +2735,14 @@
                         desc: '自主复习，点击卡片翻转查看释义',
                         badge: '经典',
                         render: () => this.renderFlashcardGame()
+                    },
+                    coreRecall: {
+                        id: 'coreRecall',
+                        name: '核心回忆',
+                        icon: '🧭',
+                        desc: '看单词先回忆核心感觉，再揭示答案',
+                        badge: '核心',
+                        render: () => this.renderCoreRecallGame()
                     },
                     spellingChallenge: {
                         id: 'spellingChallenge',
@@ -3451,6 +3576,112 @@
                 });
                 const backBtn = document.getElementById('flashcardBackBtn');
                 if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
+            },
+
+            // ============================================================
+            //  核心回忆（0.1 新增）
+            // ============================================================
+            renderCoreRecallGame() {
+                const container = document.getElementById('rightPanel');
+                const activeWords = this.words.filter(w => !w.deleted);
+                if (activeWords.length === 0) {
+                    container.innerHTML =
+                        `<div class="game-container"><div class="empty-review">🎉 没有可复习的单词</div></div>`;
+                    return;
+                }
+                const state = this.gameStates.coreRecall || {};
+                if (!state.order || state.order.length === 0) {
+                    state.order = [...activeWords].sort(() => Math.random() - 0.5).map(w => w.id);
+                    state.index = 0;
+                    state.correct = 0;
+                    state.revealed = false;
+                    this.gameStates.coreRecall = state;
+                }
+                if (state.index >= state.order.length) {
+                    container.innerHTML = `
+                        <div class="game-container">
+                            <div class="game-header">
+                                <div class="game-title">🧭 核心回忆 <small>本轮完成</small></div>
+                                <button class="back-btn" id="coreRecallBackBtn">← 返回</button>
+                            </div>
+                            <div class="game-result">
+                                <div class="big-score">${state.correct} / ${state.order.length}</div>
+                                <div class="sub">本轮能回忆出核心感觉的单词数</div>
+                                <button id="coreRecallRetryBtn">🔄 再来一轮</button>
+                            </div>
+                        </div>
+                    `;
+                    const backBtn = document.getElementById('coreRecallBackBtn');
+                    if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
+                    const retryBtn = document.getElementById('coreRecallRetryBtn');
+                    if (retryBtn) retryBtn.addEventListener('click', () => {
+                        delete this.gameStates.coreRecall;
+                        this.renderCoreRecallGame();
+                    });
+                    return;
+                }
+
+                const word = this.words.find(w => w.id === state.order[state.index]);
+                if (!word) {
+                    state.index++;
+                    this.renderCoreRecallGame();
+                    return;
+                }
+                const core = word.core || {};
+                const notes = word.wordNotes || [];
+                const feeling = core.feeling || notes[0] || (word.senses[0] && word.senses[0].definition) || '（暂无核心感觉）';
+                const fallback = !core.feeling && !core.image;
+                const keywords = Array.isArray(core.keywords) ? core.keywords : [];
+                const chain = Array.isArray(core.chain) ? core.chain : [];
+                const progress = `${state.index + 1} / ${state.order.length}`;
+                let html = `
+                    <div class="game-container core-recall-game">
+                        <div class="game-header">
+                            <div class="game-title">🧭 核心回忆 <small>先想感觉，再看答案</small></div>
+                            <button class="back-btn" id="coreRecallBackBtn2">← 返回</button>
+                        </div>
+                        <div class="core-recall-word">${this.escapeHtml(word.word)}</div>
+                        ${word.phonetic ? `<div class="core-recall-phonetic">${this.escapeHtml(word.phonetic)}</div>` : ''}
+                        ${!state.revealed ? `
+                            <div class="core-recall-prompt">先在心里说出这个词的核心感觉 / 画面，再揭示答案。</div>
+                            <div class="core-recall-reveal-wrap"><button id="coreRecallRevealBtn">👀 显示核心感觉</button></div>
+                        ` : `
+                            <div class="core-recall-answer ${fallback ? 'legacy' : ''}">
+                                <div class="core-recall-feeling">${this.escapeHtml(feeling)}</div>
+                                ${core.image ? `<div class="core-recall-image">🖼️ ${this.escapeHtml(core.image)}</div>` : ''}
+                                ${keywords.length ? `<div class="core-recall-keywords">${keywords.map(k => `<span>${this.escapeHtml(k)}</span>`).join('')}</div>` : ''}
+                                ${chain.length ? `<div class="core-recall-chain">${chain.map(n => `<span class="chain-node"><b>${this.escapeHtml(n.label || '')}</b><small>${this.escapeHtml(n.bridge || '')}</small></span>`).join('<span class="chain-arrow">→</span>')}</div>` : ''}
+                                ${fallback ? `<div class="core-recall-hint">当前显示的是旧版笔记，导入 v2 数据后会显示结构化核心感觉。</div>` : ''}
+                            </div>
+                            <div class="core-recall-actions">
+                                <button data-grade="0">😵 忘记</button>
+                                <button data-grade="1">🤔 模糊</button>
+                                <button data-grade="2">✅ 记得</button>
+                            </div>
+                        `}
+                        <div class="progress-info">进度：<span class="highlight">${progress}</span></div>
+                    </div>
+                `;
+                container.innerHTML = html;
+
+                const backBtn = document.getElementById('coreRecallBackBtn2');
+                if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
+                const revealBtn = document.getElementById('coreRecallRevealBtn');
+                if (revealBtn) revealBtn.addEventListener('click', () => {
+                    state.revealed = true;
+                    this.renderCoreRecallGame();
+                });
+                container.querySelectorAll('.core-recall-actions button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const grade = Number(btn.dataset.grade);
+                        this.recordReview(word.id, grade === 2);
+                        if (grade === 2) state.correct = (state.correct || 0) + 1;
+                        state.index++;
+                        state.revealed = false;
+                        this.renderCoreRecallGame();
+                        this.renderList();
+                    });
+                });
             },
 
             // ============================================================
