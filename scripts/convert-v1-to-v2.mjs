@@ -39,6 +39,17 @@ const stripTitle = (text) => {
   return i >= 0 ? s.slice(i + 1).trim() : s;
 };
 
+function isDefinitionLikeCore(text, oldWord) {
+  const s = clean(text);
+  if (!s) return true;
+  if (s.length > 140) return true;
+  if (/^(vt\.|vi\.|v\.|n\.|adj\.|adv\.|prep\.|conj\.|pron\.|num\.|art\.|aux\.|a\.|ad\.)\s*/i.test(s)) return true;
+  if (/(中文近义|释义|意思是|翻译|英文|中文|词义|词性|词典)/.test(s)) return true;
+  if (/^义[①②③④⑤⑥⑦⑧⑨⑩]/.test(s)) return true;
+  if ((oldWord.senses || []).some(x => clean(x.definition) === s)) return true;
+  return false;
+}
+
 function extractCore(notes) {
   const note = findNote(notes, '📖');
   const core = { feeling: '', image: '', keywords: [], chain: [] };
@@ -172,6 +183,13 @@ for (const old of words) {
   }
   const notes = Array.isArray(old.wordNotes) ? old.wordNotes : [];
   const core = extractCore(notes);
+  if (core.feeling && isDefinitionLikeCore(core.feeling, old)) {
+    core.legacyFeeling = core.feeling;
+    core.feeling = '';
+    core.quality = 'needs-review';
+  } else {
+    core.quality = core.feeling ? 'ok' : 'missing';
+  }
   const morphology = extractMorphology(notes);
   const etymologyNote = findNote(notes, '🔥');
   const etymology = etymologyNote ? {
