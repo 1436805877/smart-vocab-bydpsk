@@ -36,6 +36,10 @@ process.on('uncaughtException', (err) => {
 });
 process.on('unhandledRejection', (err) => log('UNHANDLED REJECTION', err));
 
+// 桌面单词本不需要 GPU；关闭硬件加速可避开部分显卡/驱动导致的启动崩溃
+app.disableHardwareAcceleration();
+log('hardware acceleration disabled');
+
 log('=== startup ===');
 log({
   electron: process.versions.electron,
@@ -48,20 +52,9 @@ log({
   argv: process.argv,
 });
 
-const gotLock = app.requestSingleInstanceLock();
-log('singleInstanceLock:', gotLock);
-if (!gotLock) {
-  log('another instance is running, quitting');
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    log('second-instance');
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
-  });
-}
+// 0.1 排查阶段先关闭单实例锁：部分 Windows 环境下 requestSingleInstanceLock()
+// 会在原生层直接崩溃，JS 层捕获不到。后续会用 Windows 命名互斥体替代。
+log('single instance lock: disabled for troubleshooting');
 
 function createWindow() {
   log('createWindow');
