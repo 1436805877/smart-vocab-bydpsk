@@ -1419,6 +1419,12 @@
             font-weight: 700;
             cursor: pointer;
         }
+        .deck-new .deck-import-btn {
+            background: white;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            font-weight: 500;
+        }
         .deck-list {
             display: flex;
             flex-direction: column;
@@ -1472,6 +1478,80 @@
             color: #94a3b8;
             font-size: 12px;
             line-height: 1.6;
+        }
+        .settings-page {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 4px 0 24px;
+        }
+        .settings-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 16px;
+        }
+        .settings-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 6px 18px;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 16px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        .settings-row b {
+            display: block;
+            color: #1e293b;
+            font-size: 15px;
+            margin-bottom: 3px;
+        }
+        .settings-row small {
+            display: block;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .settings-row input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .settings-row select {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 14px;
+        }
+        .settings-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .manual-next-btn {
+            position: fixed;
+            right: 28px;
+            bottom: 28px;
+            z-index: 900;
+            border: none;
+            border-radius: 999px;
+            padding: 12px 22px;
+            background: #4f46e5;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.35);
         }
         .root-family {
             background: #f8fafc;
@@ -3157,6 +3237,7 @@
             <button class="nav-btn" data-mode="daily">📅 今日</button>
             <button class="nav-btn" data-mode="stats">📊 统计</button>
             <button class="nav-btn" data-mode="backup">🗄️ 备份</button>
+            <button class="nav-btn" data-mode="settings">⚙️ 设置</button>
             <button class="nav-btn" data-mode="recycle">♻️ 回收站</button>
             <button class="nav-btn" id="randomBtn">🎲 随机</button>
             <button class="nav-btn" id="batchManageBtn">📦 批量管理</button>
@@ -3181,7 +3262,7 @@
                         <button class="batch-btn batch-cancel" id="batchCancelBtn">✕ 退出</button>
                     </div>
                     <div class="panel-header">
-                        <span class="mode-title">词库<select id="deckSelect"><option value="all">全部词库</option></select></span>
+                        <span class="mode-title">词库<select id="deckSelect"><option value="all">全部单词</option></select></span>
                         <span class="mode-title">分组依据<select id="groupBySelect">
                             <option value="hierarchy">📂 层级列表</option>
                             <option value="alphabetical">🔤 字母</option>
@@ -3258,6 +3339,17 @@
                 <button class="export-card" data-format="csv"><strong>CSV</strong><span>表格 · Excel 可打开</span></button>
                 <button class="export-card" data-format="md"><strong>Markdown</strong><span>学习笔记 · 可阅读</span></button>
                 <button class="export-card" data-format="txt"><strong>TXT</strong><span>纯单词表 · 一行一词</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="textPromptOverlay">
+        <div class="modal" style="max-width:420px;">
+            <h2 id="textPromptTitle">请输入名称</h2>
+            <input type="text" id="textPromptInput" maxlength="60" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;">
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                <button class="back-btn" id="textPromptCancel">取消</button>
+                <button class="back-btn" id="textPromptOk" style="background:#4f46e5;color:white;border-color:#4f46e5;">确定</button>
             </div>
         </div>
     </div>
@@ -3496,6 +3588,12 @@
             deckWords: new Set(),
             activeDeckId: 'all',
             decksLoaded: false,
+            settings: { autoNext: true, autoNextDelay: 1500 },
+            pendingNext: null,
+            pendingNextTimer: null,
+            undoStack: [],
+            redoStack: [],
+            applyingUndo: false,
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -3529,6 +3627,7 @@
                 await this.db.init();
                 await this.loadData();
                 await this.loadDecks();
+                this.loadSettings();
                 this.seedIdSequence();
                 this.buildIndex();
                 this.registerGames();
@@ -3941,6 +4040,7 @@
                 }
                 const now = Date.now();
                 const deck = { id: `deck-${now}-${Math.random().toString(36).slice(2, 6)}`, name: clean, kind: 'user', readOnly: false, createdAt: now, updatedAt: now };
+                this.pushUndo('新建词库');
                 this.decks.push(deck);
                 await this.db.saveDecks(this.decks);
                 this.setActiveDeck(deck.id);
@@ -3963,7 +4063,7 @@
                     counts[deckId] = (counts[deckId] || 0) + 1;
                 });
                 select.innerHTML = [
-                    `<option value="all">全部词库（${this.words.filter(w => !w.deleted).length}）</option>`,
+                    `<option value="all">全部单词（${this.words.filter(w => !w.deleted).length}）</option>`,
                     ...this.decks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' 🔒' : ''}</option>`),
                     '<option value="__manage__">⚙️ 管理词库</option>',
                     '<option value="__new__">＋ 新建词库</option>'
@@ -3974,12 +4074,13 @@
             async renameDeck(id) {
                 const deck = this.decks.find(d => d.id === id);
                 if (!deck || deck.readOnly) return;
-                const name = prompt('重命名词库：', deck.name);
-                if (!name || !name.trim() || name.trim() === deck.name) return;
+                const name = await this.askText('重命名词库', deck.name);
+                if (!name || name === deck.name) return;
                 if (this.decks.some(d => d.id !== id && d.name === name.trim())) {
                     this.showToast('同名词库已存在', 'info');
                     return;
                 }
+                this.pushUndo('重命名词库');
                 deck.name = name.trim();
                 deck.updatedAt = Date.now();
                 await this.saveData(true);
@@ -3999,6 +4100,7 @@
                 }
                 const count = [...this.deckWords].filter(k => k.startsWith(id + ':')).length;
                 if (!confirm(`删除词库「${deck.name}」？\n只会解除 ${count} 个单词与这个词库的关联，不会删除单词本身。`)) return;
+                this.pushUndo('删除词库');
                 this.decks = this.decks.filter(d => d.id !== id);
                 for (const key of [...this.deckWords]) {
                     if (key.startsWith(id + ':')) this.deckWords.delete(key);
@@ -4007,6 +4109,31 @@
                 try { localStorage.setItem('smartVocabActiveDeck', this.activeDeckId); } catch (e) { /* ignore */ }
                 await this.saveData(true);
                 this.render();
+            },
+
+            async importAsNewDeck(file) {
+                if (!file) return;
+                try {
+                    const text = await this.readFileText(file);
+                    const parsed = this.parseImportText(file.name, text);
+                    if (!parsed.words || !parsed.words.length) {
+                        this.showToast('文件里没有可导入的单词', 'error');
+                        return;
+                    }
+                    let data = {};
+                    try { data = JSON.parse(text); } catch (e) { /* csv/txt */ }
+                    const base = (data.deck && data.deck.name) || data.deckName || data.name ||
+                        file.name.replace(/\.[^.]+$/, '') || '导入词库';
+                    let name = String(base).trim() || '导入词库';
+                    let n = 2;
+                    while (this.decks.some(d => d.name === name)) name = `${base} (${n++})`;
+                    const deck = await this.createDeck(name);
+                    if (!deck) return;
+                    this.showToast(`📥 正在导入到新词库「${name}」`, 'info', 1500);
+                    this.startImport(parsed.words, 1, 0, 0, parsed.extras, parsed.progress);
+                } catch (e) {
+                    this.showToast('导入新词库失败：' + e.message, 'error');
+                }
             },
 
             renderDeckManager(container) {
@@ -4039,6 +4166,8 @@
                         <div class="deck-new">
                             <input id="newDeckName" type="text" placeholder="新词库名称" maxlength="40">
                             <button id="newDeckBtn">＋ 新建词库</button>
+                            <button id="importNewDeckBtn" class="deck-import-btn">📥 导入新词库</button>
+                            <input type="file" id="deckImportInput" accept=".json,.csv,.txt" style="display:none;">
                         </div>
                         <div class="deck-list">${cards || '<div class="backup-empty">还没有词库。</div>'}</div>
                         <div class="deck-hint">标准词库为只读；用户词库可以新建、重命名、删除。删除词库不会删除单词本身。</div>
@@ -4052,6 +4181,14 @@
                     newInput.value = '';
                     this.render();
                 });
+                const importBtn = document.getElementById('importNewDeckBtn');
+                const importInput = document.getElementById('deckImportInput');
+                if (importBtn && importInput) importBtn.addEventListener('click', () => importInput.click());
+                if (importInput) importInput.addEventListener('change', async () => {
+                    const file = importInput.files && importInput.files[0];
+                    if (file) await this.importAsNewDeck(file);
+                    importInput.value = '';
+                });
                 container.querySelectorAll('.deck-use').forEach(btn => {
                     btn.addEventListener('click', () => this.setActiveDeck(btn.dataset.id));
                 });
@@ -4063,10 +4200,167 @@
                 });
             },
 
+            loadSettings() {
+                try {
+                    const raw = localStorage.getItem('smartVocabSettings');
+                    if (raw) {
+                        const s = JSON.parse(raw);
+                        this.settings.autoNext = s.autoNext !== false;
+                        const d = Number(s.autoNextDelay);
+                        if (Number.isFinite(d)) this.settings.autoNextDelay = Math.max(300, Math.min(10000, d));
+                    }
+                } catch (e) { /* ignore */ }
+            },
+
+            saveSettings() {
+                try { localStorage.setItem('smartVocabSettings', JSON.stringify(this.settings)); } catch (e) { /* ignore */ }
+            },
+
+            snapshotData() {
+                return JSON.parse(JSON.stringify({
+                    words: this.words,
+                    extras: this.extras,
+                    progress: [...this.progress.values()],
+                    decks: this.decks,
+                    deckWords: [...this.deckWords]
+                }));
+            },
+
+            pushUndo(label) {
+                if (this.applyingUndo) return;
+                try {
+                    this.undoStack.push({ label: label || '修改', snapshot: this.snapshotData() });
+                    if (this.undoStack.length > 20) this.undoStack.shift();
+                    this.redoStack = [];
+                } catch (e) { console.error('Undo snapshot failed:', e); }
+            },
+
+            async applyUndoSnapshot(snapshot) {
+                if (!snapshot) return;
+                this.applyingUndo = true;
+                try {
+                    this.words = (snapshot.words || []).map(w => JSON.parse(JSON.stringify(w)));
+                    this.extras = snapshot.extras || { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
+                    this.progress = new Map((snapshot.progress || []).filter(p => p && p.key).map(p => [p.key, p]));
+                    this.decks = snapshot.decks || [];
+                    this.deckWords = new Set(snapshot.deckWords || []);
+                    this.decksLoaded = true;
+                    if (this.activeDeckId !== 'all' && !this.decks.some(d => d.id === this.activeDeckId)) this.activeDeckId = 'all';
+                    this.seedIdSequence();
+                    this.buildIndex();
+                    this.currentWordId = this.words[0] ? this.words[0].id : null;
+                    this.currentSenseId = null;
+                    this.currentGame = null;
+                    await this.saveData(true);
+                    this.render();
+                } finally {
+                    this.applyingUndo = false;
+                }
+            },
+
+            async undo() {
+                if (!this.undoStack.length) {
+                    this.showToast('没有可撤销的操作', 'info');
+                    return;
+                }
+                const entry = this.undoStack.pop();
+                try { this.redoStack.push({ label: entry.label, snapshot: this.snapshotData() }); } catch (e) { /* ignore */ }
+                await this.applyUndoSnapshot(entry.snapshot);
+                this.showToast(`↩️ 已撤销：${entry.label}`, 'success');
+            },
+
+            async redo() {
+                if (!this.redoStack.length) {
+                    this.showToast('没有可重做的操作', 'info');
+                    return;
+                }
+                const entry = this.redoStack.pop();
+                try { this.undoStack.push({ label: entry.label, snapshot: this.snapshotData() }); } catch (e) { /* ignore */ }
+                await this.applyUndoSnapshot(entry.snapshot);
+                this.showToast(`↪️ 已重做：${entry.label}`, 'success');
+            },
+
+            cancelPendingNext() {
+                if (this.pendingNextTimer) { clearTimeout(this.pendingNextTimer);
+                    this.pendingNextTimer = null; }
+                this.pendingNext = null;
+                const btn = document.getElementById('manualNextBtn');
+                if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+            },
+
+            showManualNextButton() {
+                const panel = document.getElementById('rightPanel');
+                if (!panel) return;
+                const old = document.getElementById('manualNextBtn');
+                if (old && old.parentNode) old.parentNode.removeChild(old);
+                const btn = document.createElement('button');
+                btn.id = 'manualNextBtn';
+                btn.className = 'manual-next-btn';
+                btn.textContent = '下一题 →';
+                btn.addEventListener('click', () => {
+                    const cb = this.pendingNext;
+                    this.cancelPendingNext();
+                    if (cb) cb();
+                });
+                panel.appendChild(btn);
+            },
+
+            scheduleNext(callback) {
+                this.cancelPendingNext();
+                if (this.settings.autoNext) {
+                    this.pendingNextTimer = setTimeout(() => {
+                        this.pendingNextTimer = null;
+                        if (callback) callback();
+                    }, this.settings.autoNextDelay);
+                } else {
+                    this.pendingNext = callback;
+                    this.showManualNextButton();
+                }
+            },
+
+            renderSettings(container) {
+                container.innerHTML = `
+                    <div class="settings-page">
+                        <div class="settings-title">⚙️ 设置</div>
+                        <div class="settings-card">
+                            <label class="settings-row">
+                                <span>
+                                    <b>答完一题后自动进入下一题</b>
+                                    <small>关闭后，答完题会显示「下一题」按钮，由你手动继续。</small>
+                                </span>
+                                <input type="checkbox" id="autoNextToggle" ${this.settings.autoNext ? 'checked' : ''}>
+                            </label>
+                            <div class="settings-row">
+                                <span>
+                                    <b>自动切换延迟</b>
+                                    <small>自动进入下一题前停留的时间。</small>
+                                </span>
+                                <select id="autoNextDelaySelect">
+                                    ${[800, 1200, 1500, 2000, 3000].map(ms => `<option value="${ms}" ${this.settings.autoNextDelay === ms ? 'selected' : ''}>${(ms / 1000).toFixed(1)} 秒</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="settings-actions">
+                            <button class="backup-primary" id="settingsSaveBtn">保存设置</button>
+                            <span class="backup-hint">快捷键：Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做</span>
+                        </div>
+                    </div>
+                `;
+                const save = document.getElementById('settingsSaveBtn');
+                if (save) save.addEventListener('click', () => {
+                    const toggle = document.getElementById('autoNextToggle');
+                    const delay = document.getElementById('autoNextDelaySelect');
+                    this.settings.autoNext = !!(toggle && toggle.checked);
+                    this.settings.autoNextDelay = Number(delay && delay.value) || 1500;
+                    this.saveSettings();
+                    this.showToast('✅ 设置已保存', 'success');
+                });
+            },
+
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.3.1',
+                    appVersion: '0.3.2',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -4160,6 +4454,7 @@
                     this.showToast('备份文件没有有效单词', 'error');
                     return false;
                 }
+                this.pushUndo('恢复备份');
                 await this.createBackup('before-restore');
                 const restored = [];
                 for (const raw of data.words) {
@@ -4714,6 +5009,7 @@
             },
 
             stopGameTimers() {
+                this.cancelPendingNext();
                 Object.values(this.gameStates || {}).forEach(state => {
                     if (!state) return;
                     if (state.timerId) {
@@ -4756,6 +5052,10 @@
                 }
                 if (this.currentMode === 'decks') {
                     this.renderDeckManager(panel);
+                    return;
+                }
+                if (this.currentMode === 'settings') {
+                    this.renderSettings(panel);
                     return;
                 }
                 if (this.currentMode === 'review') {
@@ -5007,6 +5307,12 @@
                     this.currentMode = 'daily';
                     this.dailySession = null;
                     this.render();
+                });
+                const dailyEl = panel.querySelector('.daily-review');
+                if (dailyEl && !s.revealed) dailyEl.addEventListener('click', (e) => {
+                    if (e.target && e.target.closest && e.target.closest('button')) return;
+                    s.revealed = true;
+                    this.renderDailyReview(panel);
                 });
                 const reveal = document.getElementById('dailyRevealBtn');
                 if (reveal) reveal.addEventListener('click', () => {
@@ -5405,6 +5711,13 @@
 
                 const backBtn = document.getElementById('coreRecallBackBtn2');
                 if (backBtn) backBtn.addEventListener('click', () => this.leaveGame());
+                const coreGame = container.querySelector('.core-recall-game');
+                if (coreGame) coreGame.addEventListener('click', (e) => {
+                    if (state.revealed) return;
+                    if (e.target && e.target.closest && e.target.closest('button')) return;
+                    state.revealed = true;
+                    this.renderCoreRecallGame();
+                });
                 const revealBtn = document.getElementById('coreRecallRevealBtn');
                 if (revealBtn) revealBtn.addEventListener('click', () => {
                     state.revealed = true;
@@ -5601,14 +5914,14 @@
                             if (correct) state.score++;
                             if (q.wordId) this.recordReview(q.wordId, correct);
                             this.renderSynonymChallenge();
-                            state.pendingTimeout = setTimeout(() => {
+                            this.scheduleNext(() => {
                                 if (!this.isGameActive('synonymChallenge')) return;
                                 state.showAnswer = false;
                                 state.selected = '';
                                 state.index++;
                                 if (state.index >= state.total) state.finished = true;
                                 this.renderSynonymChallenge();
-                            }, 1600);
+                            });
                         });
                     });
                 }
@@ -5842,14 +6155,14 @@
                             if (correctAnswer) state.score++;
                             this.recordReview(q.wordId, correctAnswer);
                             this.renderRootChallenge();
-                            state.pendingTimeout = setTimeout(() => {
+                            this.scheduleNext(() => {
                                 if (!this.isGameActive('rootChallenge')) return;
                                 state.showAnswer = false;
                                 state.selected = '';
                                 state.index++;
                                 if (state.index >= state.total) state.finished = true;
                                 this.renderRootChallenge();
-                            }, 1700);
+                            });
                         });
                     });
                 }
@@ -6082,14 +6395,14 @@
                             if (correctAnswer) state.score++;
                             this.recordReview(q.wordId, correctAnswer, q.senseId);
                             this.renderSenseChainGame();
-                            state.pendingTimeout = setTimeout(() => {
+                            this.scheduleNext(() => {
                                 if (!this.isGameActive('senseChain')) return;
                                 state.showAnswer = false;
                                 state.selected = '';
                                 state.index++;
                                 if (state.index >= state.total) state.finished = true;
                                 this.renderSenseChainGame();
-                            }, 1800);
+                            });
                         });
                     });
                 }
@@ -6193,7 +6506,7 @@
                         state.showAnswer = true;
                         state.lastAnswer = q.word;
                         this.renderSpellingChallenge();
-                        state.pendingTimeout = setTimeout(() => {
+                        this.scheduleNext(() => {
                             if (!this.isGameActive('spellingChallenge')) return;
                             state.showAnswer = false;
                             state.lastAnswer = '';
@@ -6201,7 +6514,7 @@
                             state.playedAudio = false;
                             if (state.index >= state.total) state.finished = true;
                             this.renderSpellingChallenge();
-                        }, 1500);
+                        });
                     }
                 };
 
@@ -6355,7 +6668,7 @@
                             state.correctAnswer = cur.correctDef;
                             this.recordReview(cur.wordId, false, cur.senseId);
                             this.renderWordShooter();
-                            state.pendingTimeout = setTimeout(() => {
+                            this.scheduleNext(() => {
                                 if (!this.isGameActive('wordShooter')) return;
                                 state.showAnswer = false;
                                 state.correctAnswer = '';
@@ -6363,7 +6676,7 @@
                                 state.timer = 10;
                                 if (state.index >= state.total) state.finished = true;
                                 this.renderWordShooter();
-                            }, 1500);
+                            });
                         } else {
                             this.renderWordShooter();
                         }
@@ -6420,7 +6733,7 @@
                         state.showAnswer = true;
                         state.correctAnswer = q.correctDef;
                         this.renderWordShooter();
-                        state.pendingTimeout = setTimeout(() => {
+                        this.scheduleNext(() => {
                             if (!this.isGameActive('wordShooter')) return;
                             state.showAnswer = false;
                             state.correctAnswer = '';
@@ -6428,7 +6741,7 @@
                             state.timer = 10;
                             if (state.index >= state.total) state.finished = true;
                             this.renderWordShooter();
-                        }, 1500);
+                        });
                     }
                 };
 
@@ -6907,6 +7220,7 @@
                             App.renderList(); } }
                 });
                 document.getElementById('addSenseBtn').addEventListener('click', () => {
+                    this.pushUndo('添加释义');
                     const newSense = { id: this.genId(), definition: '', example: '', tone: '', topic: '',
                         pos: '', level: '', origin: '', formality: '', grammar: '', synonyms: '',
                         collocations: '', pitfall: '', notes: [''] };
@@ -6919,7 +7233,8 @@
                 });
                 document.getElementById('speakBtn').addEventListener('click', () => this.speakWord(word.word));
                 container.querySelectorAll('.mastery-selector button').forEach(btn => {
-                    btn.addEventListener('click', () => { word.mastery = btn.dataset.mastery;
+                    btn.addEventListener('click', () => { this.pushUndo('修改掌握度');
+                        word.mastery = btn.dataset.mastery;
                         this.saveData();
                         this.renderRightPanel();
                         this.renderList(); });
@@ -6984,6 +7299,7 @@
                             App.renderList(); } }
                 });
                 document.getElementById('addSenseBtn').addEventListener('click', () => {
+                    this.pushUndo('添加释义');
                     const newSense = { id: this.genId(), definition: '', example: '', tone: '', topic: '',
                         pos: '', level: '', origin: '', formality: '', grammar: '', synonyms: '',
                         collocations: '', pitfall: '', notes: [''] };
@@ -6996,7 +7312,8 @@
                 });
                 document.getElementById('deleteSenseBtn').addEventListener('click', () => {
                     if (word.senses.length <= 1) { alert('至少保留一个释义'); return; }
-                    if (confirm('确定删除当前释义吗？')) { word.senses = word.senses.filter(s => s.id !== this
+                    if (confirm('确定删除当前释义吗？')) { this.pushUndo('删除释义');
+                        word.senses = word.senses.filter(s => s.id !== this
                             .currentSenseId);
                         this.refreshWordIndex(word.id);
                         this.saveData();
@@ -7005,6 +7322,7 @@
                         this.renderList(); }
                 });
                 document.getElementById('addNoteBtn').addEventListener('click', () => {
+                    this.pushUndo('添加释义笔记');
                     if (!sense.notes) sense.notes = [];
                     sense.notes.push('');
                     this.refreshWordIndex(word.id);
@@ -7025,7 +7343,8 @@
                 });
                 document.getElementById('speakBtn').addEventListener('click', () => this.speakWord(word.word));
                 container.querySelectorAll('.mastery-selector button').forEach(btn => {
-                    btn.addEventListener('click', () => { word.mastery = btn.dataset.mastery;
+                    btn.addEventListener('click', () => { this.pushUndo('修改掌握度');
+                        word.mastery = btn.dataset.mastery;
                         this.saveData();
                         this.renderRightPanel();
                         this.renderList(); });
@@ -7042,6 +7361,7 @@
                 document.getElementById('prevWordBtn').addEventListener('click', () => this.navigateWord(-1));
                 document.getElementById('nextWordBtn').addEventListener('click', () => this.navigateWord(1));
                 document.getElementById('saveDetailBtn').addEventListener('click', () => {
+                    this.pushUndo('修改释义');
                     sense.definition = document.getElementById('defEditor').innerText.trim();
                     sense.example = document.getElementById('exEditor').innerText.trim();
                     sense.synonyms = document.getElementById('synonymsEditor').innerText.trim();
@@ -7126,6 +7446,7 @@
             softDeleteWord(id) {
                 const w = this.words.find(w => w.id === id);
                 if (!w) return;
+                this.pushUndo('删除单词');
                 w.deleted = true;
                 this.searchIndex.removeWord(id);
                 this.saveData();
@@ -7138,6 +7459,7 @@
             restoreWord(id) {
                 const w = this.words.find(w => w.id === id);
                 if (!w) return;
+                this.pushUndo('还原单词');
                 w.deleted = false;
                 this.searchIndex.addWord(w);
                 this.saveData();
@@ -7149,6 +7471,7 @@
             permanentDeleteWord(id) {
                 const w = this.words.find(w => w.id === id);
                 if (!w) return;
+                this.pushUndo('永久删除单词');
                 const wordName = w.word;
                 this.words = this.words.filter(w => w.id !== id);
                 this.searchIndex.removeWord(id);
@@ -7256,6 +7579,7 @@
                 if (deletedSame) { errorEl.textContent = '⚠️ 单词 "' + word + '" 已在回收站，请先还原后再编辑。';
                     errorEl.classList.add('show');
                     wordInput.focus(); return; }
+                this.pushUndo('添加单词');
                 const newWord = { id: this.genId(), word: word, phonetic: phonetic, wordNotes: [note || ''],
                     senses: [{ id: this.genId(), definition: definition, example: example, tone: '', topic: '',
                         pos: '', level: '', origin: '', formality: '', grammar: '', synonyms: '',
@@ -7333,6 +7657,7 @@
                 const suffix = `${names.slice(0, 10).join(', ')}${names.length > 10 ? ' 等...' : ''}`;
                 if (this.currentMode === 'recycle') {
                     if (!confirm(`确定永久删除选中的 ${ids.size} 个单词吗？此操作不可恢复！\n\n${suffix}`)) return;
+                    this.pushUndo('批量永久删除');
                     this.words = this.words.filter(w => !ids.has(w.id));
                     this.searchIndex.rebuild(this.words);
                     if (this.currentWordId && ids.has(this.currentWordId)) {
@@ -7347,6 +7672,7 @@
                     return;
                 }
                 if (!confirm(`确定将选中的 ${ids.size} 个单词移入回收站吗？\n\n${suffix}`)) return;
+                this.pushUndo('批量删除');
                 let count = 0;
                 ids.forEach(id => {
                     const w = this.words.find(w => w.id === id);
@@ -7366,6 +7692,7 @@
                 const recycleWords = this.words.filter(w => w.deleted);
                 if (recycleWords.length === 0) { this.showToast('♻️ 回收站已经是空的', 'info'); return; }
                 if (!confirm(`确定清空回收站吗？这将永久删除 ${recycleWords.length} 个单词，不可恢复！`)) return;
+                this.pushUndo('清空回收站');
                 this.words = this.words.filter(w => !w.deleted);
                 this.searchIndex.rebuild(this.words);
                 this.selectedWordIds.clear();
@@ -7407,6 +7734,38 @@
                 this.currentSenseId = null;
                 if (this.currentMode !== 'dictionary') this.currentMode = 'dictionary';
                 this.render();
+            },
+
+            askText(title, defaultValue = '') {
+                return new Promise(resolve => {
+                    const overlay = document.getElementById('textPromptOverlay');
+                    const titleEl = document.getElementById('textPromptTitle');
+                    const input = document.getElementById('textPromptInput');
+                    const ok = document.getElementById('textPromptOk');
+                    const cancel = document.getElementById('textPromptCancel');
+                    if (!overlay || !input) { resolve(null); return; }
+                    if (titleEl) titleEl.textContent = title;
+                    input.value = defaultValue;
+                    overlay.classList.add('show');
+                    setTimeout(() => { input.focus(); input.select(); }, 30);
+                    const close = (value) => {
+                        overlay.classList.remove('show');
+                        ok.onclick = null;
+                        cancel.onclick = null;
+                        input.onkeydown = null;
+                        overlay.onclick = null;
+                        resolve(value);
+                    };
+                    ok.onclick = () => close(input.value.trim() || null);
+                    cancel.onclick = () => close(null);
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter') { e.preventDefault();
+                            close(input.value.trim() || null); }
+                        if (e.key === 'Escape') { e.preventDefault();
+                            close(null); }
+                    };
+                    overlay.onclick = (e) => { if (e.target === overlay) close(null); };
+                });
             },
 
             openExportModal() {
@@ -7738,6 +8097,7 @@
                 this.doImport(nonConflictWords, null, extrasToImport, progressToImport);
             },
             doImport(wordsToImport, conflictResolutions, extrasToImport, progressToImport) {
+                this.pushUndo('导入单词');
                 const targetDeckId = this.activeDeckId !== 'all' ? this.activeDeckId : this.defaultDeckId();
                 if (conflictResolutions) {
                     for (const resolution of conflictResolutions) {
@@ -7874,9 +8234,10 @@
                     if (this.value === '__manage__') {
                         App.setMode('decks');
                     } else if (this.value === '__new__') {
-                        const name = prompt('新词库名称：');
-                        if (name && name.trim()) App.createDeck(name.trim());
-                        else App.updateDeckSelect();
+                        App.askText('新词库名称').then(name => {
+                            if (name) App.createDeck(name);
+                            else App.updateDeckSelect();
+                        });
                     } else {
                         App.setActiveDeck(this.value);
                     }
@@ -7982,6 +8343,16 @@
                 });
 
                 document.addEventListener('keydown', (e) => {
+                    const target = e.target;
+                    const editable = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
+                        target.isContentEditable);
+                    if (!editable && (e.ctrlKey || e.metaKey) && !e.altKey) {
+                        const key = e.key.toLowerCase();
+                        if (key === 'z' && !e.shiftKey) { e.preventDefault();
+                            App.undo(); return; }
+                        if (key === 'y' || (key === 'z' && e.shiftKey)) { e.preventDefault();
+                            App.redo(); return; }
+                    }
                     if (e.ctrlKey && e.key === 'f') { e.preventDefault();
                         document.getElementById('searchInput').focus(); }
                     if (e.key === 'Escape') {
@@ -8000,7 +8371,22 @@
                         e.preventDefault();
                         App.navigateWord(e.key === 'ArrowLeft' ? -1 : 1);
                     }
-                    if (App.currentMode === 'review' && App.currentGame === 'flashcard' && e.key === ' ') {
+                    if (!editable && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Escape' && e.key !== 'Tab') {
+                        const coreState = App.gameStates.coreRecall;
+                        if (App.currentMode === 'review' && App.currentGame === 'coreRecall' && coreState && !coreState.revealed) {
+                            e.preventDefault();
+                            coreState.revealed = true;
+                            App.renderRightPanel();
+                            return;
+                        }
+                        if (App.currentMode === 'dailyReview' && App.dailySession && !App.dailySession.revealed) {
+                            e.preventDefault();
+                            App.dailySession.revealed = true;
+                            App.renderRightPanel();
+                            return;
+                        }
+                    }
+                    if (App.currentMode === 'review' && App.currentGame === 'flashcard' && (e.key === ' ' || e.key === 'Enter')) {
                         e.preventDefault();
                         App.flashcardFlipped = !App.flashcardFlipped;
                         App.renderRightPanel();
