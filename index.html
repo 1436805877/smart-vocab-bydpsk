@@ -4458,7 +4458,19 @@
                         const w = candidates[Math.floor(Math.random() * candidates.length)];
                         const senses = (w.senses || []).filter(s => s && s.definition);
                         if (senses.length < 2) continue;
-                        const defOptions = (correct) => shuffle(uniq([correct, ...allDefs])).slice(0, 4);
+                        const senseDefs = [...new Set(senses.map(s => s.definition).filter(Boolean))];
+                        const otherDefs = allDefs.filter(d => !senseDefs.includes(d));
+                        // 先放本词的全部义项；不足 4 个才补其他词的释义。
+                        // 这样正确答案一定在选项里，也能完整看到一词多义。
+                        const defOptions = (correct) => {
+                            const picked = [...senseDefs];
+                            if (correct && !picked.includes(correct)) picked.push(correct);
+                            for (const d of shuffle(otherDefs)) {
+                                if (picked.length >= 4) break;
+                                if (!picked.includes(d)) picked.push(d);
+                            }
+                            return shuffle(picked);
+                        };
                         let q = null;
 
                         // 例句义项题：例句里能找到这个词，挖空后问对应义项
@@ -6036,7 +6048,7 @@
                     if (format === 'json') {
                         const data = {
                             app: '智能单词本',
-                            appVersion: '0.1.1',
+                            appVersion: '0.1.5-fix.1',
                             schemaVersion: 2,
                             exportedAt: new Date().toISOString(),
                             wordCount: this.words.length,
