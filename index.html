@@ -1253,6 +1253,135 @@
             font-size: 13px;
             margin-top: 16px;
         }
+        .backup-page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 4px 0 24px;
+        }
+        .backup-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .backup-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .backup-sub {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .backup-hero-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .backup-primary,
+        .backup-secondary {
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .backup-primary {
+            border: none;
+            background: #4f46e5;
+            color: white;
+            font-weight: 700;
+        }
+        .backup-secondary {
+            border: 1px solid #cbd5e1;
+            background: white;
+            color: #334155;
+        }
+        .backup-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .backup-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .backup-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #334155;
+            margin: 20px 0 8px;
+        }
+        .backup-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .backup-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            flex-wrap: wrap;
+        }
+        .backup-date {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 14px;
+        }
+        .backup-meta {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        .backup-card-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .backup-card-actions button {
+            border: 1px solid #cbd5e1;
+            background: white;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #334155;
+        }
+        .backup-card-actions .backup-delete {
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+        .backup-empty {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 14px;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        .backup-file-actions,
+        .backup-folder-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .backup-hint {
+            color: #94a3b8;
+            font-size: 12px;
+        }
         .root-family {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -2936,6 +3065,7 @@
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
             <button class="nav-btn" data-mode="stats">📊 统计</button>
+            <button class="nav-btn" data-mode="backup">🗄️ 备份</button>
             <button class="nav-btn" data-mode="recycle">♻️ 回收站</button>
             <button class="nav-btn" id="randomBtn">🎲 随机</button>
             <button class="nav-btn" id="batchManageBtn">📦 批量管理</button>
@@ -3051,7 +3181,7 @@
             constructor() {
                 this.db = null;
                 this.DB_NAME = 'SmartVocabDB_v9';
-                this.DB_VERSION = 3;
+                this.DB_VERSION = 4;
             }
             async init() {
                 return new Promise((resolve, reject) => {
@@ -3071,6 +3201,9 @@
                         }
                         if (!db.objectStoreNames.contains('progress')) {
                             db.createObjectStore('progress', { keyPath: 'key' });
+                        }
+                        if (!db.objectStoreNames.contains('backups')) {
+                            db.createObjectStore('backups', { keyPath: 'id' });
                         }
                     };
                 });
@@ -3112,6 +3245,30 @@
                     const store = tx.objectStore('progress');
                     store.clear();
                     for (const p of progress) store.put(p);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }
+            async getBackups() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('backups', 'readonly');
+                    const req = tx.objectStore('backups').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+            async saveBackup(snapshot) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('backups', 'readwrite');
+                    tx.objectStore('backups').put(snapshot);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }
+            async deleteBackup(id) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('backups', 'readwrite');
+                    tx.objectStore('backups').delete(id);
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject(tx.error);
                 });
@@ -3198,6 +3355,9 @@
             words: [],
             extras: { rootFamilies: [], synonymGroups: [], confusionPairs: [] },
             progress: new Map(),
+            backups: [],
+            fileBackups: [],
+            lastBackupAt: 0,
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             currentWordId: null,
@@ -3239,6 +3399,8 @@
                 if (display.length > 0) { this.currentWordId = display[0].id;
                     this.currentSenseId = null; }
                 this.render();
+                this.autoBackupIfNeeded().catch(e => console.error(e));
+                setInterval(() => this.autoBackupIfNeeded(), 6 * 3600 * 1000);
             },
 
             registerGames() {
@@ -3571,6 +3733,168 @@
                 }
                 this.words = words.map(w => this.migrateWord(w));
                 await this.saveData(true);
+            },
+
+            buildExportData() {
+                return {
+                    app: '智能单词本',
+                    appVersion: '0.2.2',
+                    schemaVersion: 3,
+                    exportedAt: new Date().toISOString(),
+                    wordCount: this.words.length,
+                    words: this.words,
+                    rootFamilies: this.extras.rootFamilies || [],
+                    synonymGroups: this.extras.synonymGroups || [],
+                    confusionPairs: this.extras.confusionPairs || [],
+                    progress: [...this.progress.values()]
+                };
+            },
+
+            backupFileName(date = new Date()) {
+                const pad = n => String(n).padStart(2, '0');
+                return `wordbook-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.json`;
+            },
+
+            async createBackup(reason = 'manual') {
+                if (!this.words.length) {
+                    if (reason === 'manual') this.showToast('没有可备份的数据', 'info');
+                    return null;
+                }
+                const data = this.buildExportData();
+                const now = Date.now();
+                const snapshot = {
+                    id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+                    createdAt: now,
+                    reason,
+                    wordCount: this.words.length,
+                    progressCount: this.progress.size,
+                    data
+                };
+                try {
+                    await this.db.saveBackup(snapshot);
+                    const all = (await this.db.getBackups()).sort((a, b) => b.createdAt - a.createdAt);
+                    for (const old of all.slice(7)) await this.db.deleteBackup(old.id);
+                    this.backups = all.slice(0, 7);
+                    this.lastBackupAt = now;
+                } catch (e) {
+                    console.error('Backup failed:', e);
+                    if (reason === 'manual') this.showToast('备份失败：' + e.message, 'error');
+                    return null;
+                }
+                if (window.desktop && typeof window.desktop.saveBackup === 'function') {
+                    try {
+                        await window.desktop.saveBackup(JSON.stringify(data, null, 2), this.backupFileName());
+                    } catch (e) {
+                        console.error('Desktop backup failed:', e);
+                    }
+                }
+                if (reason === 'manual') this.showToast('✅ 备份完成', 'success');
+                return snapshot;
+            },
+
+            async autoBackupIfNeeded() {
+                if (!this.words.length) return;
+                try {
+                    const all = (await this.db.getBackups()).sort((a, b) => b.createdAt - a.createdAt);
+                    this.backups = all;
+                    if (all.length && Date.now() - all[0].createdAt < 12 * 3600 * 1000) {
+                        this.lastBackupAt = all[0].createdAt;
+                        return;
+                    }
+                    await this.createBackup('auto');
+                } catch (e) {
+                    console.error('Auto backup failed:', e);
+                }
+            },
+
+            async refreshBackupList() {
+                try {
+                    const all = await this.db.getBackups();
+                    this.backups = all.sort((a, b) => b.createdAt - a.createdAt);
+                } catch (e) { this.backups = []; }
+                if (window.desktop && typeof window.desktop.listBackups === 'function') {
+                    try {
+                        const res = await window.desktop.listBackups();
+                        this.fileBackups = (res && res.files) || [];
+                    } catch (e) { this.fileBackups = []; }
+                } else {
+                    this.fileBackups = [];
+                }
+            },
+
+            async restoreFromData(data, label = '备份') {
+                if (!data || !Array.isArray(data.words) || data.words.length === 0) {
+                    this.showToast('备份文件没有有效单词', 'error');
+                    return false;
+                }
+                await this.createBackup('before-restore');
+                const restored = [];
+                for (const raw of data.words) {
+                    try {
+                        const w = this.migrateWord(JSON.parse(JSON.stringify(raw)));
+                        if (w && w.word && w.senses && w.senses.length) restored.push(w);
+                    } catch (e) { /* skip broken */ }
+                }
+                if (!restored.length) {
+                    this.showToast('备份恢复失败：没有可用单词', 'error');
+                    return false;
+                }
+                this.words = restored;
+                this.extras = {
+                    rootFamilies: Array.isArray(data.rootFamilies) ? data.rootFamilies : [],
+                    synonymGroups: Array.isArray(data.synonymGroups) ? data.synonymGroups : [],
+                    confusionPairs: Array.isArray(data.confusionPairs) ? data.confusionPairs : []
+                };
+                this.progress = new Map((Array.isArray(data.progress) ? data.progress : [])
+                    .filter(p => p && p.key).map(p => [p.key, p]));
+                this.progress.forEach(p => {
+                    if (p.wrongCount > 0 && p.wrongActive === undefined) p.wrongActive = true;
+                    if (typeof p.consecutiveCorrect !== 'number') p.consecutiveCorrect = 0;
+                });
+                this.seedIdSequence();
+                this.buildIndex();
+                this.currentWordId = this.words[0] ? this.words[0].id : null;
+                this.currentSenseId = null;
+                this.currentMode = 'dictionary';
+                this.currentGame = null;
+                this.dailySession = null;
+                await this.saveData(true);
+                this.render();
+                this.showToast(`✅ 已从${label}恢复 ${restored.length} 个单词`, 'success');
+                return true;
+            },
+
+            async restoreSnapshot(id) {
+                const snap = this.backups.find(x => x.id === id);
+                if (!snap) { this.showToast('找不到这个备份', 'error'); return; }
+                if (!confirm(`将用 ${new Date(snap.createdAt).toLocaleString()} 的备份覆盖当前数据。\n恢复前会自动备份当前数据。确定继续吗？`)) return;
+                await this.restoreFromData(snap.data, '备份');
+            },
+
+            async restoreDesktopFile(name) {
+                if (!window.desktop || typeof window.desktop.readBackup !== 'function') return;
+                try {
+                    const res = await window.desktop.readBackup(name);
+                    if (!res || !res.ok) throw new Error(res && res.error || '读取失败');
+                    const data = JSON.parse(res.text);
+                    if (!confirm(`将从本地文件「${name}」恢复，覆盖当前数据。\n恢复前会自动备份当前数据。确定继续吗？`)) return;
+                    await this.restoreFromData(data, '本地备份');
+                } catch (e) {
+                    this.showToast('读取备份失败：' + e.message, 'error');
+                }
+            },
+
+            async deleteSnapshot(id) {
+                if (!confirm('确定删除这个备份吗？')) return;
+                await this.db.deleteBackup(id);
+                await this.refreshBackupList();
+                if (this.currentMode === 'backup') this.renderRightPanel();
+            },
+
+            downloadSnapshot(id) {
+                const snap = this.backups.find(x => x.id === id);
+                if (!snap) return;
+                this.downloadFile(JSON.stringify(snap.data, null, 2), `单词本备份_${new Date(snap.createdAt).toISOString().slice(0,10)}.json`, 'application/json;charset=utf-8');
             },
 
             isDefinitionLikeCore(text, word) {
@@ -4073,6 +4397,10 @@
                     this.renderDailyReview(panel);
                     return;
                 }
+                if (this.currentMode === 'backup') {
+                    this.renderBackupPage(panel);
+                    return;
+                }
                 if (this.currentMode === 'review') {
                     this.renderReviewCenter(panel);
                     return;
@@ -4337,6 +4665,121 @@
                         s.revealed = false;
                         this.renderDailyReview(panel);
                     });
+                });
+            },
+
+            renderBackupPage(container) {
+                if (!this._backupLoaded) {
+                    this._backupLoaded = true;
+                    this.refreshBackupList().then(() => {
+                        if (this.currentMode === 'backup') this.renderBackupPage(container);
+                    });
+                }
+                const fmt = (ms) => new Date(ms).toLocaleString('zh-CN');
+                const fileList = window.desktop && this.fileBackups.length ? this.fileBackups : [];
+                const snapshotCards = this.backups.length ? this.backups.map(s => `
+                    <div class="backup-card">
+                        <div class="backup-card-main">
+                            <div class="backup-date">${this.escapeHtml(fmt(s.createdAt))}</div>
+                            <div class="backup-meta">${s.wordCount || 0} 个单词 · ${s.progressCount || 0} 个义项进度 · ${this.escapeHtml(s.reason || 'manual')}</div>
+                        </div>
+                        <div class="backup-card-actions">
+                            <button class="backup-restore" data-id="${this.escapeHtml(s.id)}">恢复</button>
+                            <button class="backup-download" data-id="${this.escapeHtml(s.id)}">下载</button>
+                            <button class="backup-delete" data-id="${this.escapeHtml(s.id)}">删除</button>
+                        </div>
+                    </div>
+                `).join('') : '<div class="backup-empty">还没有内部备份。点「立即备份」创建第一份。</div>';
+                const desktopCards = fileList.length ? fileList.map(f => `
+                    <div class="backup-card">
+                        <div class="backup-card-main">
+                            <div class="backup-date">${this.escapeHtml(f.name)}</div>
+                            <div class="backup-meta">${f.size ? Math.round(f.size / 1024) + ' KB' : ''} ${f.mtime ? '· ' + this.escapeHtml(fmt(f.mtime)) : ''}</div>
+                        </div>
+                        <div class="backup-card-actions">
+                            <button class="backup-file-restore" data-name="${this.escapeHtml(f.name)}">恢复</button>
+                        </div>
+                    </div>
+                `).join('') : '<div class="backup-empty">桌面版会自动把备份写到本地备份目录。</div>';
+                const last = this.backups[0];
+                container.innerHTML = `
+                    <div class="backup-page">
+                        <div class="backup-hero">
+                            <div>
+                                <div class="backup-title">🗄️ 备份与恢复</div>
+                                <div class="backup-sub">启动时超过 12 小时自动备份，保留最近 7 份。恢复前会先自动备份当前数据。</div>
+                            </div>
+                            <div class="backup-hero-actions">
+                                <button class="backup-primary" id="backupNowBtn">💾 立即备份</button>
+                                <button class="backup-secondary" id="backupRefreshBtn">🔄 刷新</button>
+                            </div>
+                        </div>
+                        <div class="backup-status">
+                            <span>最近备份：${last ? this.escapeHtml(fmt(last.createdAt)) : '暂无'}</span>
+                            <span>内部备份：${this.backups.length} 份</span>
+                            <span>桌面文件：${fileList.length} 份</span>
+                        </div>
+                        <div class="backup-section-title">内部备份（IndexedDB）</div>
+                        <div class="backup-list">${snapshotCards}</div>
+                        <div class="backup-section-title">从文件恢复</div>
+                        <div class="backup-file-actions">
+                            <button class="backup-secondary" id="backupImportBtn">📂 选择备份 JSON</button>
+                            <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;">
+                            <span class="backup-hint">也可以继续用「导出 → JSON」手动保存。</span>
+                        </div>
+                        <div class="backup-section-title">桌面本地备份</div>
+                        <div class="backup-list">${desktopCards}</div>
+                        <div class="backup-folder-row">
+                            <button class="backup-secondary" id="backupFolderBtn" ${window.desktop ? '' : 'disabled'}>📁 打开备份目录</button>
+                            ${window.desktop ? '' : '<span class="backup-hint">网页版没有本地文件夹；桌面版可用。</span>'}
+                        </div>
+                    </div>
+                `;
+                const now = document.getElementById('backupNowBtn');
+                if (now) now.addEventListener('click', async () => {
+                    await this.createBackup('manual');
+                    this._backupLoaded = false;
+                    this.renderRightPanel();
+                });
+                const refresh = document.getElementById('backupRefreshBtn');
+                if (refresh) refresh.addEventListener('click', async () => {
+                    await this.refreshBackupList();
+                    this.renderRightPanel();
+                });
+                const importBtn = document.getElementById('backupImportBtn');
+                const importInput = document.getElementById('backupFileInput');
+                if (importBtn && importInput) importBtn.addEventListener('click', () => importInput.click());
+                if (importInput) importInput.addEventListener('change', async () => {
+                    const file = importInput.files && importInput.files[0];
+                    if (!file) return;
+                    try {
+                        const text = await this.readFileText(file);
+                        const data = JSON.parse(text);
+                        if (!confirm(`将从「${file.name}」恢复，覆盖当前数据。\n恢复前会自动备份当前数据。确定继续吗？`)) return;
+                        await this.restoreFromData(data, '文件备份');
+                        this._backupLoaded = false;
+                        this.renderRightPanel();
+                    } catch (e) {
+                        this.showToast('读取备份失败：' + e.message, 'error');
+                    }
+                });
+                container.querySelectorAll('.backup-restore').forEach(btn => {
+                    btn.addEventListener('click', () => this.restoreSnapshot(btn.dataset.id));
+                });
+                container.querySelectorAll('.backup-download').forEach(btn => {
+                    btn.addEventListener('click', () => this.downloadSnapshot(btn.dataset.id));
+                });
+                container.querySelectorAll('.backup-delete').forEach(btn => {
+                    btn.addEventListener('click', () => this.deleteSnapshot(btn.dataset.id));
+                });
+                container.querySelectorAll('.backup-file-restore').forEach(btn => {
+                    btn.addEventListener('click', () => this.restoreDesktopFile(btn.dataset.name));
+                });
+                const folder = document.getElementById('backupFolderBtn');
+                if (folder) folder.addEventListener('click', async () => {
+                    if (window.desktop && typeof window.desktop.openBackupFolder === 'function') {
+                        await window.desktop.openBackupFolder();
+                    }
                 });
             },
 
@@ -6589,6 +7032,7 @@
                     this.flashcardFlipped = false;
                     this.flashcardSenseId = null;
                 }
+                if (mode === 'backup') this._backupLoaded = false;
                 this.currentMode = mode;
                 if (mode === 'recycle') { this.currentWordId = null;
                     this.currentSenseId = null; }
@@ -6702,17 +7146,7 @@
                 try {
                     let nativeSave = false;
                     if (format === 'json') {
-                        const data = {
-                            app: '智能单词本',
-                            appVersion: '0.2.1',
-                            schemaVersion: 2,
-                            exportedAt: new Date().toISOString(),
-                            wordCount: this.words.length,
-                            words: this.words,
-                            rootFamilies: this.extras.rootFamilies || [],
-                            synonymGroups: this.extras.synonymGroups || [],
-                            confusionPairs: this.extras.confusionPairs || []
-                        };
+                        const data = this.buildExportData();
                         nativeSave = this.downloadFile(JSON.stringify(data, null, 2),
                             `单词本备份_${dateStr}.json`, 'application/json;charset=utf-8');
                     } else if (format === 'csv') {
@@ -6784,7 +7218,8 @@
                             rootFamilies: Array.isArray(data.rootFamilies) ? data.rootFamilies : [],
                             synonymGroups: Array.isArray(data.synonymGroups) ? data.synonymGroups : [],
                             confusionPairs: Array.isArray(data.confusionPairs) ? data.confusionPairs : []
-                        }
+                        },
+                        progress: Array.isArray(data.progress) ? data.progress : []
                     };
                 }
                 if (lower.endsWith('.csv')) {
@@ -6881,6 +7316,7 @@
                 if (!files || files.length === 0) return;
                 const allWords = [];
                 const allExtras = { rootFamilies: [], synonymGroups: [], confusionPairs: [] };
+                const allProgress = [];
                 let skipped = 0;
                 let failedFiles = 0;
                 for (let i = 0; i < files.length; i++) {
@@ -6891,15 +7327,16 @@
                         const parsed = this.parseImportText(file.name, text);
                         allWords.push(...(parsed.words || []));
                         this.mergeExtras(allExtras, parsed.extras || {});
+                        if (Array.isArray(parsed.progress)) allProgress.push(...parsed.progress);
                     } catch (err) {
                         failedFiles++;
                         console.error(err);
                         this.showToast(`⚠️ ${file.name} 解析失败：${err.message}`, 'error', 3000);
                     }
                 }
-                this.startImport(allWords, files.length, failedFiles, skipped, allExtras);
+                this.startImport(allWords, files.length, failedFiles, skipped, allExtras, allProgress);
             },
-            startImport(rawWords, fileCount, failedFiles, skipped, extrasToImport) {
+            startImport(rawWords, fileCount, failedFiles, skipped, extrasToImport, progressToImport) {
                 const activeWords = this.words.filter(w => !w.deleted);
                 const activeMap = new Map(activeWords.map(w => [w.word.toLowerCase(), w]));
                 const conflicts = [];
@@ -6935,15 +7372,15 @@
                     this.importConflictData = {
                         conflicts, nonConflictWords,
                         skippedCount: skipped, fileCount,
-                        failedFiles, extrasToImport
+                        failedFiles, extrasToImport, progressToImport
                     };
                     this.showConflictModal();
                     return;
                 }
                 if (!confirm(`将导入 ${nonConflictWords.length} 个单词、${groupCount} 组词根/近义数据（来自 ${fileCount} 个文件）${skippedMsg}${failedMsg}。\n确定继续吗？`)) return;
-                this.doImport(nonConflictWords, null, extrasToImport);
+                this.doImport(nonConflictWords, null, extrasToImport, progressToImport);
             },
-            doImport(wordsToImport, conflictResolutions, extrasToImport) {
+            doImport(wordsToImport, conflictResolutions, extrasToImport, progressToImport) {
                 if (conflictResolutions) {
                     for (const resolution of conflictResolutions) {
                         if (resolution.action !== 'overwrite') continue;
@@ -6983,6 +7420,15 @@
                 }
                 this.words.push(...newWords);
                 if (extrasToImport) this.mergeExtras(this.extras, extrasToImport);
+                if (Array.isArray(progressToImport)) {
+                    progressToImport.forEach(p => {
+                        if (!p || !p.key) return;
+                        const existing = this.progress.get(p.key);
+                        if (!existing || (p.lastReviewedAt || 0) >= (existing.lastReviewedAt || 0)) {
+                            this.progress.set(p.key, p);
+                        }
+                    });
+                }
                 this.searchIndex.rebuild(this.words);
                 this.saveData();
                 this.render();
@@ -7044,11 +7490,14 @@
                 if (unresolved > 0) { alert(`还有 ${unresolved} 个冲突未处理，请为每个冲突选择「覆盖」或「跳过」。`); return; }
                 this.hideConflictModal();
                 this.doImport(this.importConflictData.nonConflictWords, resolutions,
-                    this.importConflictData.extrasToImport);
+                    this.importConflictData.extrasToImport, this.importConflictData.progressToImport);
             },
 
             bindEvents() {
                 this.bindListEvents();
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') this.autoBackupIfNeeded();
+                });
 
                 document.querySelectorAll('.top-bar .nav-btn').forEach(btn => {
                     btn.addEventListener('click', () => {

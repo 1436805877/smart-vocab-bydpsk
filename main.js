@@ -178,10 +178,79 @@ function filterForKind(kind) {
   return [{ name: '所有文件', extensions: ['*'] }];
 }
 
+function backupDir() {
+  return path.join(app.getPath('userData'), 'backups');
+}
+
+function safeBackupName(name) {
+  const base = path.basename(String(name || ''));
+  return /^[A-Za-z0-9._-]+\.json$/.test(base) ? base : null;
+}
+
+async function listBackupFiles() {
+  const dir = backupDir();
+  await fs.mkdir(dir, { recursive: true });
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.json')) continue;
+    try {
+      const stat = await fs.stat(path.join(dir, entry.name));
+      files.push({ name: entry.name, size: stat.size, mtime: stat.mtimeMs });
+    } catch { /* ignore */ }
+  }
+  return files.sort((a, b) => b.mtime - a.mtime);
+}
+
+async function pruneBackups(keep = 7) {
+  const files = await listBackupFiles();
+  for (const file of files.slice(keep)) {
+    try { await fs.unlink(path.join(backupDir(), file.name)); } catch { /* ignore */ }
+  }
+}
+
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('app:openDataFolder', async () => {
   await shell.openPath(app.getPath('userData'));
   return { ok: true, path: app.getPath('userData') };
+});
+ipcMain.handle('backup:list', async () => {
+  try {
+    return { ok: true, files: await listBackupFiles() };
+  } catch (error) {
+    return { ok: false, error: String(error), files: [] };
+  }
+});
+ipcMain.handle('backup:save', async (_event, payload) => {
+  const { content = '', filename = '' } = payload || {};
+  const name = safeBackupName(filename) || `wordbook-backup-${Date.now()}.json`;
+  try {
+    const dir = backupDir();
+    await fs.mkdir(dir, { recursive: true });
+    const filePath = path.join(dir, name);
+    await fs.writeFile(filePath, content, 'utf8');
+    await pruneBackups(7);
+    return { ok: true, filePath };
+  } catch (error) {
+    log('backup save failed', error);
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('backup:read', async (_event, payload) => {
+  const name = safeBackupName(payload && payload.name);
+  if (!name) return { ok: false, error: '无效的备份文件名' };
+  try {
+    const text = await fs.readFile(path.join(backupDir(), name), 'utf8');
+    return { ok: true, text, name };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+ipcMain.handle('backup:openFolder', async () => {
+  const dir = backupDir();
+  await fs.mkdir(dir, { recursive: true });
+  await shell.openPath(dir);
+  return { ok: true, path: dir };
 });
 ipcMain.handle('file:saveText', async (_event, payload) => {
   const { content = '', defaultName = 'export.txt', kind = 'txt' } = payload || {};

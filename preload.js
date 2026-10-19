@@ -7,4 +7,8 @@ contextBridge.exposeInMainWorld('desktop', {
   openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
   saveTextFile: (payload) => ipcRenderer.invoke('file:saveText', payload),
   openTextFile: (payload) => ipcRenderer.invoke('file:openText', payload),
+  saveBackup: (content, filename) => ipcRenderer.invoke('backup:save', { content, filename }),
+  listBackups: () => ipcRenderer.invoke('backup:list'),
+  readBackup: (name) => ipcRenderer.invoke('backup:read', { name }),
+  openBackupFolder: () => ipcRenderer.invoke('backup:openFolder'),
 });
