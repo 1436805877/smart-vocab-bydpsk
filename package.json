@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "smart-vocab",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "智能单词本 0.1 beta — 核心感觉 + 词根演变 + 近义辨析",
   "main": "main.js",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "com.mokiklok.smartvocab",
-    "productName": "智能单词本",
+    "productName": "SmartVocab",
     "copyright": "Copyright © 2026 Mokiklok",
     "asar": true,
     "npmRebuild": false,
@@ -50,7 +50,6 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installDir": "$LOCALAPPDATA\\SmartVocab",
       "createDesktopShortcut": true,
       "shortcutName": "智能单词本",
       "deleteAppDataOnUninstall": false

@@ -7,6 +7,9 @@ const os = require('node:os');
 const APP_ID = 'com.mokiklok.smartvocab';
 let mainWindow = null;
 
+// productName 改为 SmartVocab 以避免安装路径含中文；用户数据目录保持不变。
+app.setPath('userData', path.join(app.getPath('appData'), 'smart-vocab'));
+
 // 启动日志：便携版目录和临时目录各写一份，方便排查“双击没反应”
 const logFiles = [
   path.join(path.dirname(process.execPath), 'startup.log'),

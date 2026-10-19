@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.4 — 2026-10-19
+
+### 修复
+
+- 修复 GitHub Actions「Build Windows app」失败：`nsis.installDir` 不是 electron-builder 26 支持的字段，已移除。
+- 产品名改为英文 `SmartVocab`，让 NSIS 默认安装目录变成纯英文路径，避免中文路径启动问题。
+- `main.js` 显式把用户数据目录固定为 `%APPDATA%\smart-vocab`，升级产品名不会丢数据。
+- 桌面端继续保留中文快捷方式名「智能单词本」。
+
 ## 0.1.3 — 2026-10-19
 
 ### 新增
