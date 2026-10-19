@@ -58,6 +58,8 @@
 
 ### 0.4 Windows 桌面版（Electron）
 
+> 0.1 已提前完成最小桌面壳：便携版 `SmartVocab.exe`、原生保存对话框、数据目录菜单、GitHub Actions 安装包工作流。0.4 继续补 SQLite、自动更新、签名和安装包细节。
+
 - Electron 主进程加载构建后的静态文件。
 - `preload` 暴露安全 API：文件选择、备份、导入、导出、打开数据目录。
 - SQLite 存到 `%APPDATA%/SmartVocab/wordbook.db`。
