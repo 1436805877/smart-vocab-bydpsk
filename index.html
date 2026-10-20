@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.15 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.16 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.15 beta</title>
+    <title>智能单词本 v0.4.16 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4339,6 +4339,57 @@
             width: auto !important;
             max-width: max-content;
         }
+        :root {
+            --visibility-veil: transparent;
+        }
+        body.visibility-boost .top-bar,
+        body.visibility-boost .left-panel,
+        body.visibility-boost .right-panel,
+        body.visibility-boost .panel-header,
+        body.visibility-boost .detail-section,
+        body.visibility-boost .overview-sense-item,
+        body.visibility-boost .settings-card,
+        body.visibility-boost .stat-card,
+        body.visibility-boost .backup-card,
+        body.visibility-boost .note-item,
+        body.visibility-boost .word-zh-senses,
+        body.visibility-boost .detail-sticky-bar,
+        body.visibility-boost .detail-sticky-bar button,
+        body.visibility-boost .syn-group,
+        body.visibility-boost .syn-member,
+        body.visibility-boost .root-family,
+        body.visibility-boost .root-member,
+        body.visibility-boost .culture-section,
+        body.visibility-boost .chain-node,
+        body.visibility-boost .morph-part,
+        body.visibility-boost .word-actions,
+        body.visibility-boost .word-editor,
+        body.visibility-boost .help-modal,
+        body.visibility-boost .editor-section,
+        body.visibility-boost .editor-sense {
+            box-shadow: inset 0 0 0 9999px var(--visibility-veil) !important;
+        }
+        body.visibility-boost .word-text,
+        body.visibility-boost .sense-def,
+        body.visibility-boost .core-feeling,
+        body.visibility-boost .core-image,
+        body.visibility-boost .detail-section h4,
+        body.visibility-boost .settings-title,
+        body.visibility-boost .settings-row b,
+        body.visibility-boost .stat-card .number,
+        body.visibility-boost .word-zh-senses,
+        body.visibility-boost .syn-title,
+        body.visibility-boost .root-family-head,
+        body.visibility-boost .culture-block,
+        body.visibility-boost .culture-eggs {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+        }
+        body.visibility-boost .left-panel,
+        body.visibility-boost .right-panel,
+        body.visibility-boost .overview-sense-item,
+        body.visibility-boost .settings-card {
+            border-color: color-mix(in srgb, var(--text-color) 18%, transparent);
+        }
     </style>
 </head>
 <body>
@@ -4347,7 +4398,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.15 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.16 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4833,7 +4884,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.15', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.16', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5001,6 +5052,7 @@
                     appOpacity: 0.96,
                     panelOpacity: 0.88,
                     autoTextColor: true,
+                    visibilityBoost: true,
                     wallpaper: '',
                     wallpaperId: '',
                     wallpaperKind: '',
@@ -5635,6 +5687,7 @@
                             if (/^#[0-9a-f]{6}$/i.test(t.panelColor || '')) this.settings.theme.panelColor = t.panelColor;
                             if (typeof t.textColor === 'string') this.settings.theme.textColor = t.textColor;
                             if (typeof t.autoTextColor === 'boolean') this.settings.theme.autoTextColor = t.autoTextColor;
+                            if (typeof t.visibilityBoost === 'boolean') this.settings.theme.visibilityBoost = t.visibilityBoost;
                             if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0, Math.min(1, Number(t.appOpacity)));
                             if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0, Math.min(1, Number(t.panelOpacity)));
                             if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0, Math.min(1, Number(t.wallpaperOpacity)));
@@ -5658,6 +5711,7 @@
                 root.style.setProperty('--panel-bg', t.panelColor || '#ffffff');
                 if (t.autoTextColor) this.updateAutoTextColor();
                 else root.style.setProperty('--text-color', t.textColor || '#0f172a');
+                this.applyVisibility();
                 root.style.setProperty('--app-opacity', String(Number.isFinite(Number(t.appOpacity)) ? t.appOpacity : 0.96));
                 root.style.setProperty('--panel-opacity', String(Math.round((Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88) * 100)) + '%');
                 root.style.setProperty('--wallpaper-opacity', String(Number.isFinite(Number(t.wallpaperOpacity)) ? t.wallpaperOpacity : 0.35));
@@ -5678,6 +5732,19 @@
                 const n = parseInt(m[0], 16);
                 const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
                 return (r * 299 + g * 587 + b * 114) / 255000;
+            },
+
+            applyVisibility() {
+                const enabled = this.settings.theme.visibilityBoost !== false;
+                document.body.classList.toggle('visibility-boost', enabled);
+                const root = document.documentElement;
+                if (!enabled) {
+                    root.style.setProperty('--visibility-veil', 'transparent');
+                    return;
+                }
+                const color = getComputedStyle(root).getPropertyValue('--text-color').trim() || '#0f172a';
+                const lightText = this.hexBrightness(color) > 0.55;
+                root.style.setProperty('--visibility-veil', lightText ? 'rgba(0, 0, 0, .26)' : 'rgba(255, 255, 255, .32)');
             },
 
             async sampleWallpaperBrightness() {
@@ -5739,6 +5806,7 @@
                     brightness = brightness * (1 - wallWeight) + wall * wallWeight;
                 }
                 document.documentElement.style.setProperty('--text-color', brightness > 0.55 ? '#0f172a' : '#f8fafc');
+                this.applyVisibility();
             },
 
             wallpaperDB() {
@@ -6065,6 +6133,10 @@
                                 <span><b>自动文字颜色</b><small>根据当前背景/壁纸的明暗，自动选深色或浅色文字。</small></span>
                                 <input type="checkbox" id="settingsAutoTextColor" ${t.autoTextColor !== false ? 'checked' : ''}>
                             </label>
+                            <label class="settings-row">
+                                <span><b>增强可见性</b><small>给面板加一层轻量遮罩和文字阴影，彩色壁纸下更容易读；低性能电脑可关闭。</small></span>
+                                <input type="checkbox" id="settingsVisibilityBoost" ${t.visibilityBoost !== false ? 'checked' : ''}>
+                            </label>
                             <div class="settings-row">
                                 <span><b>整体不透明度</b><small>0–100%，完全交给用户控制；调低后壁纸会从面板下透出来。</small></span>
                                 <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
@@ -6130,6 +6202,12 @@
                     const color = document.getElementById('settingsTextColor');
                     if (color) color.disabled = autoText.checked;
                     this.applyTheme();
+                    this.saveSettings();
+                });
+                const visibility = document.getElementById('settingsVisibilityBoost');
+                if (visibility) visibility.addEventListener('change', () => {
+                    this.settings.theme.visibilityBoost = visibility.checked;
+                    this.applyVisibility();
                     this.saveSettings();
                 });
                 const file = document.getElementById('settingsWallpaperFile');
@@ -6214,7 +6292,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.15',
+                    appVersion: '0.4.16',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
