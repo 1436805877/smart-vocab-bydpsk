@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.9 — 2026-10-20
+
+### 修复
+
+- 移除 `package.json` / `package-lock.json` / `index.html` 的 UTF-8 BOM。
+- 修复 GitHub Actions 从 v0.4.4 起 `electron-builder` 构建失败，导致新版本没有发布 Release 的问题。
+- 0.4.9 重新触发 Windows NSIS + portable 构建与 GitHub Release。
+
 ## 0.4.8 — 2026-10-20
 
 ### 个性化
