@@ -1,6 +1,6 @@
 ﻿<!DOCTYPE html>
 <!--
-    智能单词本 v0.4.7 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.8 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.7 beta</title>
+    <title>智能单词本 v0.4.8 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -3896,21 +3896,28 @@
         :root {
             --page-bg: #f3f6fb;
             --panel-bg: #ffffff;
+            --text-color: #0f172a;
             --app-opacity: 0.96;
-            --wallpaper-opacity: 0.28;
+            --panel-opacity: 88%;
+            --wallpaper-opacity: 0.35;
         }
         body {
             background: var(--page-bg);
+            color: var(--text-color);
         }
         .app {
             position: relative;
             z-index: 1;
             background: rgba(255, 255, 255, var(--app-opacity));
+            color: var(--text-color);
         }
         .app-wallpaper {
             position: fixed;
             inset: 0;
             z-index: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             pointer-events: none;
             background-position: center;
             background-size: cover;
@@ -3918,9 +3925,34 @@
             opacity: 0;
             transition: opacity .25s ease;
         }
+        #appWallpaperVideo {
+            display: none;
+        }
         .left-panel,
         .right-panel {
-            background: var(--panel-bg);
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            color: var(--text-color);
+        }
+        body.has-wallpaper .panel-header {
+            background: color-mix(in srgb, var(--panel-bg) 86%, transparent);
+        }
+        body.has-wallpaper .detail-section,
+        body.has-wallpaper .settings-card,
+        body.has-wallpaper .stats-section,
+        body.has-wallpaper .stats-category,
+        body.has-wallpaper .word-actions {
+            background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
+        }
+        .list-item .word-text,
+        .panel-header .mode-title,
+        .detail-section h4,
+        .settings-row b,
+        .settings-title {
+            color: var(--text-color);
+        }
+        .list-item.active .word-text,
+        .list-item.active .word-text strong {
+            color: #1e3a8a;
         }
         .settings-color-grid {
             display: flex;
@@ -3978,12 +4010,82 @@
             background: #f1f5f9;
             border-color: #94a3b8;
         }
+        .settings-hint {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
         .settings-section-label {
             font-size: 12px;
             font-weight: 700;
             color: #4f46e5;
             letter-spacing: .04em;
             padding: 12px 0 6px;
+        }
+        .wallpaper-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .wallpaper-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+            transition: box-shadow .15s ease, border-color .15s ease;
+        }
+        .wallpaper-card:hover {
+            box-shadow: 0 8px 18px rgba(15, 23, 42, .1);
+            border-color: #a5b4fc;
+        }
+        .wallpaper-card.active {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, .16);
+        }
+        .wallpaper-thumb {
+            height: 72px;
+            background: #eef2f7;
+        }
+        .wallpaper-thumb img,
+        .wallpaper-thumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .wallpaper-name {
+            font-size: 12px;
+            color: #475569;
+            padding: 6px 8px 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wallpaper-actions {
+            display: flex;
+            gap: 4px;
+            padding: 4px 8px 8px;
+        }
+        .wallpaper-actions button {
+            flex: 1;
+            border: 1px solid #dbe3ee;
+            background: #f8fafc;
+            color: #475569;
+            border-radius: 8px;
+            padding: 4px 2px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .wallpaper-actions button:hover {
+            background: #eef2ff;
+            color: #4f46e5;
+        }
+        .wallpaper-empty {
+            color: #94a3b8;
+            font-size: 12px;
+            padding: 10px 0;
         }
 
         /* 交互反馈：让鼠标经过的地方有回应 */
@@ -4020,23 +4122,23 @@
         }
         .list-item.active,
         .list-item.active:hover {
-            background: linear-gradient(90deg, #2563eb, #3b82f6);
-            border-left-color: #1d4ed8;
-            color: white;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+            background: linear-gradient(90deg, #dbeafe, #eff6ff);
+            border-left-color: #3b82f6;
+            color: #1e3a8a;
+            box-shadow: inset 0 0 0 1px rgba(59, 130, 246, .16);
         }
         .list-item.active .word-text,
         .list-item.active .word-text strong,
         .list-item.active .review-reminder {
-            color: white;
+            color: #1e3a8a;
         }
         .list-item.active .mastery-badge {
-            background: rgba(255, 255, 255, .22);
-            color: white;
+            background: #bfdbfe;
+            color: #1e40af;
         }
         .list-item.active .sense-item,
         .list-item.active:hover .sense-item {
-            color: white;
+            color: #1e3a8a;
         }
         .modal-overlay.show .modal {
             animation: dsh-modal-in .18s ease-out;
@@ -4055,10 +4157,11 @@
 </head>
 <body>
     <div class="app-wallpaper" id="appWallpaper"></div>
+    <video class="app-wallpaper" id="appWallpaperVideo" muted loop autoplay playsinline></video>
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.7 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.8 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4226,7 +4329,7 @@
 
                 <h3>六、数据安全</h3>
                 <p>桌面版主存储是 SQLite，网页版是 IndexedDB。桌面版还会写 SQLite 镜像和本地备份。</p>
-                <p>「设置 → 个性化」可以改页面背景色、面板色、整体不透明度和壁纸透明度；可以选择本地壁纸图片，桌面版也可以直接读取当前 Windows 桌面壁纸。</p>
+                <p>「设置 → 个性化」可以改页面背景色、面板色、文字颜色、整体不透明度、面板不透明度和壁纸透明度；壁纸会存进 App 的壁纸库，可以随时切换。支持图片、GIF、MP4/WebM 动态壁纸；桌面版还可以直接读取当前 Windows 桌面壁纸。Wallpaper Engine 的 .pkg 场景格式不能直接解码，请先导出成图片、GIF 或视频。</p>
                 <div class="help-note">清理浏览器数据、重装系统、换电脑前，先「导出 → JSON」备份。恢复前软件也会自动备份当前数据。</div>
 
                 <h3>七、常见问题</h3>
@@ -4544,7 +4647,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.7', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.8', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -4708,9 +4811,13 @@
                 theme: {
                     bgColor: '#f3f6fb',
                     panelColor: '#ffffff',
+                    textColor: '#0f172a',
                     appOpacity: 0.96,
+                    panelOpacity: 0.88,
                     wallpaper: '',
-                    wallpaperOpacity: 0.28
+                    wallpaperId: '',
+                    wallpaperKind: '',
+                    wallpaperOpacity: 0.35
                 }
             },
             pendingNext: null,
@@ -5339,9 +5446,13 @@
                             const t = s.theme;
                             if (/^#[0-9a-f]{6}$/i.test(t.bgColor || '')) this.settings.theme.bgColor = t.bgColor;
                             if (/^#[0-9a-f]{6}$/i.test(t.panelColor || '')) this.settings.theme.panelColor = t.panelColor;
+                            if (/^#[0-9a-f]{6}$/i.test(t.textColor || '')) this.settings.theme.textColor = t.textColor;
                             if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0.55, Math.min(1, Number(t.appOpacity)));
+                            if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0.5, Math.min(1, Number(t.panelOpacity)));
                             if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0, Math.min(1, Number(t.wallpaperOpacity)));
                             if (typeof t.wallpaper === 'string') this.settings.theme.wallpaper = t.wallpaper;
+                            if (typeof t.wallpaperId === 'string') this.settings.theme.wallpaperId = t.wallpaperId;
+                            if (typeof t.wallpaperKind === 'string') this.settings.theme.wallpaperKind = t.wallpaperKind;
                         }
                     }
                 } catch (e) { /* ignore */ }
@@ -5352,21 +5463,118 @@
                 try { localStorage.setItem('smartVocabSettings', JSON.stringify(this.settings)); } catch (e) { /* ignore */ }
             },
 
-            applyTheme() {
+            applyTheme(reloadWallpaper = true) {
                 const t = this.settings.theme || {};
                 const root = document.documentElement;
                 root.style.setProperty('--page-bg', t.bgColor || '#f3f6fb');
                 root.style.setProperty('--panel-bg', t.panelColor || '#ffffff');
+                root.style.setProperty('--text-color', t.textColor || '#0f172a');
                 root.style.setProperty('--app-opacity', String(Number.isFinite(Number(t.appOpacity)) ? t.appOpacity : 0.96));
-                root.style.setProperty('--wallpaper-opacity', String(Number.isFinite(Number(t.wallpaperOpacity)) ? t.wallpaperOpacity : 0.28));
-                const wp = document.getElementById('appWallpaper');
-                if (wp) {
-                    wp.style.backgroundImage = t.wallpaper ? `url("${t.wallpaper}")` : 'none';
-                    wp.style.opacity = t.wallpaper ? String(Number(t.wallpaperOpacity ?? 0.28)) : '0';
+                root.style.setProperty('--panel-opacity', String(Math.round((Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88) * 100)) + '%');
+                root.style.setProperty('--wallpaper-opacity', String(Number.isFinite(Number(t.wallpaperOpacity)) ? t.wallpaperOpacity : 0.35));
+                document.body.classList.toggle('has-wallpaper', !!(t.wallpaper || t.wallpaperId));
+                const img = document.getElementById('appWallpaper');
+                const video = document.getElementById('appWallpaperVideo');
+                if (!reloadWallpaper) {
+                    if (img) img.style.opacity = (t.wallpaper || t.wallpaperId) ? String(Number(t.wallpaperOpacity ?? 0.35)) : '0';
+                    if (video) video.style.opacity = (t.wallpaper || t.wallpaperId) ? String(Number(t.wallpaperOpacity ?? 0.35)) : '0';
+                    return;
+                }
+                this.applyWallpaper();
+            },
+
+            wallpaperDB() {
+                if (this._wallpaperDB) return Promise.resolve(this._wallpaperDB);
+                return new Promise((resolve, reject) => {
+                    const req = indexedDB.open('SmartVocabWallpapers', 1);
+                    req.onupgradeneeded = () => {
+                        const db = req.result;
+                        if (!db.objectStoreNames.contains('items')) db.createObjectStore('items', { keyPath: 'id' });
+                    };
+                    req.onsuccess = () => { this._wallpaperDB = req.result; resolve(req.result); };
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async wallpaperList() {
+                const db = await this.wallpaperDB();
+                return new Promise((resolve, reject) => {
+                    const req = db.transaction('items', 'readonly').objectStore('items').getAll();
+                    req.onsuccess = () => resolve((req.result || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async wallpaperPut(item) {
+                const db = await this.wallpaperDB();
+                return new Promise((resolve, reject) => {
+                    const req = db.transaction('items', 'readwrite').objectStore('items').put(item);
+                    req.onsuccess = () => resolve(item);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async wallpaperDelete(id) {
+                const db = await this.wallpaperDB();
+                return new Promise((resolve, reject) => {
+                    const req = db.transaction('items', 'readwrite').objectStore('items').delete(id);
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error);
+                });
+            },
+
+            async applyWallpaper() {
+                const t = this.settings.theme || {};
+                const img = document.getElementById('appWallpaper');
+                const video = document.getElementById('appWallpaperVideo');
+                if (!img || !video) return;
+                if (this._wallpaperObjectUrl) {
+                    URL.revokeObjectURL(this._wallpaperObjectUrl);
+                    this._wallpaperObjectUrl = null;
+                }
+                const opacity = Number.isFinite(Number(t.wallpaperOpacity)) ? Number(t.wallpaperOpacity) : 0.35;
+                let applied = false;
+                if (t.wallpaperId) {
+                    try {
+                        const items = await this.wallpaperList();
+                        const item = items.find(x => x.id === t.wallpaperId);
+                        if (item && item.blob) {
+                            const url = URL.createObjectURL(item.blob);
+                            this._wallpaperObjectUrl = url;
+                            if (item.kind === 'video') {
+                                img.style.backgroundImage = 'none';
+                                img.style.opacity = '0';
+                                video.src = url;
+                                video.style.display = 'block';
+                                video.style.opacity = String(opacity);
+                                video.play().catch(() => {});
+                            } else {
+                                video.pause();
+                                video.style.display = 'none';
+                                img.style.backgroundImage = `url("${url}")`;
+                                img.style.opacity = String(opacity);
+                            }
+                            applied = true;
+                        }
+                    } catch { /* ignore */ }
+                }
+                if (!applied && t.wallpaper) {
+                    video.pause();
+                    video.style.display = 'none';
+                    img.style.backgroundImage = `url("${t.wallpaper}")`;
+                    img.style.opacity = String(opacity);
+                    applied = true;
+                }
+                if (!applied) {
+                    video.pause();
+                    video.style.display = 'none';
+                    img.style.backgroundImage = 'none';
+                    img.style.opacity = '0';
+                    document.body.classList.remove('has-wallpaper');
                 }
             },
 
-            async compressWallpaperDataUrl(dataUrl) {
+            async imageToBlob(dataUrl) {
                 const img = await new Promise((resolve, reject) => {
                     const i = new Image();
                     i.onload = () => resolve(i);
@@ -5379,30 +5587,98 @@
                 canvas.width = Math.max(1, Math.round(img.width * scale));
                 canvas.height = Math.max(1, Math.round(img.height * scale));
                 canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                return canvas.toDataURL('image/jpeg', 0.82);
+                return new Promise((resolve, reject) => {
+                    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片压缩失败')), 'image/jpeg', 0.82);
+                });
             },
 
-            async readWallpaperFile(file) {
-                if (!file) return;
-                if (!/^image\//.test(file.type)) { this.showToast('请选择图片文件', 'error'); return; }
+            async fileToWallpaper(file) {
+                if (!file) return null;
+                if (file.type.startsWith('video/')) return { blob: file, kind: 'video' };
+                if (file.type === 'image/gif') return { blob: file, kind: 'image' };
+                if (!file.type.startsWith('image/')) throw new Error('只支持图片、GIF、MP4/WebM 视频');
                 const dataUrl = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(String(reader.result || ''));
                     reader.onerror = reject;
                     reader.readAsDataURL(file);
                 });
-                this.settings.theme.wallpaper = await this.compressWallpaperDataUrl(dataUrl);
-                this.applyTheme();
-                this.updateWallpaperPreview();
-                this.showToast('壁纸已载入，记得保存设置', 'success');
+                return { blob: await this.imageToBlob(dataUrl), kind: 'image' };
             },
 
-            updateWallpaperPreview() {
-                const preview = document.getElementById('settingsWallpaperPreview');
-                const clear = document.getElementById('settingsWallpaperClear');
-                const has = !!this.settings.theme.wallpaper;
-                if (preview) { preview.src = has ? this.settings.theme.wallpaper : ''; preview.style.display = has ? 'block' : 'none'; }
-                if (clear) clear.style.display = has ? 'inline-block' : 'none';
+            async addWallpaperFile(file) {
+                if (!file) return;
+                const converted = await this.fileToWallpaper(file);
+                const id = 'wp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                const item = { id, name: file.name.replace(/\.[^.]+$/, ''), kind: converted.kind, blob: converted.blob, createdAt: Date.now() };
+                await this.wallpaperPut(item);
+                this.settings.theme.wallpaperId = id;
+                this.settings.theme.wallpaperKind = converted.kind;
+                this.settings.theme.wallpaper = '';
+                this.applyTheme();
+                this.saveSettings();
+                await this.renderWallpaperGallery();
+                this.showToast('壁纸已加入壁纸库', 'success');
+            },
+
+            async addDesktopWallpaper(dataUrl) {
+                const blob = await this.imageToBlob(dataUrl);
+                const id = 'wp_desktop_' + Date.now();
+                const item = { id, name: 'Windows 桌面壁纸', kind: 'image', blob, createdAt: Date.now() };
+                await this.wallpaperPut(item);
+                this.settings.theme.wallpaperId = id;
+                this.settings.theme.wallpaperKind = 'image';
+                this.settings.theme.wallpaper = '';
+                this.applyTheme();
+                this.saveSettings();
+                await this.renderWallpaperGallery();
+            },
+
+            async useWallpaper(id) {
+                const items = await this.wallpaperList();
+                const item = items.find(x => x.id === id);
+                if (!item) return;
+                this.settings.theme.wallpaperId = item.id;
+                this.settings.theme.wallpaperKind = item.kind;
+                this.settings.theme.wallpaper = '';
+                this.applyTheme();
+                this.saveSettings();
+                await this.renderWallpaperGallery();
+                this.showToast('已切换壁纸', 'success');
+            },
+
+            async clearWallpaper() {
+                this.settings.theme.wallpaper = '';
+                this.settings.theme.wallpaperId = '';
+                this.settings.theme.wallpaperKind = '';
+                this.applyTheme();
+                this.saveSettings();
+                await this.renderWallpaperGallery();
+            },
+
+            async renderWallpaperGallery() {
+                const box = document.getElementById('settingsWallpaperGallery');
+                if (!box) return;
+                (this._wallpaperPreviewUrls || []).forEach(u => URL.revokeObjectURL(u));
+                this._wallpaperPreviewUrls = [];
+                let items = [];
+                try { items = await this.wallpaperList(); } catch { items = []; }
+                if (!items.length) {
+                    box.innerHTML = '<div class="wallpaper-empty">还没有壁纸，点上方「添加壁纸」。</div>';
+                    return;
+                }
+                box.innerHTML = items.map(item => {
+                    let preview = '';
+                    try {
+                        const url = URL.createObjectURL(item.blob);
+                        this._wallpaperPreviewUrls.push(url);
+                        preview = item.kind === 'video'
+                            ? `<video src="${url}" muted loop autoplay playsinline></video>`
+                            : `<img src="${url}" alt="">`;
+                    } catch { /* ignore */ }
+                    const active = this.settings.theme.wallpaperId === item.id;
+                    return `<div class="wallpaper-card ${active ? 'active' : ''}" data-wallpaper-id="${item.id}"><div class="wallpaper-thumb">${preview}</div><div class="wallpaper-name">${this.escapeHtml(item.name || '壁纸')}${item.kind === 'video' ? ' · 动态' : ''}</div><div class="wallpaper-actions"><button type="button" data-wallpaper-action="use">${active ? '使用中' : '使用'}</button><button type="button" data-wallpaper-action="delete">删除</button></div></div>`;
+                }).join('');
             },
 
             snapshotData() {
@@ -5523,22 +5799,31 @@
                                 <div class="settings-color-grid"><input type="color" id="settingsPanelColor" value="${t.panelColor || '#ffffff'}"></div>
                             </div>
                             <div class="settings-row">
+                                <span><b>文字颜色</b><small>界面主要文字的颜色。</small></span>
+                                <div class="settings-color-grid"><input type="color" id="settingsTextColor" value="${t.textColor || '#0f172a'}"></div>
+                            </div>
+                            <div class="settings-row">
                                 <span><b>整体不透明度</b><small>调低后，壁纸会从面板下透出来。</small></span>
                                 <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0.55" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
-                                <span><b>壁纸透明度</b><small>只影响壁纸层，不影响文字。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.28}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.28) * 100)}%</span></div>
+                                <span><b>面板不透明度</b><small>列表和详情面板的半透明程度。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsPanelOpacity" min="0.5" max="1" step="0.01" value="${t.panelOpacity ?? 0.88}"><span id="settingsPanelOpacityValue">${Math.round((t.panelOpacity ?? 0.88) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
-                                <span><b>背景壁纸</b><small>可选任意图片；Wallpaper Engine 导出的壁纸文件也可以。</small></span>
+                                <span><b>壁纸透明度</b><small>只影响壁纸层，不影响文字。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.35}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.35) * 100)}%</span></div>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>壁纸库</b><small>图片、GIF、MP4/WebM 动态壁纸都可以；保存在 App 内，随时切换。</small></span>
                                 <div class="settings-file-row">
-                                    <img class="settings-wallpaper-preview" id="settingsWallpaperPreview" alt="壁纸预览" style="display:${t.wallpaper ? 'block' : 'none'};" src="${t.wallpaper || ''}">
-                                    <input type="file" id="settingsWallpaperFile" accept="image/*">
-                                    <button type="button" class="settings-mini-btn" id="settingsWallpaperClear" style="display:${t.wallpaper ? 'inline-block' : 'none'};">清除壁纸</button>
+                                    <input type="file" id="settingsWallpaperFile" accept="image/*,video/*" multiple>
+                                    <button type="button" class="settings-mini-btn" id="settingsWallpaperClear">清除当前壁纸</button>
                                 </div>
                             </div>
-                            ${window.desktop && window.desktop.getDesktopWallpaper ? `<div class="settings-row"><span><b>桌面壁纸</b><small>读取当前 Windows 桌面壁纸作为背景。</small></span><button type="button" class="settings-mini-btn" id="settingsDesktopWallpaper">读取桌面壁纸</button></div>` : ''}
+                            <div class="wallpaper-gallery" id="settingsWallpaperGallery"></div>
+                            <div class="settings-hint">Wallpaper Engine 的 .pkg 场景格式无法直接解码；请导出为图片、GIF 或 MP4/WebM 后添加。</div>
+                            ${window.desktop && window.desktop.getDesktopWallpaper ? `<div class="settings-row"><span><b>桌面壁纸</b><small>读取当前 Windows 桌面壁纸并加入壁纸库。</small></span><button type="button" class="settings-mini-btn" id="settingsDesktopWallpaper">读取桌面壁纸</button></div>` : ''}
                         </div>
 
                         <div class="settings-card">
@@ -5575,23 +5860,42 @@
                     this.settings.autoNextDelay = Number(delay && delay.value) || 1500;
                     this.settings.theme.bgColor = document.getElementById('settingsBgColor').value;
                     this.settings.theme.panelColor = document.getElementById('settingsPanelColor').value;
+                    this.settings.theme.textColor = document.getElementById('settingsTextColor').value;
                     this.settings.theme.appOpacity = Number(document.getElementById('settingsAppOpacity').value);
+                    this.settings.theme.panelOpacity = Number(document.getElementById('settingsPanelOpacity').value);
                     this.settings.theme.wallpaperOpacity = Number(document.getElementById('settingsWallpaperOpacity').value);
                     this.applyTheme();
                     this.saveSettings();
                     this.showToast('✅ 设置已保存', 'success');
                 });
                 const file = document.getElementById('settingsWallpaperFile');
-                if (file) file.addEventListener('change', () => {
-                    const f = file.files && file.files[0];
+                if (file) file.addEventListener('change', async () => {
+                    const files = Array.from(file.files || []);
                     file.value = '';
-                    if (f) this.readWallpaperFile(f);
+                    for (const f of files) {
+                        try { await this.addWallpaperFile(f); }
+                        catch (e) { this.showToast('添加壁纸失败：' + (e.message || e), 'error'); }
+                    }
                 });
                 const clear = document.getElementById('settingsWallpaperClear');
-                if (clear) clear.addEventListener('click', () => {
-                    this.settings.theme.wallpaper = '';
-                    this.applyTheme();
-                    this.updateWallpaperPreview();
+                if (clear) clear.addEventListener('click', () => this.clearWallpaper());
+                const gallery = document.getElementById('settingsWallpaperGallery');
+                if (gallery) gallery.addEventListener('click', async (e) => {
+                    const btn = e.target.closest('[data-wallpaper-action]');
+                    const card = e.target.closest('[data-wallpaper-id]');
+                    if (!btn || !card) return;
+                    const id = card.dataset.wallpaperId;
+                    if (btn.dataset.wallpaperAction === 'use') await this.useWallpaper(id);
+                    if (btn.dataset.wallpaperAction === 'delete') {
+                        await this.wallpaperDelete(id);
+                        if (this.settings.theme.wallpaperId === id) {
+                            this.settings.theme.wallpaperId = '';
+                            this.settings.theme.wallpaperKind = '';
+                            this.applyTheme();
+                            this.saveSettings();
+                        }
+                        await this.renderWallpaperGallery();
+                    }
                 });
                 const desktop = document.getElementById('settingsDesktopWallpaper');
                 if (desktop) desktop.addEventListener('click', async () => {
@@ -5600,10 +5904,8 @@
                     try {
                         const res = await window.desktop.getDesktopWallpaper();
                         if (!res || !res.dataUrl) throw new Error(res && res.error || '没有取到壁纸');
-                        this.settings.theme.wallpaper = await this.compressWallpaperDataUrl(res.dataUrl);
-                        this.applyTheme();
-                        this.updateWallpaperPreview();
-                        this.showToast('已读取桌面壁纸，记得保存设置', 'success');
+                        await this.addDesktopWallpaper(res.dataUrl);
+                        this.showToast('已读取桌面壁纸并加入壁纸库', 'success');
                     } catch (e) {
                         this.showToast('读取桌面壁纸失败：' + (e.message || e), 'error');
                     } finally {
@@ -5611,32 +5913,40 @@
                         desktop.textContent = '读取桌面壁纸';
                     }
                 });
-                ['settingsBgColor', 'settingsPanelColor'].forEach(id => {
+                ['settingsBgColor', 'settingsPanelColor', 'settingsTextColor'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.addEventListener('input', () => {
                         if (id === 'settingsBgColor') this.settings.theme.bgColor = el.value;
-                        else this.settings.theme.panelColor = el.value;
-                        this.applyTheme();
+                        else if (id === 'settingsPanelColor') this.settings.theme.panelColor = el.value;
+                        else this.settings.theme.textColor = el.value;
+                        this.applyTheme(false);
                     });
                 });
                 const appOp = document.getElementById('settingsAppOpacity');
                 if (appOp) appOp.addEventListener('input', () => {
                     this.settings.theme.appOpacity = Number(appOp.value);
                     document.getElementById('settingsAppOpacityValue').textContent = Math.round(appOp.value * 100) + '%';
-                    this.applyTheme();
+                    this.applyTheme(false);
+                });
+                const panelOp = document.getElementById('settingsPanelOpacity');
+                if (panelOp) panelOp.addEventListener('input', () => {
+                    this.settings.theme.panelOpacity = Number(panelOp.value);
+                    document.getElementById('settingsPanelOpacityValue').textContent = Math.round(panelOp.value * 100) + '%';
+                    this.applyTheme(false);
                 });
                 const wpOp = document.getElementById('settingsWallpaperOpacity');
                 if (wpOp) wpOp.addEventListener('input', () => {
                     this.settings.theme.wallpaperOpacity = Number(wpOp.value);
                     document.getElementById('settingsWallpaperOpacityValue').textContent = Math.round(wpOp.value * 100) + '%';
-                    this.applyTheme();
+                    this.applyTheme(false);
                 });
+                this.renderWallpaperGallery();
             },
 
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.7',
+                    appVersion: '0.4.8',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
