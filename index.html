@@ -1,6 +1,6 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <!--
-    智能单词本 v0.4.5 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.6 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.5 beta</title>
+    <title>智能单词本 v0.4.6 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -287,6 +287,12 @@
             background: #3b82f6;
             color: white;
         }
+        .alpha-nav button.pending {
+            background: #eef2ff;
+            color: #4f46e5;
+            box-shadow: inset 0 0 0 2px #818cf8;
+            transform: scale(1.08);
+        }
         .alpha-nav button.disabled {
             color: #cbd5e1;
             cursor: not-allowed;
@@ -537,7 +543,8 @@
             overflow-y: auto;
             padding: 8px 0 12px;
             position: relative;
-            content-visibility: auto;
+            scrollbar-gutter: stable;
+            overflow-anchor: none;
         }
         .list-load-more {
             padding: 14px 18px 20px;
@@ -581,8 +588,6 @@
             padding: 6px 18px;
             cursor: pointer;
             transition: 0.1s;
-            content-visibility: auto;
-            contain-intrinsic-size: 44px;
             display: flex;
             flex-direction: column;
             gap: 2px;
@@ -896,64 +901,94 @@
         .overview-sense-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             margin-top: 6px;
         }
         .overview-sense-item {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 12px 16px;
-            border-left: 4px solid #94a3b8;
+            position: relative;
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 14px 16px 12px 18px;
+            border: 1px solid #e6edf7;
+            border-left: 4px solid #c7d2fe;
+            box-shadow: 0 3px 12px rgba(15, 23, 42, .04);
             cursor: pointer;
-            transition: 0.15s;
+            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
         }
         .overview-sense-item:hover {
-            background: #eef2ff;
-            border-left-color: #3b82f6;
+            background: #ffffff;
+            border-left-color: #6366f1;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, .10);
         }
         .overview-sense-item .sense-def {
-            font-weight: 500;
+            font-weight: 650;
             font-size: 15px;
+            color: #0f172a;
+            line-height: 1.6;
         }
         .overview-sense-item .sense-en {
             font-size: 13px;
-            color: #64748b;
-            margin-top: 2px;
-            line-height: 1.5;
+            color: #475569;
+            margin-top: 7px;
+            line-height: 1.6;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 7px 10px;
+        }
+        .overview-sense-item .sense-example {
+            font-size: 13.5px;
+            color: #334155;
+            margin-top: 8px;
+            line-height: 1.6;
+            background: #f5f7ff;
+            border-left: 3px solid #a5b4fc;
+            border-radius: 0 8px 8px 0;
+            padding: 7px 10px;
         }
         .overview-sense-item .sense-example-zh {
             font-size: 13px;
             color: #94a3b8;
-            margin-top: 2px;
+            margin-top: 3px;
+            padding-left: 13px;
             line-height: 1.5;
         }
-        .overview-sense-item .sense-example {
-            font-size: 14px;
-            color: #475569;
-            margin-top: 4px;
+        .overview-sense-item .sense-srs {
+            display: inline-flex;
+            align-items: center;
+            font-size: 12px;
+            color: #0f766e;
+            background: #ecfdf5;
+            border-radius: 20px;
+            padding: 3px 9px;
+            margin-top: 8px;
         }
         .overview-sense-item .sense-tags {
-            font-size: 13px;
+            font-size: 12px;
             color: #64748b;
-            margin-top: 4px;
+            margin-top: 7px;
             display: flex;
             flex-wrap: wrap;
-            gap: 4px;
+            gap: 5px;
         }
         .overview-sense-item .sense-tags span {
-            background: #e9edf2;
-            padding: 0 8px;
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 2px 8px;
             border-radius: 30px;
         }
         .overview-sense-item .sense-core-link {
-            font-size: 13px;
+            display: inline-block;
+            font-size: 12px;
             color: #6366f1;
-            margin-top: 4px;
+            background: #f5f3ff;
+            border-radius: 20px;
+            padding: 3px 9px;
+            margin-top: 8px;
         }
         .sense-srs {
             font-size: 12px;
             color: #0f766e;
-            margin-top: 4px;
         }
         .core-section {
             background: linear-gradient(135deg, #eef2ff, #f8fafc);
@@ -3521,6 +3556,130 @@
             flex-direction: column;
             border: 1px solid #dbe4f0;
         }
+        .help-modal {
+            width: min(820px, calc(100vw - 40px));
+            max-width: 820px;
+            max-height: 90vh;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #dbe4f0;
+        }
+        .help-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #eef2ff, #f0fdf4);
+            border-bottom: 1px solid #e5edf7;
+        }
+        .help-head h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .help-head button {
+            border: none;
+            background: #eef2f7;
+            color: #475569;
+            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+        .help-body {
+            overflow-y: auto;
+            padding: 20px 24px 28px;
+            background: #fbfcff;
+            line-height: 1.75;
+            color: #334155;
+            font-size: 14px;
+        }
+        .help-body h3 {
+            font-size: 16px;
+            color: #1e293b;
+            margin: 22px 0 8px;
+        }
+        .help-body h3:first-child {
+            margin-top: 0;
+        }
+        .help-body p {
+            margin: 6px 0;
+        }
+        .help-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+        .help-pills span {
+            background: #eef2ff;
+            color: #4f46e5;
+            border-radius: 20px;
+            padding: 4px 11px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .help-mode-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .help-mode {
+            border: 1px solid #e5ebf4;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: white;
+        }
+        .help-mode b {
+            display: block;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+        .help-mode span {
+            color: #64748b;
+            font-size: 12.5px;
+        }
+        .help-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .help-table td {
+            border-bottom: 1px solid #eef2f7;
+            padding: 8px 10px;
+        }
+        .help-table td:first-child {
+            width: 155px;
+            color: #4f46e5;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .help-body ol {
+            margin: 6px 0 6px 20px;
+            padding: 0;
+        }
+        .help-body li {
+            margin: 4px 0;
+        }
+        .help-note {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        @media (max-width: 720px) {
+            .help-mode-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         .word-editor-header {
             display: flex;
             justify-content: space-between;
@@ -3717,7 +3876,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.5 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.6 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -3727,6 +3886,7 @@
                 <button class="clear-btn" id="clearSearchBtn">✕</button>
             </div>
             <div class="top-actions">
+                <button class="tool-btn help-btn" id="helpBtn" title="使用说明">❔ 说明</button>
                 <button class="nav-btn utility-btn" data-mode="recycle" title="回收站">♻️ 回收站</button>
                 <button class="nav-btn utility-btn" data-mode="backup" title="备份与恢复">🗄️ 备份</button>
                 <button class="nav-btn utility-btn" data-mode="settings" title="设置">⚙️ 设置</button>
@@ -3830,6 +3990,67 @@
                 <button class="export-card" data-format="csv"><strong>CSV</strong><span>表格 · Excel 可打开</span></button>
                 <button class="export-card" data-format="md"><strong>Markdown</strong><span>学习笔记 · 可阅读</span></button>
                 <button class="export-card" data-format="txt"><strong>TXT</strong><span>纯单词表 · 一行一词</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 使用说明 -->
+    <div class="modal-overlay" id="helpOverlay">
+        <div class="modal help-modal">
+            <div class="help-head"><h2>📖 智能单词本 · 使用说明</h2><button type="button" id="helpCloseBtn" title="关闭">✕</button></div>
+            <div class="help-body">
+                <h3>一、这个软件想解决什么</h3>
+                <p>不是把单词塞进一个更大的列表，而是帮你建立一条从“画面/感觉”到“词根演变”，再到“近义辨析”和“真实语境”的理解链。</p>
+                <div class="help-pills"><span>核心感觉</span><span>词根演变</span><span>义项拆分</span><span>近义辨析</span><span>文化语境</span><span>义项级 SRS</span></div>
+                <p>今天该复习哪个义项，由算法帮你排；你只需要每天打开「今日」，完成当天的一小段。</p>
+
+                <h3>二、每天怎么用</h3>
+                <ol>
+                    <li>导入或新建词库；</li>
+                    <li>打开「今日」，按队列复习；</li>
+                    <li>在「复习中心」选择某个模式专项突破；</li>
+                    <li>在「统计」看进度，在「备份」定期备份；</li>
+                    <li>遇到不熟或想补充的词，点「✏️ 编辑」完善核心感觉、词根、文化。</li>
+                </ol>
+
+                <h3>三、复习模式</h3>
+                <div class="help-mode-grid">
+                    <div class="help-mode"><b>🎴 翻卡牌</b><span>看单词想释义，适合快速过一遍。</span></div>
+                    <div class="help-mode"><b>🧭 核心回忆</b><span>先给核心感觉和画面，再回忆单词。</span></div>
+                    <div class="help-mode"><b>⚖️ 近义辨析</b><span>从近义组里选出最贴合语境的那个。</span></div>
+                    <div class="help-mode"><b>🌱 词根拆解</b><span>按前缀/词根/后缀拼出单词。</span></div>
+                    <div class="help-mode"><b>🔗 词义链</b><span>从本义到引申义，理解多义词的逻辑。</span></div>
+                    <div class="help-mode"><b>⌨️ 拼写挑战</b><span>听/看中文或例句，拼出英文单词。</span></div>
+                    <div class="help-mode"><b>🎯 单词射手</b><span>在限定时间里快速识别正确释义。</span></div>
+                    <div class="help-mode"><b>🍬 消消乐</b><span>把单词和释义配对消除，轻松复习。</span></div>
+                    <div class="help-mode"><b>✍️ 创意造句</b><span>用目标词写句子，练主动输出。</span></div>
+                </div>
+                <p>另外还有「今日复习」和「错题复习」：答错的义项进入错题本，连续答对后自动移出。</p>
+
+                <h3>四、快捷操作</h3>
+                <table class="help-table">
+                    <tr><td>Ctrl + Z</td><td>撤销最近一次数据修改</td></tr>
+                    <tr><td>Ctrl + Y / Ctrl + Shift + Z</td><td>重做</td></tr>
+                    <tr><td>Ctrl + F 或 /</td><td>聚焦搜索框</td></tr>
+                    <tr><td>Esc</td><td>清空搜索 / 关闭表单 / 关闭弹窗</td></tr>
+                    <tr><td>← / →</td><td>上一个 / 下一个单词</td></tr>
+                    <tr><td>空格 / 回车</td><td>翻卡牌；核心回忆里任意键揭示</td></tr>
+                </table>
+
+                <h3>五、词库、编辑与导入</h3>
+                <p>左侧「📝 新建」打开完整编辑器；详情页「✏️ 编辑」修改当前词。编辑器支持核心感觉、词根/词缀、词源、文化彩蛋、多义项、例句、搭配和易错。</p>
+                <p>「📥 导入」支持 JSON/CSV；JSON 可以完整保留词库、词根、近义组、文化和进度。标准库建议「导入为新词库」。</p>
+                <p>左侧字母栏是防误触的：第一次点字母只会高亮，第二次点同一个字母才跳转。</p>
+
+                <h3>六、数据安全</h3>
+                <p>桌面版主存储是 SQLite，网页版是 IndexedDB。桌面版还会写 SQLite 镜像和本地备份。</p>
+                <div class="help-note">清理浏览器数据、重装系统、换电脑前，先「导出 → JSON」备份。恢复前软件也会自动备份当前数据。</div>
+
+                <h3>七、常见问题</h3>
+                <p><b>为什么有的词没有词根？</b> 因为不确定的词根不强行拆；宁缺毋滥。</p>
+                <p><b>为什么核心感觉不是释义？</b> 核心感觉负责“想起来”，释义负责“说准确”，两者分工不同。</p>
+                <p><b>为什么每天只引入一个义项？</b> 控制认知负担，先形成稳定复习节奏。</p>
+                <p><b>词库太大卡怎么办？</b> 列表默认分批加载，滚动到底部会自动加载下一批；也可以搜索后只看结果。</p>
             </div>
         </div>
     </div>
@@ -4140,7 +4361,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.5', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.6', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -4309,6 +4530,7 @@
             currentGroupBy: 'hierarchy',
             listLimit: 300,
             deckFilter: '',
+            alphaPendingLetter: null,
             currentWordId: null,
             currentSenseId: null,
             searchQuery: '',
@@ -5073,7 +5295,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.5',
+                    appVersion: '0.4.6',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -5541,7 +5763,24 @@
                 nav.innerHTML = letters.map(l => `<button data-letter="${l}">${l}</button>`).join('');
                 nav.addEventListener('click', (e) => {
                     const btn = e.target.closest('button[data-letter]');
-                    if (btn) this.scrollToLetter(btn.dataset.letter);
+                    if (!btn || btn.classList.contains('disabled')) return;
+                    const letter = btn.dataset.letter;
+                    if (this.alphaPendingLetter === letter) {
+                        this.alphaPendingLetter = null;
+                        clearTimeout(this._alphaPendingTimer);
+                        nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
+                        this.scrollToLetter(letter);
+                        return;
+                    }
+                    this.alphaPendingLetter = letter;
+                    nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
+                    btn.classList.add('pending');
+                    this.showToast(`再点一次 ${letter} 跳转`, 'info');
+                    clearTimeout(this._alphaPendingTimer);
+                    this._alphaPendingTimer = setTimeout(() => {
+                        this.alphaPendingLetter = null;
+                        nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
+                    }, 3000);
                 });
             },
             updateAlphaNav() {
@@ -5740,14 +5979,18 @@
                 const container = document.getElementById('listContainer');
                 container.addEventListener('scroll', () => {
                     if (this._listLoadLock) return;
-                    if ((Number(this.listLimit) || 300) >= (this._filteredCount || 0)) return;
-                    if (container.scrollTop + container.clientHeight < container.scrollHeight - 120) return;
-                    this._listLoadLock = true;
-                    const oldTop = container.scrollTop;
-                    this.listLimit = (Number(this.listLimit) || 300) + 300;
-                    this.renderList();
-                    container.scrollTop = oldTop;
-                    setTimeout(() => { this._listLoadLock = false; }, 150);
+                    clearTimeout(this._listScrollTimer);
+                    this._listScrollTimer = setTimeout(() => {
+                        if (this._listLoadLock) return;
+                        if ((Number(this.listLimit) || 300) >= (this._filteredCount || 0)) return;
+                        if (container.scrollTop + container.clientHeight < container.scrollHeight - 120) return;
+                        this._listLoadLock = true;
+                        const oldTop = container.scrollTop;
+                        this.listLimit = (Number(this.listLimit) || 300) + 300;
+                        this.renderList();
+                        container.scrollTop = oldTop;
+                        setTimeout(() => { this._listLoadLock = false; }, 150);
+                    }, 160);
                 });
                 container.addEventListener('click', (e) => {
                     const moreBtn = e.target.closest('#loadMoreListBtn');
@@ -9403,6 +9646,10 @@
             bindEvents() {
                 this.bindListEvents();
                 this.bindWordEditor();
+                const helpOverlay = document.getElementById('helpOverlay');
+                document.getElementById('helpBtn').addEventListener('click', () => helpOverlay.classList.add('show'));
+                document.getElementById('helpCloseBtn').addEventListener('click', () => helpOverlay.classList.remove('show'));
+                helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.classList.remove('show'); });
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'hidden') this.autoBackupIfNeeded();
                 });
@@ -9547,6 +9794,11 @@
                 });
 
                 document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && document.getElementById('helpOverlay').classList.contains('show')) {
+                        e.preventDefault();
+                        document.getElementById('helpOverlay').classList.remove('show');
+                        return;
+                    }
                     if (e.key === 'Escape' && document.getElementById('wordEditorOverlay').classList.contains('show')) {
                         e.preventDefault();
                         this.closeWordEditor();
