@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.4 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4 beta</title>
+    <title>智能单词本 v0.4.4 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -151,6 +151,19 @@
         }
         .top-bar .tool-btn.export-btn:hover {
             background: #d1fae5;
+        }
+        .top-bar .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+        .top-bar .top-actions .nav-btn {
+            color: #64748b;
+        }
+        .top-bar .top-actions .nav-btn:hover {
+            color: #0f172a;
         }
         .top-bar .nav-btn,
         .top-bar .tool-btn {
@@ -335,6 +348,21 @@
         .panel-header .action-btn.add-word:hover {
             background: #a7f3d0;
         }
+        .panel-header .panel-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+        .panel-header .action-btn.list-tool {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 10px;
+        }
+        .panel-header .action-btn.list-tool:hover {
+            background: #e2e8f0;
+        }
         .add-word-form {
             display: none;
             padding: 16px 18px 18px;
@@ -495,6 +523,23 @@
             position: relative;
             content-visibility: auto;
         }
+        .list-load-more {
+            padding: 14px 18px 20px;
+            text-align: center;
+        }
+        .list-load-more button {
+            border: 1px solid #cbd5e1;
+            background: white;
+            color: #475569;
+            border-radius: 20px;
+            padding: 7px 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .list-load-more button:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
         .list-group {
             margin-bottom: 12px;
         }
@@ -520,6 +565,8 @@
             padding: 6px 18px;
             cursor: pointer;
             transition: 0.1s;
+            content-visibility: auto;
+            contain-intrinsic-size: 44px;
             display: flex;
             flex-direction: column;
             gap: 2px;
@@ -3357,22 +3404,22 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.4 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
             <button class="nav-btn" data-mode="stats">📊 统计</button>
-            <button class="nav-btn" data-mode="backup">🗄️ 备份</button>
-            <button class="nav-btn" data-mode="settings">⚙️ 设置</button>
-            <button class="nav-btn" data-mode="recycle">♻️ 回收站</button>
-            <button class="nav-btn" id="randomBtn">🎲 随机</button>
-            <button class="nav-btn" id="batchManageBtn">📦 批量管理</button>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="搜索..." />
                 <button class="clear-btn" id="clearSearchBtn">✕</button>
             </div>
-            <button class="tool-btn export-btn" id="exportBtn">📤 导出</button>
-            <button class="tool-btn import-btn" id="importBtn">📥 导入</button>
+            <div class="top-actions">
+                <button class="nav-btn utility-btn" data-mode="recycle" title="回收站">♻️ 回收站</button>
+                <button class="nav-btn utility-btn" data-mode="backup" title="备份与恢复">🗄️ 备份</button>
+                <button class="nav-btn utility-btn" data-mode="settings" title="设置">⚙️ 设置</button>
+                <button class="tool-btn export-btn" id="exportBtn" title="导出">📤 导出</button>
+                <button class="tool-btn import-btn" id="importBtn" title="导入">📥 导入</button>
+            </div>
         </div>
 
         <div class="main" id="mainContainer">
@@ -3400,7 +3447,9 @@
                             <option value="formality">📝 语体</option>
                             <option value="grammar">📖 语法属性</option>
                         </select></span>
-                        <span>
+                        <span class="panel-actions">
+                            <button class="action-btn list-tool" id="randomBtn" title="随机单词">🎲 随机</button>
+                            <button class="action-btn list-tool" id="batchManageBtn" title="批量管理">📦 批量</button>
                             <button class="action-btn add-word" id="addWordBtn">➕ 添加单词</button>
                         </span>
                     </div>
@@ -3718,7 +3767,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.0', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.4', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -3885,6 +3934,7 @@
             importOptions: { mode: 'normal', newDeckName: '', targetDeckId: null },
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
+            listLimit: 300,
             currentWordId: null,
             currentSenseId: null,
             searchQuery: '',
@@ -4646,7 +4696,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.3',
+                    appVersion: '0.4.4',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -5134,6 +5184,14 @@
                     return;
                 }
                 const container = document.getElementById('listContainer');
+                const words = this.getFilteredWords();
+                const target = words.find(w => w.word && w.word.charAt(0).toUpperCase() === letter);
+                if (!target) return;
+                const targetIndex = words.indexOf(target);
+                if (targetIndex >= (Number(this.listLimit) || 300)) {
+                    this.listLimit = targetIndex + 50;
+                    this.renderList();
+                }
                 const items = container.querySelectorAll('.list-item[data-word-id]');
                 for (const item of items) {
                     const wordId = Number(item.dataset.wordId);
@@ -5174,8 +5232,13 @@
                 const container = document.getElementById('listContainer');
                 const query = this.searchQuery.trim();
                 const isBatchMode = this.batchMode && (this.currentMode === 'dictionary' || this.currentMode === 'recycle');
-                const filteredWords = filteredWordsInput ? [...filteredWordsInput] : this.getFilteredWords();
-                this.updateSearchSummary(filteredWords.length);
+                const allFilteredWords = filteredWordsInput ? [...filteredWordsInput] : this.getFilteredWords();
+                const listLimit = Math.max(300, Number(this.listLimit) || 300);
+                const filteredWords = allFilteredWords.slice(0, listLimit);
+                const loadMoreHtml = allFilteredWords.length > filteredWords.length
+                    ? `<div class="list-load-more"><button type="button" id="loadMoreListBtn">加载更多（还有 ${allFilteredWords.length - filteredWords.length} 个）</button></div>`
+                    : '';
+                this.updateSearchSummary(allFilteredWords.length);
 
                 if (this.currentMode === 'recycle') {
                     if (filteredWords.length === 0) {
@@ -5195,7 +5258,7 @@
                             ${!isBatchMode ? `<div class="recycle-actions"><button class="restore-btn" data-action="restore" data-word-id="${w.id}">↩ 还原</button><button class="permanent-delete-btn" data-action="permanent-delete" data-word-id="${w.id}">🗑 永久删除</button></div>` : ''}
                         </div>`;
                     });
-                    container.innerHTML = html;
+                    container.innerHTML = html + loadMoreHtml;
                     return;
                 }
 
@@ -5230,7 +5293,7 @@
                                 </div>`;
                         });
                     });
-                    container.innerHTML = html;
+                    container.innerHTML = html + loadMoreHtml;
                     return;
                 }
 
@@ -5292,12 +5355,18 @@
                     });
                     html += '</div>';
                 });
-                container.innerHTML = html;
+                container.innerHTML = html + loadMoreHtml;
             },
 
             bindListEvents() {
                 const container = document.getElementById('listContainer');
                 container.addEventListener('click', (e) => {
+                    const moreBtn = e.target.closest('#loadMoreListBtn');
+                    if (moreBtn) {
+                        this.listLimit = (Number(this.listLimit) || 300) + 300;
+                        this.renderList();
+                        return;
+                    }
                     const item = e.target.closest('.list-item');
                     if (!item) return;
                     const wordId = Number(item.dataset.wordId);
@@ -7803,7 +7872,7 @@
                     }
                 });
                 html +=
-                    `<div class="stats-category" style="margin-top:16px;"><h4>📈 近7天新增趋势</h4><div style="display:flex; gap:8px; align-items:flex-end; height:120px; padding:12px 0;">${last7days.map((date, i) => { const height = Math.max(10, dailyCounts[i] * 20); return `<div style="flex:1; display:flex; flex-direction:column; align-items:center;"><div style="width:100%; background:#3b82f6; height:${height}px; border-radius:4px 4px 0 0; min-height:8px;"></div><div style="font-size:11px; color:#64748b; margin-top:4px;">${date.slice(5)}</div><div style="font-size:12px; font-weight:600;">${dailyCounts[i]}</div></div>`; }).join('')}</div></div>`;
+                    `<div class="stats-category" style="margin-top:16px;"><h4>📈 近7天新增趋势</h4><div style="display:flex; gap:8px; align-items:flex-end; height:120px; padding:12px 0;">${last7days.map((date, i) => { const maxDaily = Math.max(1, ...dailyCounts); const height = Math.max(6, Math.round((dailyCounts[i] / maxDaily) * 100)); return `<div style="flex:1; display:flex; flex-direction:column; align-items:center;"><div style="width:100%; background:#3b82f6; height:${height}px; border-radius:4px 4px 0 0; min-height:8px;"></div><div style="font-size:11px; color:#64748b; margin-top:4px;">${date.slice(5)}</div><div style="font-size:12px; font-weight:600;">${dailyCounts[i]}</div></div>`; }).join('')}</div></div>`;
                 container.innerHTML = html;
             },
 
@@ -8071,6 +8140,7 @@
             setMode(mode) {
                 this.stopGameTimers();
                 this.flushReview();
+                this.listLimit = 300;
                 const form = document.getElementById('addWordForm');
                 if (form && form.classList.contains('open')) this.toggleAddWordForm(false);
                 if (this.batchMode && mode !== 'dictionary' && mode !== 'recycle') this.toggleBatchMode();
@@ -8721,6 +8791,7 @@
                 document.getElementById('batchManageBtn').addEventListener('click', () => this.toggleBatchMode());
 
                 document.getElementById('deckSelect').addEventListener('change', function() {
+                    App.listLimit = 300;
                     if (this.value === '__manage__') {
                         App.setMode('decks');
                     } else if (this.value === '__new__') {
@@ -8734,6 +8805,7 @@
                 });
 
                 document.getElementById('groupBySelect').addEventListener('change', function() {
+                    App.listLimit = 300;
                     const form = document.getElementById('addWordForm');
                     if (form && form.classList.contains('open')) App.toggleAddWordForm(false);
                     App.currentGroupBy = this.value;
@@ -8756,6 +8828,7 @@
                         const form = document.getElementById('addWordForm');
                         if (form && form.classList.contains('open')) App.toggleAddWordForm(false);
                         App.searchQuery = searchInput.value.trim();
+                        App.listLimit = 300;
                         const filtered = App.getFilteredWords();
                         App.syncSelectionToFiltered(filtered);
                         App.renderList(filtered);

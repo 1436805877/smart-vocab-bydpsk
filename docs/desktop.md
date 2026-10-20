@@ -1,4 +1,4 @@
-# Windows 桌面版（Electron）
+﻿# Windows 桌面版（Electron）
 
 0.1 开始提供 Windows 桌面壳，复用 `index.html` 的全部界面，并增加：
 
@@ -38,8 +38,8 @@ npm run dist
 
 输出：
 
-- `release/SmartVocab-0.4.3-x64.exe`（NSIS 安装包）
-- `release/SmartVocab-0.4.3-portable.exe`（便携版）
+- `release/SmartVocab-0.4.4-x64.exe`（NSIS 安装包）
+- `release/SmartVocab-0.4.4-portable.exe`（便携版）
 
 如果 `electron-builder` 在本机被权限/网络卡住，可以先生成免安装便携版：
 

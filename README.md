@@ -1,4 +1,4 @@
-# 智能单词本 0.1 beta
+﻿# 智能单词本 0.1 beta
 
 一个单文件、离线优先的单词学习应用，按「核心感觉 + 词根演变 + 近义辨析」组织单词，而不是把单词等同于一条中文翻译。
 
@@ -34,7 +34,7 @@ https://github.com/1436805877/smart-vocab-bydpsk/releases
 本机已生成免安装便携版：
 
 ```text
-release/SmartVocab-0.4.3-portable.zip
+release/SmartVocab-0.4.4-portable.zip
 ```
 
 解压后双击 `SmartVocab.exe` 即可运行。首次启动会使用独立的桌面数据目录，需要把网页版导出的 JSON 导入一次。
