@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.10 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.11 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.10 beta</title>
+    <title>智能单词本 v0.4.11 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4161,7 +4161,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.10 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.11 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4647,7 +4647,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.10', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.11', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5449,9 +5449,9 @@
                             if (/^#[0-9a-f]{6}$/i.test(t.panelColor || '')) this.settings.theme.panelColor = t.panelColor;
                             if (typeof t.textColor === 'string') this.settings.theme.textColor = t.textColor;
                             if (typeof t.autoTextColor === 'boolean') this.settings.theme.autoTextColor = t.autoTextColor;
-                            if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0.7, Math.min(1, Number(t.appOpacity)));
-                            if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0.65, Math.min(1, Number(t.panelOpacity)));
-                            if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0.08, Math.min(1, Number(t.wallpaperOpacity)));
+                            if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0, Math.min(1, Number(t.appOpacity)));
+                            if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0, Math.min(1, Number(t.panelOpacity)));
+                            if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0, Math.min(1, Number(t.wallpaperOpacity)));
                             if (typeof t.wallpaper === 'string') this.settings.theme.wallpaper = t.wallpaper;
                             if (typeof t.wallpaperId === 'string') this.settings.theme.wallpaperId = t.wallpaperId;
                             if (typeof t.wallpaperKind === 'string') this.settings.theme.wallpaperKind = t.wallpaperKind;
@@ -5548,7 +5548,10 @@
                 const panelOpacity = Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88;
                 let brightness = panel * panelOpacity + page * (1 - panelOpacity);
                 const wall = await this.sampleWallpaperBrightness();
-                if (wall !== null) brightness = brightness * 0.6 + wall * 0.4;
+                if (wall !== null) {
+                    const wallWeight = Math.max(0, Math.min(1, 1 - panelOpacity));
+                    brightness = brightness * (1 - wallWeight) + wall * wallWeight;
+                }
                 document.documentElement.style.setProperty('--text-color', brightness > 0.55 ? '#0f172a' : '#f8fafc');
             },
 
@@ -5877,16 +5880,16 @@
                                 <input type="checkbox" id="settingsAutoTextColor" ${t.autoTextColor !== false ? 'checked' : ''}>
                             </label>
                             <div class="settings-row">
-                                <span><b>整体不透明度</b><small>调低后，壁纸会从面板下透出来。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0.7" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
+                                <span><b>整体不透明度</b><small>0–100%，完全交给用户控制；调低后壁纸会从面板下透出来。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
-                                <span><b>面板不透明度</b><small>列表和详情面板的半透明程度。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsPanelOpacity" min="0.65" max="1" step="0.01" value="${t.panelOpacity ?? 0.88}"><span id="settingsPanelOpacityValue">${Math.round((t.panelOpacity ?? 0.88) * 100)}%</span></div>
+                                <span><b>面板不透明度</b><small>0–100%；0% 时列表/详情完全透明。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsPanelOpacity" min="0" max="1" step="0.01" value="${t.panelOpacity ?? 0.88}"><span id="settingsPanelOpacityValue">${Math.round((t.panelOpacity ?? 0.88) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
-                                <span><b>壁纸透明度</b><small>只影响壁纸层，不影响文字。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0.08" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.35}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.35) * 100)}%</span></div>
+                                <span><b>壁纸透明度</b><small>0–100%；只影响壁纸层，不影响文字。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.35}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.35) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
                                 <span><b>壁纸库</b><small>图片、GIF、MP4/WebM 动态壁纸都可以；保存在 App 内，随时切换。</small></span>
@@ -6025,7 +6028,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.10',
+                    appVersion: '0.4.11',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
