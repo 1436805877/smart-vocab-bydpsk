@@ -327,6 +327,18 @@
         .panel-header .mode-title select:focus {
             border-color: #3b82f6;
         }
+        .panel-header .deck-filter-input {
+            width: 82px;
+            padding: 3px 8px;
+            border-radius: 30px;
+            border: 1px solid #d1d5db;
+            font-size: 12px;
+            background: white;
+            outline: none;
+        }
+        .panel-header .deck-filter-input:focus {
+            border-color: #3b82f6;
+        }
         .panel-header .action-btn {
             background: #eef2ff;
             border: none;
@@ -362,6 +374,10 @@
         }
         .panel-header .action-btn.list-tool:hover {
             background: #e2e8f0;
+        }
+        .panel-header .action-btn.list-tool.active {
+            background: #fee2e2;
+            color: #b91c1c;
         }
         .add-word-form {
             display: none;
@@ -756,6 +772,45 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
+        }
+        .detail-sticky-bar {
+            position: sticky;
+            top: -20px;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            margin: -4px 0 10px;
+            background: #fafcff;
+            border-bottom: 1px solid #e9edf2;
+        }
+        .detail-sticky-bar button {
+            border: 1px solid #dbe3ee;
+            background: white;
+            color: #475569;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .detail-sticky-bar button:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .detail-sticky-title {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .detail-sticky-arrows {
+            display: flex;
+            gap: 4px;
         }
         .detail-word .delete-btn:hover {
             background: #fecaca;
@@ -1932,6 +1987,20 @@
         .stats-category h4 {
             margin-bottom: 10px;
             color: #1e293b;
+        }
+        .stats-section {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        .stats-section .stats-grid {
+            margin-bottom: 0;
+        }
+        .stats-section .stat-card {
+            box-shadow: none;
+            background: white;
+        }
+        .stats-section h4 {
+            margin-bottom: 12px;
         }
         .stats-category .cat-stat-item {
             display: flex;
@@ -3435,7 +3504,7 @@
                         <button class="batch-btn batch-cancel" id="batchCancelBtn">✕ 退出</button>
                     </div>
                     <div class="panel-header">
-                        <span class="mode-title">词库<select id="deckSelect"><option value="all">全部单词</option></select></span>
+                        <span class="mode-title">词库<select id="deckSelect"><option value="all">全部单词</option></select><input type="text" id="deckSearchInput" class="deck-filter-input" placeholder="筛选" title="筛选词库" /></span>
                         <span class="mode-title">分组依据<select id="groupBySelect">
                             <option value="hierarchy">📂 层级列表</option>
                             <option value="alphabetical">🔤 字母</option>
@@ -3935,6 +4004,7 @@
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
             listLimit: 300,
+            deckFilter: '',
             currentWordId: null,
             currentSenseId: null,
             searchQuery: '',
@@ -4432,9 +4502,12 @@
                     const deckId = key.slice(0, key.lastIndexOf(':'));
                     counts[deckId] = (counts[deckId] || 0) + 1;
                 });
+                const q = String(this.deckFilter || '').trim().toLowerCase();
+                const visibleDecks = this.decks.filter(d => !q || d.id === this.activeDeckId ||
+                    d.name.toLowerCase().includes(q));
                 select.innerHTML = [
                     `<option value="all">全部单词（${this.words.filter(w => !w.deleted).length}）</option>`,
-                    ...this.decks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' 🔒' : ''}</option>`),
+                    ...visibleDecks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' 🔒' : ''}</option>`),
                     '<option value="__manage__">⚙️ 管理词库</option>',
                     '<option value="__new__">＋ 新建词库</option>'
                 ].join('');
@@ -5235,6 +5308,7 @@
                 const allFilteredWords = filteredWordsInput ? [...filteredWordsInput] : this.getFilteredWords();
                 const listLimit = Math.max(300, Number(this.listLimit) || 300);
                 const filteredWords = allFilteredWords.slice(0, listLimit);
+                this._filteredCount = allFilteredWords.length;
                 const loadMoreHtml = allFilteredWords.length > filteredWords.length
                     ? `<div class="list-load-more"><button type="button" id="loadMoreListBtn">加载更多（还有 ${allFilteredWords.length - filteredWords.length} 个）</button></div>`
                     : '';
@@ -5360,11 +5434,24 @@
 
             bindListEvents() {
                 const container = document.getElementById('listContainer');
+                container.addEventListener('scroll', () => {
+                    if (this._listLoadLock) return;
+                    if ((Number(this.listLimit) || 300) >= (this._filteredCount || 0)) return;
+                    if (container.scrollTop + container.clientHeight < container.scrollHeight - 120) return;
+                    this._listLoadLock = true;
+                    const oldTop = container.scrollTop;
+                    this.listLimit = (Number(this.listLimit) || 300) + 300;
+                    this.renderList();
+                    container.scrollTop = oldTop;
+                    setTimeout(() => { this._listLoadLock = false; }, 150);
+                });
                 container.addEventListener('click', (e) => {
                     const moreBtn = e.target.closest('#loadMoreListBtn');
                     if (moreBtn) {
+                        const oldTop = container.scrollTop;
                         this.listLimit = (Number(this.listLimit) || 300) + 300;
                         this.renderList();
+                        container.scrollTop = oldTop;
                         return;
                     }
                     const item = e.target.closest('.list-item');
@@ -7534,6 +7621,23 @@
             },
 
             // ---- 词典详情 (原有) ----
+            detailNavBar(word) {
+                return `<div class="detail-sticky-bar"><button type="button" id="detailBackBtn">← 返回列表</button><span class="detail-sticky-title">${this.escapeHtml(word.word)}</span><div class="detail-sticky-arrows"><button type="button" id="detailPrevBtn" title="上一个（←）">◀</button><button type="button" id="detailNextBtn" title="下一个（→）">▶</button></div></div>`;
+            },
+            bindDetailNav() {
+                const back = document.getElementById('detailBackBtn');
+                if (!back) return;
+                back.addEventListener('click', () => {
+                    this.currentWordId = null;
+                    this.currentSenseId = null;
+                    this.renderRightPanel();
+                    this.renderList();
+                });
+                const prev = document.getElementById('detailPrevBtn');
+                const next = document.getElementById('detailNextBtn');
+                if (prev) prev.addEventListener('click', () => this.navigateWord(-1));
+                if (next) next.addEventListener('click', () => this.navigateWord(1));
+            },
             renderDictionaryDetail(container) {
                 const word = this.words.find(w => w.id === this.currentWordId);
                 if (!word) { container.innerHTML = '<div class="detail-placeholder">👆 点击左侧条目查看详情</div>'; return; }
@@ -7612,8 +7716,9 @@
                     ).join('');
                 const overviewOption = '<option value="__overview__" selected>📋 总览</option>';
                 let html =
-                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}<div class="detail-section definitions-section"><h4>📖 释义</h4><div class="overview-sense-list">${senseListHtml}</div></div>${rootHtml}${cultureHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>📋 单词总览</h4><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveOverviewBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}<div class="detail-section definitions-section"><h4>📖 释义</h4><div class="overview-sense-list">${senseListHtml}</div></div>${rootHtml}${cultureHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>📋 单词总览</h4><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveOverviewBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
                 container.innerHTML = html;
+                this.bindDetailNav();
 
                 document.getElementById('addWordNoteBtn').addEventListener('click', () => {
                     if (!word.wordNotes) word.wordNotes = [];
@@ -7719,8 +7824,9 @@
                     return `<div class="note-item ${isPrimary ? 'primary' : ''}" data-note-index="${idx}"><div class="note-text" contenteditable="true">${highlightText(n || '')}</div><div class="note-actions"><button class="delete-note" data-index="${idx}" title="删除注释">✕</button></div></div>`;
                 }).join('');
                 let html =
-                    `<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveDetailBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveDetailBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
                 container.innerHTML = html;
+                this.bindDetailNav();
 
                 document.getElementById('senseSwitcher').addEventListener('change', function() {
                     const val = this.value;
@@ -7856,8 +7962,29 @@
                     dayMs); return d.toISOString().slice(0, 10); });
                 const dailyCounts = last7days.map(date => activeWords.filter(w => new Date(w.addedDate)
                     .toISOString().slice(0, 10) === date).length);
-                let html =
-                    `<h3 style="margin-bottom:20px;">📊 数据统计</h3><div class="stats-grid"><div class="stat-card"><div class="number">${totalWords}</div><div class="label">总单词数（活跃）</div></div><div class="stat-card"><div class="number">${totalSenses}</div><div class="label">总释义数</div></div><div class="stat-card" style="border-color: #6366f1;"><div class="number">${coreReady}</div><div class="label">🧭 核心感觉就绪</div></div><div class="stat-card" style="border-color: #0ea5e9;"><div class="number">${synGroupCount}</div><div class="label">⚖️ 近义组</div></div><div class="stat-card" style="border-color: #22c55e;"><div class="number">${rootFamilyCount}</div><div class="label">🌳 词根家族</div></div><div class="stat-card"><div class="number">${mastered}</div><div class="label">✅ 已掌握</div></div><div class="stat-card"><div class="number">${learning}</div><div class="label">🔄 学习中</div></div><div class="stat-card"><div class="number">${unknown}</div><div class="label">❓ 未标记</div></div><div class="stat-card" style="border-color: #f59e0b;"><div class="number">${dueForReview}</div><div class="label">🔔 待复习</div></div><div class="stat-card" style="border-color: #0ea5e9;"><div class="number">${dueSenses}</div><div class="label">⏰ 到期义项</div></div><div class="stat-card" style="border-color: #14b8a6;"><div class="number">${learnedSenses}</div><div class="label">📚 已学义项</div></div><div class="stat-card" style="border-color: #ef4444;"><div class="number">${wrongSenses}</div><div class="label">❗ 错题义项</div></div><div class="stat-card" style="border-color: #8b5cf6;"><div class="number">${totalReviews}</div><div class="label">🎮 累计复习</div></div><div class="stat-card" style="border-color: #10b981;"><div class="number">${accuracy}%</div><div class="label">🎯 平均正确率</div></div><div class="stat-card" style="border-color: #94a3b8;"><div class="number">${deletedCount}</div><div class="label">♻️ 回收站</div></div></div>`;
+                const statCard = (value, label, color) => '<div class="stat-card"' + (color ? ' style="border-color:' + color + ';"' : '') + '><div class="number">' + value + '</div><div class="label">' + label + '</div></div>';
+                let html = `<h3 style="margin-bottom:20px;">📊 数据统计</h3>`;
+                html += `<div class="stats-category stats-section"><h4>📚 词库内容</h4><div class="stats-grid">` + [
+                    statCard(totalWords, '总单词数（活跃）'),
+                    statCard(totalSenses, '总释义数'),
+                    statCard(coreReady, '🧭 核心感觉就绪', '#6366f1'),
+                    statCard(synGroupCount, '⚖️ 近义组', '#0ea5e9'),
+                    statCard(rootFamilyCount, '🌳 词根家族', '#22c55e'),
+                    statCard(deletedCount, '♻️ 回收站', '#94a3b8')
+                ].join('') + `</div></div>`;
+                html += `<div class="stats-category stats-section"><h4>🎯 学习进度</h4><div class="stats-grid">` + [
+                    statCard(mastered, '✅ 已掌握'),
+                    statCard(learning, '🔄 学习中'),
+                    statCard(unknown, '❓ 未标记'),
+                    statCard(learnedSenses, '📚 已学义项', '#14b8a6'),
+                    statCard(totalReviews, '🎮 累计复习', '#8b5cf6'),
+                    statCard(accuracy + '%', '🎯 平均正确率', '#10b981')
+                ].join('') + `</div></div>`;
+                html += `<div class="stats-category stats-section"><h4>⏰ 复习状态</h4><div class="stats-grid">` + [
+                    statCard(dueForReview, '🔔 待复习', '#f59e0b'),
+                    statCard(dueSenses, '⏰ 到期义项', '#0ea5e9'),
+                    statCard(wrongSenses, '❗ 错题义项', '#ef4444')
+                ].join('') + `</div></div>`;
                 const fieldLabels = { tone: '😊 情感色彩', topic: '📚 主题', pos: '📌 词性', level: '⭐ 难度',
                     origin: '🌍 来源', formality: '📝 语体', grammar: '📖 语法属性' };
                 fields.forEach(f => {
@@ -8803,6 +8930,10 @@
                         App.setActiveDeck(this.value);
                     }
                 });
+                document.getElementById('deckSearchInput').addEventListener('input', function() {
+                    App.deckFilter = this.value;
+                    App.updateDeckSelect();
+                });
 
                 document.getElementById('groupBySelect').addEventListener('change', function() {
                     App.listLimit = 300;
@@ -8927,6 +9058,10 @@
                     }
                     if (e.ctrlKey && e.key === 'f') { e.preventDefault();
                         document.getElementById('searchInput').focus(); }
+                    if (!editable && !e.ctrlKey && !e.metaKey && !e.altKey && e.key === '/') {
+                        e.preventDefault();
+                        document.getElementById('searchInput').focus();
+                    }
                     if (e.key === 'Escape') {
                         const input = document.getElementById('searchInput');
                         if (document.activeElement === input) {
