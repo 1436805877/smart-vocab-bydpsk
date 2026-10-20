@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.9 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.10 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.9 beta</title>
+    <title>智能单词本 v0.4.10 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4161,7 +4161,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.9 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.10 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4647,7 +4647,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.9', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.10', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -4814,6 +4814,7 @@
                     textColor: '#0f172a',
                     appOpacity: 0.96,
                     panelOpacity: 0.88,
+                    autoTextColor: true,
                     wallpaper: '',
                     wallpaperId: '',
                     wallpaperKind: '',
@@ -5446,10 +5447,11 @@
                             const t = s.theme;
                             if (/^#[0-9a-f]{6}$/i.test(t.bgColor || '')) this.settings.theme.bgColor = t.bgColor;
                             if (/^#[0-9a-f]{6}$/i.test(t.panelColor || '')) this.settings.theme.panelColor = t.panelColor;
-                            if (/^#[0-9a-f]{6}$/i.test(t.textColor || '')) this.settings.theme.textColor = t.textColor;
-                            if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0.55, Math.min(1, Number(t.appOpacity)));
-                            if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0.5, Math.min(1, Number(t.panelOpacity)));
-                            if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0, Math.min(1, Number(t.wallpaperOpacity)));
+                            if (typeof t.textColor === 'string') this.settings.theme.textColor = t.textColor;
+                            if (typeof t.autoTextColor === 'boolean') this.settings.theme.autoTextColor = t.autoTextColor;
+                            if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0.7, Math.min(1, Number(t.appOpacity)));
+                            if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0.65, Math.min(1, Number(t.panelOpacity)));
+                            if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0.08, Math.min(1, Number(t.wallpaperOpacity)));
                             if (typeof t.wallpaper === 'string') this.settings.theme.wallpaper = t.wallpaper;
                             if (typeof t.wallpaperId === 'string') this.settings.theme.wallpaperId = t.wallpaperId;
                             if (typeof t.wallpaperKind === 'string') this.settings.theme.wallpaperKind = t.wallpaperKind;
@@ -5468,7 +5470,8 @@
                 const root = document.documentElement;
                 root.style.setProperty('--page-bg', t.bgColor || '#f3f6fb');
                 root.style.setProperty('--panel-bg', t.panelColor || '#ffffff');
-                root.style.setProperty('--text-color', t.textColor || '#0f172a');
+                if (t.autoTextColor) this.updateAutoTextColor();
+                else root.style.setProperty('--text-color', t.textColor || '#0f172a');
                 root.style.setProperty('--app-opacity', String(Number.isFinite(Number(t.appOpacity)) ? t.appOpacity : 0.96));
                 root.style.setProperty('--panel-opacity', String(Math.round((Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88) * 100)) + '%');
                 root.style.setProperty('--wallpaper-opacity', String(Number.isFinite(Number(t.wallpaperOpacity)) ? t.wallpaperOpacity : 0.35));
@@ -5481,6 +5484,72 @@
                     return;
                 }
                 this.applyWallpaper();
+            },
+
+            hexBrightness(hex) {
+                const m = String(hex || '').replace('#', '').match(/^[0-9a-f]{6}$/i);
+                if (!m) return 0.5;
+                const n = parseInt(m[0], 16);
+                const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+                return (r * 299 + g * 587 + b * 114) / 255000;
+            },
+
+            async sampleWallpaperBrightness() {
+                const t = this.settings.theme || {};
+                let url = t.wallpaper || '';
+                let videoFrame = null;
+                if (t.wallpaperId) {
+                    try {
+                        const items = await this.wallpaperList();
+                        const item = items.find(x => x.id === t.wallpaperId);
+                        if (!item) return null;
+                        if (item.kind === 'video') {
+                            const video = document.getElementById('appWallpaperVideo');
+                            if (!video || !video.videoWidth) return null;
+                            videoFrame = video;
+                        } else {
+                            url = URL.createObjectURL(item.blob);
+                        }
+                    } catch { return null; }
+                }
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 32;
+                    canvas.height = 32;
+                    const ctx = canvas.getContext('2d');
+                    if (videoFrame) {
+                        ctx.drawImage(videoFrame, 0, 0, 32, 32);
+                    } else {
+                        if (!url) return null;
+                        const img = await new Promise((resolve, reject) => {
+                            const i = new Image();
+                            i.onload = () => resolve(i);
+                            i.onerror = reject;
+                            i.src = url;
+                        });
+                        ctx.drawImage(img, 0, 0, 32, 32);
+                    }
+                    const data = ctx.getImageData(0, 0, 32, 32).data;
+                    let total = 0;
+                    for (let i = 0; i < data.length; i += 4) {
+                        total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+                    }
+                    return total / (data.length / 4) / 255;
+                } catch { return null; } finally {
+                    if (t.wallpaperId && url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+                }
+            },
+
+            async updateAutoTextColor() {
+                const t = this.settings.theme || {};
+                if (!t.autoTextColor) return;
+                const panel = this.hexBrightness(t.panelColor || '#ffffff');
+                const page = this.hexBrightness(t.bgColor || '#f3f6fb');
+                const panelOpacity = Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88;
+                let brightness = panel * panelOpacity + page * (1 - panelOpacity);
+                const wall = await this.sampleWallpaperBrightness();
+                if (wall !== null) brightness = brightness * 0.6 + wall * 0.4;
+                document.documentElement.style.setProperty('--text-color', brightness > 0.55 ? '#0f172a' : '#f8fafc');
             },
 
             wallpaperDB() {
@@ -5547,6 +5616,7 @@
                                 video.src = url;
                                 video.style.display = 'block';
                                 video.style.opacity = String(opacity);
+                                video.onloadeddata = () => this.updateAutoTextColor();
                                 video.play().catch(() => {});
                             } else {
                                 video.pause();
@@ -5799,20 +5869,24 @@
                                 <div class="settings-color-grid"><input type="color" id="settingsPanelColor" value="${t.panelColor || '#ffffff'}"></div>
                             </div>
                             <div class="settings-row">
-                                <span><b>文字颜色</b><small>界面主要文字的颜色。</small></span>
-                                <div class="settings-color-grid"><input type="color" id="settingsTextColor" value="${t.textColor || '#0f172a'}"></div>
+                                <span><b>文字颜色</b><small>界面主要文字的颜色；也可交给自动取色。</small></span>
+                                <div class="settings-color-grid"><input type="color" id="settingsTextColor" value="${t.textColor || '#0f172a'}" ${t.autoTextColor ? 'disabled' : ''}></div>
                             </div>
+                            <label class="settings-row">
+                                <span><b>自动文字颜色</b><small>根据当前背景/壁纸的明暗，自动选深色或浅色文字。</small></span>
+                                <input type="checkbox" id="settingsAutoTextColor" ${t.autoTextColor !== false ? 'checked' : ''}>
+                            </label>
                             <div class="settings-row">
                                 <span><b>整体不透明度</b><small>调低后，壁纸会从面板下透出来。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0.55" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
+                                <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0.7" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
                                 <span><b>面板不透明度</b><small>列表和详情面板的半透明程度。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsPanelOpacity" min="0.5" max="1" step="0.01" value="${t.panelOpacity ?? 0.88}"><span id="settingsPanelOpacityValue">${Math.round((t.panelOpacity ?? 0.88) * 100)}%</span></div>
+                                <div class="settings-range-row"><input type="range" id="settingsPanelOpacity" min="0.65" max="1" step="0.01" value="${t.panelOpacity ?? 0.88}"><span id="settingsPanelOpacityValue">${Math.round((t.panelOpacity ?? 0.88) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
                                 <span><b>壁纸透明度</b><small>只影响壁纸层，不影响文字。</small></span>
-                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.35}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.35) * 100)}%</span></div>
+                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0.08" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.35}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.35) * 100)}%</span></div>
                             </div>
                             <div class="settings-row">
                                 <span><b>壁纸库</b><small>图片、GIF、MP4/WebM 动态壁纸都可以；保存在 App 内，随时切换。</small></span>
@@ -5846,27 +5920,28 @@
                             </div>
                         </div>
                         <div class="settings-actions">
-                            <button class="backup-primary" id="settingsSaveBtn">保存设置</button>
-                            <span class="backup-hint">快捷键：Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做</span>
+                            <span class="backup-hint">设置会随改随存，不需要手动保存。</span>
                         </div>
                         <div class="backup-hint" style="margin-top:10px;">当前桌面存储：${this.storageMode === 'sqlite' ? 'SQLite 主存储' : 'IndexedDB（回退）'}</div>
                     </div>
                 `;
-                const save = document.getElementById('settingsSaveBtn');
-                if (save) save.addEventListener('click', () => {
-                    const toggle = document.getElementById('autoNextToggle');
-                    const delay = document.getElementById('autoNextDelaySelect');
-                    this.settings.autoNext = !!(toggle && toggle.checked);
-                    this.settings.autoNextDelay = Number(delay && delay.value) || 1500;
-                    this.settings.theme.bgColor = document.getElementById('settingsBgColor').value;
-                    this.settings.theme.panelColor = document.getElementById('settingsPanelColor').value;
-                    this.settings.theme.textColor = document.getElementById('settingsTextColor').value;
-                    this.settings.theme.appOpacity = Number(document.getElementById('settingsAppOpacity').value);
-                    this.settings.theme.panelOpacity = Number(document.getElementById('settingsPanelOpacity').value);
-                    this.settings.theme.wallpaperOpacity = Number(document.getElementById('settingsWallpaperOpacity').value);
+                const autoNext = document.getElementById('autoNextToggle');
+                if (autoNext) autoNext.addEventListener('change', () => {
+                    this.settings.autoNext = autoNext.checked;
+                    this.saveSettings();
+                });
+                const autoDelay = document.getElementById('autoNextDelaySelect');
+                if (autoDelay) autoDelay.addEventListener('change', () => {
+                    this.settings.autoNextDelay = Number(autoDelay.value) || 1500;
+                    this.saveSettings();
+                });
+                const autoText = document.getElementById('settingsAutoTextColor');
+                if (autoText) autoText.addEventListener('change', () => {
+                    this.settings.theme.autoTextColor = autoText.checked;
+                    const color = document.getElementById('settingsTextColor');
+                    if (color) color.disabled = autoText.checked;
                     this.applyTheme();
                     this.saveSettings();
-                    this.showToast('✅ 设置已保存', 'success');
                 });
                 const file = document.getElementById('settingsWallpaperFile');
                 if (file) file.addEventListener('change', async () => {
@@ -5920,6 +5995,7 @@
                         else if (id === 'settingsPanelColor') this.settings.theme.panelColor = el.value;
                         else this.settings.theme.textColor = el.value;
                         this.applyTheme(false);
+                        this.saveSettings();
                     });
                 });
                 const appOp = document.getElementById('settingsAppOpacity');
@@ -5927,18 +6003,21 @@
                     this.settings.theme.appOpacity = Number(appOp.value);
                     document.getElementById('settingsAppOpacityValue').textContent = Math.round(appOp.value * 100) + '%';
                     this.applyTheme(false);
+                    this.saveSettings();
                 });
                 const panelOp = document.getElementById('settingsPanelOpacity');
                 if (panelOp) panelOp.addEventListener('input', () => {
                     this.settings.theme.panelOpacity = Number(panelOp.value);
                     document.getElementById('settingsPanelOpacityValue').textContent = Math.round(panelOp.value * 100) + '%';
                     this.applyTheme(false);
+                    this.saveSettings();
                 });
                 const wpOp = document.getElementById('settingsWallpaperOpacity');
                 if (wpOp) wpOp.addEventListener('input', () => {
                     this.settings.theme.wallpaperOpacity = Number(wpOp.value);
                     document.getElementById('settingsWallpaperOpacityValue').textContent = Math.round(wpOp.value * 100) + '%';
                     this.applyTheme(false);
+                    this.saveSettings();
                 });
                 this.renderWallpaperGallery();
             },
@@ -5946,7 +6025,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.9',
+                    appVersion: '0.4.10',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
