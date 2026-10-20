@@ -1,6 +1,6 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!--
-    智能单词本 v0.4.6 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.7 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.6 beta</title>
+    <title>智能单词本 v0.4.7 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -592,9 +592,6 @@
             flex-direction: column;
             gap: 2px;
             border-left: 4px solid transparent;
-            content-visibility: auto;
-            contain-intrinsic-size: auto 48px;
-            contain: layout style paint;
         }
         .list-item:hover {
             background: #f1f5f9;
@@ -816,6 +813,31 @@
         .detail-sticky-arrows {
             display: flex;
             gap: 4px;
+        }
+        .detail-save-bar {
+            position: sticky;
+            bottom: -20px;
+            background: #fafcff;
+            padding: 10px 0 14px;
+            border-top: 1px solid #dbeafe;
+            margin-top: 18px;
+            z-index: 10;
+        }
+        .detail-save-bar button {
+            background: linear-gradient(135deg, #4f46e5, #2563eb);
+            color: white;
+            border: none;
+            padding: 9px 22px;
+            border-radius: 22px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, .22);
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .detail-save-bar button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(59, 130, 246, .28);
         }
         .detail-word .delete-btn:hover {
             background: #fecaca;
@@ -3870,13 +3892,173 @@
                 justify-content: flex-end;
             }
         }
+        /* 个性化主题 */
+        :root {
+            --page-bg: #f3f6fb;
+            --panel-bg: #ffffff;
+            --app-opacity: 0.96;
+            --wallpaper-opacity: 0.28;
+        }
+        body {
+            background: var(--page-bg);
+        }
+        .app {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, var(--app-opacity));
+        }
+        .app-wallpaper {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity .25s ease;
+        }
+        .left-panel,
+        .right-panel {
+            background: var(--panel-bg);
+        }
+        .settings-color-grid {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-color-grid input[type="color"] {
+            width: 42px;
+            height: 30px;
+            padding: 2px;
+            border: 1px solid #d8e1ee;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+        }
+        .settings-range-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #475569;
+            font-size: 12px;
+        }
+        .settings-range-row input[type="range"] {
+            width: 130px;
+            accent-color: #4f46e5;
+        }
+        .settings-wallpaper-preview {
+            width: 78px;
+            height: 48px;
+            border-radius: 8px;
+            border: 1px solid #d8e1ee;
+            object-fit: cover;
+            background: #eef2f7;
+        }
+        .settings-file-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .settings-file-row input[type="file"] {
+            max-width: 200px;
+            font-size: 12px;
+        }
+        .settings-mini-btn {
+            border: 1px solid #d8e1ee;
+            background: white;
+            color: #475569;
+            border-radius: 16px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .settings-mini-btn:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+        .settings-section-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #4f46e5;
+            letter-spacing: .04em;
+            padding: 12px 0 6px;
+        }
+
+        /* 交互反馈：让鼠标经过的地方有回应 */
+        button,
+        .tool-btn,
+        .nav-btn,
+        .action-btn,
+        .back-btn,
+        .save-btn,
+        .export-card,
+        .import-mode-card {
+            transition: background-color .15s ease, color .15s ease, border-color .15s ease,
+                box-shadow .15s ease, transform .15s ease;
+        }
+        button:active,
+        .tool-btn:active,
+        .nav-btn:active,
+        .action-btn:active {
+            transform: scale(.97);
+        }
+        .panel-header .action-btn:hover,
+        .tool-btn:hover,
+        .nav-btn:hover {
+            transform: translateY(-1px);
+        }
+        .list-item {
+            transition: background-color .14s ease, color .14s ease, border-color .14s ease,
+                transform .14s ease, box-shadow .14s ease;
+        }
+        .list-item:hover {
+            background: #e8eef8;
+            border-left-color: #93c5fd;
+            transform: translateX(2px);
+        }
+        .list-item.active,
+        .list-item.active:hover {
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            border-left-color: #1d4ed8;
+            color: white;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+        }
+        .list-item.active .word-text,
+        .list-item.active .word-text strong,
+        .list-item.active .review-reminder {
+            color: white;
+        }
+        .list-item.active .mastery-badge {
+            background: rgba(255, 255, 255, .22);
+            color: white;
+        }
+        .list-item.active .sense-item,
+        .list-item.active:hover .sense-item {
+            color: white;
+        }
+        .modal-overlay.show .modal {
+            animation: dsh-modal-in .18s ease-out;
+        }
+        @keyframes dsh-modal-in {
+            from { opacity: 0; transform: translateY(8px) scale(.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: .01ms !important;
+                transition-duration: .01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="app-wallpaper" id="appWallpaper"></div>
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.6 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.7 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4040,10 +4222,11 @@
                 <h3>五、词库、编辑与导入</h3>
                 <p>左侧「📝 新建」打开完整编辑器；详情页「✏️ 编辑」修改当前词。编辑器支持核心感觉、词根/词缀、词源、文化彩蛋、多义项、例句、搭配和易错。</p>
                 <p>「📥 导入」支持 JSON/CSV；JSON 可以完整保留词库、词根、近义组、文化和进度。标准库建议「导入为新词库」。</p>
-                <p>左侧字母栏是防误触的：第一次点字母只会高亮，第二次点同一个字母才跳转。</p>
+                <p>左侧字母栏点击直接跳转；键盘上按字母第一次只高亮，第二次按同一个字母才跳转。这样鼠标不会误触，键盘也有确认。</p>
 
                 <h3>六、数据安全</h3>
                 <p>桌面版主存储是 SQLite，网页版是 IndexedDB。桌面版还会写 SQLite 镜像和本地备份。</p>
+                <p>「设置 → 个性化」可以改页面背景色、面板色、整体不透明度和壁纸透明度；可以选择本地壁纸图片，桌面版也可以直接读取当前 Windows 桌面壁纸。</p>
                 <div class="help-note">清理浏览器数据、重装系统、换电脑前，先「导出 → JSON」备份。恢复前软件也会自动备份当前数据。</div>
 
                 <h3>七、常见问题</h3>
@@ -4065,7 +4248,7 @@
                 </div>
                 <div class="word-editor-head-actions">
                     <button type="button" class="ghost" id="wordEditorCancel">取消</button>
-                    <button type="button" class="primary" id="wordEditorSave">💾 保存</button>
+                    <button type="button" class="primary" id="wordEditorSave" style="display:none;">💾 保存修改</button>
                 </div>
             </div>
             <div class="word-editor-body">
@@ -4361,7 +4544,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.6', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.7', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -4519,7 +4702,17 @@
             deckWords: new Set(),
             activeDeckId: 'all',
             decksLoaded: false,
-            settings: { autoNext: true, autoNextDelay: 1500 },
+            settings: {
+                autoNext: true,
+                autoNextDelay: 1500,
+                theme: {
+                    bgColor: '#f3f6fb',
+                    panelColor: '#ffffff',
+                    appOpacity: 0.96,
+                    wallpaper: '',
+                    wallpaperOpacity: 0.28
+                }
+            },
             pendingNext: null,
             pendingNextTimer: null,
             undoStack: [],
@@ -5142,12 +5335,74 @@
                         this.settings.autoNext = s.autoNext !== false;
                         const d = Number(s.autoNextDelay);
                         if (Number.isFinite(d)) this.settings.autoNextDelay = Math.max(300, Math.min(10000, d));
+                        if (s.theme && typeof s.theme === 'object') {
+                            const t = s.theme;
+                            if (/^#[0-9a-f]{6}$/i.test(t.bgColor || '')) this.settings.theme.bgColor = t.bgColor;
+                            if (/^#[0-9a-f]{6}$/i.test(t.panelColor || '')) this.settings.theme.panelColor = t.panelColor;
+                            if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0.55, Math.min(1, Number(t.appOpacity)));
+                            if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0, Math.min(1, Number(t.wallpaperOpacity)));
+                            if (typeof t.wallpaper === 'string') this.settings.theme.wallpaper = t.wallpaper;
+                        }
                     }
                 } catch (e) { /* ignore */ }
+                this.applyTheme();
             },
 
             saveSettings() {
                 try { localStorage.setItem('smartVocabSettings', JSON.stringify(this.settings)); } catch (e) { /* ignore */ }
+            },
+
+            applyTheme() {
+                const t = this.settings.theme || {};
+                const root = document.documentElement;
+                root.style.setProperty('--page-bg', t.bgColor || '#f3f6fb');
+                root.style.setProperty('--panel-bg', t.panelColor || '#ffffff');
+                root.style.setProperty('--app-opacity', String(Number.isFinite(Number(t.appOpacity)) ? t.appOpacity : 0.96));
+                root.style.setProperty('--wallpaper-opacity', String(Number.isFinite(Number(t.wallpaperOpacity)) ? t.wallpaperOpacity : 0.28));
+                const wp = document.getElementById('appWallpaper');
+                if (wp) {
+                    wp.style.backgroundImage = t.wallpaper ? `url("${t.wallpaper}")` : 'none';
+                    wp.style.opacity = t.wallpaper ? String(Number(t.wallpaperOpacity ?? 0.28)) : '0';
+                }
+            },
+
+            async compressWallpaperDataUrl(dataUrl) {
+                const img = await new Promise((resolve, reject) => {
+                    const i = new Image();
+                    i.onload = () => resolve(i);
+                    i.onerror = reject;
+                    i.src = dataUrl;
+                });
+                const maxW = 1920, maxH = 1080;
+                const scale = Math.min(1, maxW / img.width, maxH / img.height);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                return canvas.toDataURL('image/jpeg', 0.82);
+            },
+
+            async readWallpaperFile(file) {
+                if (!file) return;
+                if (!/^image\//.test(file.type)) { this.showToast('请选择图片文件', 'error'); return; }
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ''));
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                this.settings.theme.wallpaper = await this.compressWallpaperDataUrl(dataUrl);
+                this.applyTheme();
+                this.updateWallpaperPreview();
+                this.showToast('壁纸已载入，记得保存设置', 'success');
+            },
+
+            updateWallpaperPreview() {
+                const preview = document.getElementById('settingsWallpaperPreview');
+                const clear = document.getElementById('settingsWallpaperClear');
+                const has = !!this.settings.theme.wallpaper;
+                if (preview) { preview.src = has ? this.settings.theme.wallpaper : ''; preview.style.display = has ? 'block' : 'none'; }
+                if (clear) clear.style.display = has ? 'inline-block' : 'none';
             },
 
             snapshotData() {
@@ -5253,10 +5508,41 @@
             },
 
             renderSettings(container) {
+                const t = this.settings.theme || {};
                 container.innerHTML = `
                     <div class="settings-page">
                         <div class="settings-title">⚙️ 设置</div>
                         <div class="settings-card">
+                            <div class="settings-section-label">🎨 个性化</div>
+                            <div class="settings-row">
+                                <span><b>页面背景色</b><small>列表和详情周围的底色。</small></span>
+                                <div class="settings-color-grid"><input type="color" id="settingsBgColor" value="${t.bgColor || '#f3f6fb'}"></div>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>界面面板色</b><small>左侧列表、右侧详情的面板底色。</small></span>
+                                <div class="settings-color-grid"><input type="color" id="settingsPanelColor" value="${t.panelColor || '#ffffff'}"></div>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>整体不透明度</b><small>调低后，壁纸会从面板下透出来。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0.55" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>壁纸透明度</b><small>只影响壁纸层，不影响文字。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsWallpaperOpacity" min="0" max="1" step="0.01" value="${t.wallpaperOpacity ?? 0.28}"><span id="settingsWallpaperOpacityValue">${Math.round((t.wallpaperOpacity ?? 0.28) * 100)}%</span></div>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>背景壁纸</b><small>可选任意图片；Wallpaper Engine 导出的壁纸文件也可以。</small></span>
+                                <div class="settings-file-row">
+                                    <img class="settings-wallpaper-preview" id="settingsWallpaperPreview" alt="壁纸预览" style="display:${t.wallpaper ? 'block' : 'none'};" src="${t.wallpaper || ''}">
+                                    <input type="file" id="settingsWallpaperFile" accept="image/*">
+                                    <button type="button" class="settings-mini-btn" id="settingsWallpaperClear" style="display:${t.wallpaper ? 'inline-block' : 'none'};">清除壁纸</button>
+                                </div>
+                            </div>
+                            ${window.desktop && window.desktop.getDesktopWallpaper ? `<div class="settings-row"><span><b>桌面壁纸</b><small>读取当前 Windows 桌面壁纸作为背景。</small></span><button type="button" class="settings-mini-btn" id="settingsDesktopWallpaper">读取桌面壁纸</button></div>` : ''}
+                        </div>
+
+                        <div class="settings-card">
+                            <div class="settings-section-label">📚 学习</div>
                             <label class="settings-row">
                                 <span>
                                     <b>答完一题后自动进入下一题</b>
@@ -5287,15 +5573,70 @@
                     const delay = document.getElementById('autoNextDelaySelect');
                     this.settings.autoNext = !!(toggle && toggle.checked);
                     this.settings.autoNextDelay = Number(delay && delay.value) || 1500;
+                    this.settings.theme.bgColor = document.getElementById('settingsBgColor').value;
+                    this.settings.theme.panelColor = document.getElementById('settingsPanelColor').value;
+                    this.settings.theme.appOpacity = Number(document.getElementById('settingsAppOpacity').value);
+                    this.settings.theme.wallpaperOpacity = Number(document.getElementById('settingsWallpaperOpacity').value);
+                    this.applyTheme();
                     this.saveSettings();
                     this.showToast('✅ 设置已保存', 'success');
+                });
+                const file = document.getElementById('settingsWallpaperFile');
+                if (file) file.addEventListener('change', () => {
+                    const f = file.files && file.files[0];
+                    file.value = '';
+                    if (f) this.readWallpaperFile(f);
+                });
+                const clear = document.getElementById('settingsWallpaperClear');
+                if (clear) clear.addEventListener('click', () => {
+                    this.settings.theme.wallpaper = '';
+                    this.applyTheme();
+                    this.updateWallpaperPreview();
+                });
+                const desktop = document.getElementById('settingsDesktopWallpaper');
+                if (desktop) desktop.addEventListener('click', async () => {
+                    desktop.disabled = true;
+                    desktop.textContent = '读取中...';
+                    try {
+                        const res = await window.desktop.getDesktopWallpaper();
+                        if (!res || !res.dataUrl) throw new Error(res && res.error || '没有取到壁纸');
+                        this.settings.theme.wallpaper = await this.compressWallpaperDataUrl(res.dataUrl);
+                        this.applyTheme();
+                        this.updateWallpaperPreview();
+                        this.showToast('已读取桌面壁纸，记得保存设置', 'success');
+                    } catch (e) {
+                        this.showToast('读取桌面壁纸失败：' + (e.message || e), 'error');
+                    } finally {
+                        desktop.disabled = false;
+                        desktop.textContent = '读取桌面壁纸';
+                    }
+                });
+                ['settingsBgColor', 'settingsPanelColor'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', () => {
+                        if (id === 'settingsBgColor') this.settings.theme.bgColor = el.value;
+                        else this.settings.theme.panelColor = el.value;
+                        this.applyTheme();
+                    });
+                });
+                const appOp = document.getElementById('settingsAppOpacity');
+                if (appOp) appOp.addEventListener('input', () => {
+                    this.settings.theme.appOpacity = Number(appOp.value);
+                    document.getElementById('settingsAppOpacityValue').textContent = Math.round(appOp.value * 100) + '%';
+                    this.applyTheme();
+                });
+                const wpOp = document.getElementById('settingsWallpaperOpacity');
+                if (wpOp) wpOp.addEventListener('input', () => {
+                    this.settings.theme.wallpaperOpacity = Number(wpOp.value);
+                    document.getElementById('settingsWallpaperOpacityValue').textContent = Math.round(wpOp.value * 100) + '%';
+                    this.applyTheme();
                 });
             },
 
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.6',
+                    appVersion: '0.4.7',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -5765,22 +6106,10 @@
                     const btn = e.target.closest('button[data-letter]');
                     if (!btn || btn.classList.contains('disabled')) return;
                     const letter = btn.dataset.letter;
-                    if (this.alphaPendingLetter === letter) {
-                        this.alphaPendingLetter = null;
-                        clearTimeout(this._alphaPendingTimer);
-                        nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
-                        this.scrollToLetter(letter);
-                        return;
-                    }
-                    this.alphaPendingLetter = letter;
-                    nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
-                    btn.classList.add('pending');
-                    this.showToast(`再点一次 ${letter} 跳转`, 'info');
+                    this.alphaPendingLetter = null;
                     clearTimeout(this._alphaPendingTimer);
-                    this._alphaPendingTimer = setTimeout(() => {
-                        this.alphaPendingLetter = null;
-                        nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
-                    }, 3000);
+                    nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
+                    this.scrollToLetter(letter);
                 });
             },
             updateAlphaNav() {
@@ -5977,11 +6306,17 @@
 
             bindListEvents() {
                 const container = document.getElementById('listContainer');
+                if (!this._listPointerBound) {
+                    this._listPointerBound = true;
+                    window.addEventListener('pointerdown', () => { this._listPointerDown = true; }, true);
+                    window.addEventListener('pointerup', () => { this._listPointerDown = false; }, true);
+                    window.addEventListener('pointercancel', () => { this._listPointerDown = false; }, true);
+                }
                 container.addEventListener('scroll', () => {
                     if (this._listLoadLock) return;
                     clearTimeout(this._listScrollTimer);
                     this._listScrollTimer = setTimeout(() => {
-                        if (this._listLoadLock) return;
+                        if (this._listLoadLock || this._listPointerDown) return;
                         if ((Number(this.listLimit) || 300) >= (this._filteredCount || 0)) return;
                         if (container.scrollTop + container.clientHeight < container.scrollHeight - 120) return;
                         this._listLoadLock = true;
@@ -8345,6 +8680,8 @@
                     this.refreshWordIndex(word.id);
                     this.saveData();
                     this.renderList();
+                    const bar = document.getElementById('detailSaveBar');
+                    if (bar) bar.style.display = 'none';
                     this.showToast('✅ 修改已保存', 'success');
                 });
             },
@@ -8373,7 +8710,7 @@
                     return `<div class="note-item ${isPrimary ? 'primary' : ''}" data-note-index="${idx}"><div class="note-text" contenteditable="true">${highlightText(n || '')}</div><div class="note-actions"><button class="delete-note" data-index="${idx}" title="删除注释">✕</button></div></div>`;
                 }).join('');
                 let html =
-                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-section" style="position:sticky; bottom:-20px; background:#fafcff; padding:16px 0; border-top:2px solid #dbeafe; margin-top:24px; z-index:10;"><button id="saveDetailBtn" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:12px 32px; border-radius:30px; font-size:15px; font-weight:600; cursor:pointer; width:100%; box-shadow:0 4px 12px rgba(59,130,246,0.25); transition:0.15s;">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div><div class="word-actions"><button id="prevWordBtn" title="上一个">◀</button><button id="nextWordBtn" title="下一个">▶</button>${isDeleted ? `<button class="delete-btn" id="restoreFromDetailBtn" style="background:#d1fae5;color:#065f46;">↩ 还原</button><button class="delete-btn" id="permanentDeleteFromDetailBtn" style="background:#fee2e2;color:#b91c1c;">🗑 永久删除</button>` : `<button class="delete-btn" id="deleteWordBtn">🗑 删除单词</button>`}</div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailSaveBar" style="display:none;"><button id="saveDetailBtn">💾 保存修改</button></div>`;
                 container.innerHTML = html;
                 this.bindDetailNav();
 
@@ -8448,6 +8785,15 @@
                 }
                 document.getElementById('prevWordBtn').addEventListener('click', () => this.navigateWord(-1));
                 document.getElementById('nextWordBtn').addEventListener('click', () => this.navigateWord(1));
+                if (!container._saveDirtyBound) {
+                    container._saveDirtyBound = true;
+                    const showSaveBar = () => {
+                        const bar = document.getElementById('detailSaveBar');
+                        if (bar) bar.style.display = 'block';
+                    };
+                    container.addEventListener('input', showSaveBar);
+                    container.addEventListener('change', showSaveBar);
+                }
                 document.getElementById('saveDetailBtn').addEventListener('click', () => {
                     this.pushUndo('修改释义');
                     sense.definition = document.getElementById('defEditor').innerText.trim();
@@ -8468,6 +8814,8 @@
                     this.refreshWordIndex(word.id);
                     this.saveData();
                     this.renderList();
+                    const bar = document.getElementById('detailSaveBar');
+                    if (bar) bar.style.display = 'none';
                     this.showToast('✅ 修改已保存', 'success');
                 });
             },
@@ -8662,6 +9010,8 @@
                 document.getElementById('editorCultureBackground').value = (w.culture || {}).background || '';
                 document.getElementById('editorCultureUsage').value = (w.culture || {}).usage || '';
                 document.getElementById('editorEasterEggs').value = ((w.culture || {}).easterEggs || []).join('\n');
+                const saveBtn = document.getElementById('wordEditorSave');
+                if (saveBtn) saveBtn.style.display = 'none';
                 this.renderEditorParts((w.morphology || {}).parts || []);
                 this.renderEditorSenses(w.senses || []);
                 const err = document.getElementById('wordEditorError');
@@ -8773,21 +9123,30 @@
             },
             bindWordEditor() {
                 const overlay = document.getElementById('wordEditorOverlay');
+                const markDirty = () => {
+                    const save = document.getElementById('wordEditorSave');
+                    if (save) save.style.display = 'inline-flex';
+                };
+                overlay.addEventListener('input', markDirty);
+                overlay.addEventListener('change', markDirty);
                 document.getElementById('newWordEditorBtn').addEventListener('click', () => this.openWordEditor());
                 document.getElementById('wordEditorSave').addEventListener('click', () => this.saveWordEditor());
                 document.getElementById('wordEditorCancel').addEventListener('click', () => this.closeWordEditor());
                 overlay.addEventListener('click', e => { if (e.target === overlay) this.closeWordEditor(); });
                 document.getElementById('editorAddPart').addEventListener('click', () => {
                     document.getElementById('editorParts').insertAdjacentHTML('beforeend', this.editorPartRow());
+                    markDirty();
                 });
                 document.getElementById('editorAddSense').addEventListener('click', () => {
                     const box = document.getElementById('editorSenses');
                     box.insertAdjacentHTML('beforeend', this.editorSenseHtml({}, box.children.length));
                     this.refreshEditorSenseNumbers();
+                    markDirty();
                 });
                 document.getElementById('editorParts').addEventListener('click', e => {
                     const btn = e.target.closest('.part-remove');
-                    if (btn) btn.closest('.editor-part').remove();
+                    if (btn) { btn.closest('.editor-part').remove();
+                        markDirty(); }
                 });
                 document.getElementById('editorSenses').addEventListener('click', e => {
                     const btn = e.target.closest('.editor-sense-remove');
@@ -8798,6 +9157,7 @@
                     }
                     btn.closest('.editor-sense').remove();
                     this.refreshEditorSenseNumbers();
+                    markDirty();
                 });
             },
             refreshEditorSenseNumbers() {
@@ -9807,6 +10167,32 @@
                     const target = e.target;
                     const editable = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
                         target.isContentEditable);
+                    if (!editable && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey &&
+                        (this.currentMode === 'dictionary' || this.currentMode === 'recycle') &&
+                        /^[a-zA-Z]$/.test(e.key) && !document.querySelector('.modal-overlay.show')) {
+                        const letter = e.key.toUpperCase();
+                        const nav = document.getElementById('alphaNav');
+                        const btn = nav && nav.querySelector(`button[data-letter="${letter}"]`);
+                        if (btn && !btn.classList.contains('disabled')) {
+                            e.preventDefault();
+                            if (this.alphaPendingLetter === letter) {
+                                this.alphaPendingLetter = null;
+                                clearTimeout(this._alphaPendingTimer);
+                                btn.classList.remove('pending');
+                                this.scrollToLetter(letter);
+                            } else {
+                                this.alphaPendingLetter = letter;
+                                nav.querySelectorAll('button').forEach(x => x.classList.remove('pending'));
+                                btn.classList.add('pending');
+                                clearTimeout(this._alphaPendingTimer);
+                                this._alphaPendingTimer = setTimeout(() => {
+                                    this.alphaPendingLetter = null;
+                                    btn.classList.remove('pending');
+                                }, 1800);
+                            }
+                            return;
+                        }
+                    }
                     if (!editable && (e.ctrlKey || e.metaKey) && !e.altKey) {
                         const key = e.key.toLowerCase();
                         if (key === 'z' && !e.shiftKey) { e.preventDefault();

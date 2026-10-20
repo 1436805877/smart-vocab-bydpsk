@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('desktop', {
   isElectron: true,
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke('app:version'),
+  getDesktopWallpaper: () => ipcRenderer.invoke('theme:desktopWallpaper'),
   openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
   saveTextFile: (payload) => ipcRenderer.invoke('file:saveText', payload),
   openTextFile: (payload) => ipcRenderer.invoke('file:openText', payload),

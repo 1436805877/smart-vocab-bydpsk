@@ -3,6 +3,9 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
 const os = require('node:os');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const execFileAsync = promisify(execFile);
 
 const APP_ID = 'com.mokiklok.smartvocab';
 let mainWindow = null;
@@ -285,6 +288,32 @@ async function pruneBackups(keep = 7) {
 }
 
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('theme:desktopWallpaper', async () => {
+  if (process.platform !== 'win32') return { ok: false, error: '当前只支持 Windows 桌面壁纸' };
+  try {
+    let wallpaperPath = '';
+    try {
+      const { stdout } = await execFileAsync('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        "(Get-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name Wallpaper).Wallpaper"
+      ], { windowsHide: true });
+      wallpaperPath = String(stdout || '').trim();
+    } catch { /* ignore */ }
+    if (!wallpaperPath || !fsSync.existsSync(wallpaperPath)) {
+      wallpaperPath = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Themes', 'TranscodedWallpaper');
+    }
+    if (!fsSync.existsSync(wallpaperPath)) return { ok: false, error: '没有找到桌面壁纸文件' };
+    const stat = await fs.stat(wallpaperPath);
+    if (stat.size > 20 * 1024 * 1024) return { ok: false, error: '壁纸文件过大（超过 20MB）' };
+    const data = await fs.readFile(wallpaperPath);
+    const ext = path.extname(wallpaperPath).toLowerCase();
+    const mime = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
+    return { ok: true, dataUrl: `data:${mime};base64,${data.toString('base64')}`, path: wallpaperPath };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
 ipcMain.handle('app:openDataFolder', async () => {
   await shell.openPath(app.getPath('userData'));
   return { ok: true, path: app.getPath('userData') };
