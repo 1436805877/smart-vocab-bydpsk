@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.12 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.13 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.12 beta</title>
+    <title>智能单词本 v0.4.13 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4188,6 +4188,98 @@
                 transition-duration: .01ms !important;
             }
         }
+        /* ===== 全面透明与文字颜色覆盖 ===== */
+        body {
+            color: var(--text-color);
+        }
+        .app .detail-section,
+        .app .overview-sense-item,
+        .app .core-section,
+        .app .settings-card,
+        .app .stat-card,
+        .app .backup-card,
+        .app .note-item,
+        .app .word-header,
+        .app .core-feeling,
+        .app .core-image,
+        .app .sense-def,
+        .app .settings-title,
+        .app .settings-row b,
+        .app .stat-card .number,
+        .app .detail-section h4,
+        .app .detail-section .content,
+        .app .word-zh-senses {
+            color: var(--text-color) !important;
+        }
+        .app .overview-sense-item .sense-en,
+        .app .overview-sense-item .sense-example {
+            color: var(--text-color) !important;
+            opacity: .82;
+        }
+        .app .overview-sense-item .sense-example-zh {
+            color: var(--text-color) !important;
+            opacity: .62;
+        }
+        .app .overview-sense-item .sense-def {
+            color: var(--text-color) !important;
+        }
+        body.has-wallpaper .chain-node,
+        body.has-wallpaper .morph-part,
+        body.has-wallpaper .syn-member,
+        body.has-wallpaper .root-member,
+        body.has-wallpaper .note-item,
+        body.has-wallpaper .note-text,
+        body.has-wallpaper .add-word-form,
+        body.has-wallpaper .batch-mode-bar,
+        body.has-wallpaper .search-summary,
+        body.has-wallpaper .settings-card,
+        body.has-wallpaper .settings-actions,
+        body.has-wallpaper .backup-card,
+        body.has-wallpaper .word-actions,
+        body.has-wallpaper .overview-sense-item,
+        body.has-wallpaper .overview-sense-item .sense-en,
+        body.has-wallpaper .overview-sense-item .sense-example,
+        body.has-wallpaper .core-section,
+        body.has-wallpaper .stat-card,
+        body.has-wallpaper .stats-section,
+        body.has-wallpaper .stats-category,
+        body.has-wallpaper .detail-section,
+        body.has-wallpaper .word-editor,
+        body.has-wallpaper .help-modal,
+        body.has-wallpaper .editor-section,
+        body.has-wallpaper .editor-sense,
+        body.has-wallpaper .editor-part input,
+        body.has-wallpaper .editor-part select,
+        body.has-wallpaper .editor-field input,
+        body.has-wallpaper .editor-field textarea,
+        body.has-wallpaper .editor-field select {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+        }
+        body.has-wallpaper .close-modal,
+        body.has-wallpaper .back-btn,
+        body.has-wallpaper .cancel-btn,
+        body.has-wallpaper .fetch-btn,
+        body.has-wallpaper .add-note-btn,
+        body.has-wallpaper .add-sense-btn,
+        body.has-wallpaper .mastery-selector button,
+        body.has-wallpaper .settings-mini-btn,
+        body.has-wallpaper .backup-secondary,
+        body.has-wallpaper .action-btn.list-tool,
+        body.has-wallpaper .batch-btn,
+        body.has-wallpaper .export-card,
+        body.has-wallpaper .import-mode-card,
+        body.has-wallpaper .note-item,
+        body.has-wallpaper .overview-sense-item .sense-tags span {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-color: color-mix(in srgb, var(--text-color) 22%, transparent) !important;
+        }
+        body.has-wallpaper .top-bar,
+        body.has-wallpaper .left-panel,
+        body.has-wallpaper .right-panel,
+        body.has-wallpaper .panel-header {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+        }
     </style>
 </head>
 <body>
@@ -4196,7 +4288,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.12 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.13 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4682,7 +4774,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.12', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.13', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6063,7 +6155,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.12',
+                    appVersion: '0.4.13',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
