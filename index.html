@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.27 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.28 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.27 beta</title>
+    <title>智能单词本 v0.4.28 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -5155,7 +5155,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.27 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.28 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5638,7 +5638,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.27', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.28', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5823,7 +5823,7 @@
             importOptions: { mode: 'normal', newDeckName: '', targetDeckId: null },
             currentMode: 'dictionary',
             currentGroupBy: 'hierarchy',
-            listLimit: 300,
+            listLimit: 120,
             deckFilter: '',
             alphaPendingLetter: null,
             currentWordId: null,
@@ -5985,6 +5985,7 @@
                 this.dataRevision = (this.dataRevision || 0) + 1;
                 this._displayCache = null;
                 this._filterCache = null;
+                this._statsCache = null;
                 this.dataDirty = true;
                 const seq = ++this.saveSeq;
                 const doSave = async () => {
@@ -7138,7 +7139,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.27',
+                    appVersion: '0.4.28',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -7649,7 +7650,7 @@
                 const target = words.find(w => w.word && w.word.charAt(0).toUpperCase() === letter);
                 if (!target) return;
                 const targetIndex = words.indexOf(target);
-                if (targetIndex >= (Number(this.listLimit) || 300)) {
+                if (targetIndex >= (Number(this.listLimit) || 120)) {
                     this.listLimit = targetIndex + 50;
                     this.renderList();
                 }
@@ -7694,7 +7695,7 @@
                 const query = this.searchQuery.trim();
                 const isBatchMode = this.batchMode && (this.currentMode === 'dictionary' || this.currentMode === 'recycle');
                 const allFilteredWords = filteredWordsInput ? [...filteredWordsInput] : this.getFilteredWords();
-                const listLimit = Math.max(300, Number(this.listLimit) || 300);
+                const listLimit = Math.max(120, Number(this.listLimit) || 120);
                 const filteredWords = allFilteredWords.slice(0, listLimit);
                 this._filteredCount = allFilteredWords.length;
                 const loadMoreHtml = allFilteredWords.length > filteredWords.length
@@ -7833,11 +7834,11 @@
                     clearTimeout(this._listScrollTimer);
                     this._listScrollTimer = setTimeout(() => {
                         if (this._listLoadLock || this._listPointerDown) return;
-                        if ((Number(this.listLimit) || 300) >= (this._filteredCount || 0)) return;
+                        if ((Number(this.listLimit) || 120) >= (this._filteredCount || 0)) return;
                         if (container.scrollTop + container.clientHeight < container.scrollHeight - 120) return;
                         this._listLoadLock = true;
                         const oldTop = container.scrollTop;
-                        this.listLimit = (Number(this.listLimit) || 300) + 300;
+                        this.listLimit = (Number(this.listLimit) || 120) + 120;
                         this.renderList();
                         container.scrollTop = oldTop;
                         setTimeout(() => { this._listLoadLock = false; }, 150);
@@ -7847,7 +7848,7 @@
                     const moreBtn = e.target.closest('#loadMoreListBtn');
                     if (moreBtn) {
                         const oldTop = container.scrollTop;
-                        this.listLimit = (Number(this.listLimit) || 300) + 300;
+                        this.listLimit = (Number(this.listLimit) || 120) + 120;
                         this.renderList();
                         container.scrollTop = oldTop;
                         return;
@@ -10393,6 +10394,11 @@
             },
 
             renderStats(container) {
+                const statsCacheKey = `${this.dataRevision || 0}|${this.words.length}|${this.progress.size}`;
+                if (this._statsCache && this._statsCache.key === statsCacheKey) {
+                    container.innerHTML = this._statsCache.html;
+                    return;
+                }
                 const activeWords = this.words.filter(w => !w.deleted);
                 const totalWords = activeWords.length;
                 const totalSenses = activeWords.reduce((acc, w) => acc + w.senses.length, 0);
@@ -10470,6 +10476,7 @@
                 html +=
                     `<div class="stats-category" style="margin-top:16px;"><h4>📈 近7天新增趋势</h4><div style="display:flex; gap:8px; align-items:flex-end; height:120px; padding:12px 0;">${last7days.map((date, i) => { const maxDaily = Math.max(1, ...dailyCounts); const height = Math.max(6, Math.round((dailyCounts[i] / maxDaily) * 100)); return `<div style="flex:1; display:flex; flex-direction:column; align-items:center;"><div style="width:100%; background:#3b82f6; height:${height}px; border-radius:4px 4px 0 0; min-height:8px;"></div><div style="font-size:11px; color:#64748b; margin-top:4px;">${date.slice(5)}</div><div style="font-size:12px; font-weight:600;">${dailyCounts[i]}</div></div>`; }).join('')}</div></div>`;
                 container.innerHTML = html;
+                this._statsCache = { key: statsCacheKey, html };
             },
 
             softDeleteWord(id) {
@@ -10942,7 +10949,7 @@
             setMode(mode) {
                 this.stopGameTimers();
                 this.flushReview();
-                this.listLimit = 300;
+                this.listLimit = 120;
                 const form = document.getElementById('addWordForm');
                 if (form && form.classList.contains('open')) this.toggleAddWordForm(false);
                 if (this.batchMode && mode !== 'dictionary' && mode !== 'recycle') this.toggleBatchMode();
@@ -11692,7 +11699,7 @@
                 document.getElementById('batchManageBtn').addEventListener('click', () => this.toggleBatchMode());
 
                 document.getElementById('deckSelect').addEventListener('change', function() {
-                    App.listLimit = 300;
+                    App.listLimit = 120;
                     if (this.value === '__manage__') {
                         App.setMode('decks');
                     } else if (this.value === '__new__') {
@@ -11710,7 +11717,7 @@
                 });
 
                 document.getElementById('groupBySelect').addEventListener('change', function() {
-                    App.listLimit = 300;
+                    App.listLimit = 120;
                     const form = document.getElementById('addWordForm');
                     if (form && form.classList.contains('open')) App.toggleAddWordForm(false);
                     App.currentGroupBy = this.value;
@@ -11733,7 +11740,7 @@
                         const form = document.getElementById('addWordForm');
                         if (form && form.classList.contains('open')) App.toggleAddWordForm(false);
                         App.searchQuery = searchInput.value.trim();
-                        App.listLimit = 300;
+                        App.listLimit = 120;
                         const filtered = App.getFilteredWords();
                         App.syncSelectionToFiltered(filtered);
                         App.renderList(filtered);
