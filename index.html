@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.23 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.24 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.23 beta</title>
+    <title>智能单词本 v0.4.24 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4728,6 +4728,8 @@
         .core-recall-answer.legacy .core-recall-feeling,
         .core-recall-legacy-text,
         .core-recall-reveal-wrap button,
+        .core-recall-word,
+        .root-option,
         .core-recall-image,
         .core-recall-hint,
         .core-recall-missing,
@@ -4753,6 +4755,22 @@
             color: var(--text-color) !important;
             border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important;
         }
+        .root-option {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border: 2px solid color-mix(in srgb, var(--text-color) 22%, transparent) !important;
+            border-radius: 14px;
+        }
+        .root-option.correct-answer {
+            background: #dcfce7 !important;
+            color: #052e16 !important;
+            border-color: #22c55e !important;
+        }
+        .root-option.wrong-answer {
+            background: #fee2e2 !important;
+            color: #7f1d1d !important;
+            border-color: #ef4444 !important;
+        }
         .game-options button.correct-answer {
             color: #052e16 !important;
         }
@@ -4764,6 +4782,158 @@
         .chain-input-area input::placeholder {
             color: color-mix(in srgb, var(--text-color) 55%, transparent) !important;
         }
+        /* ===== 复习 / 今日 / 统计 可读性补齐 ===== */
+        .list-item:hover {
+            background: #1e293b !important;
+        }
+        .list-item:hover .word-text,
+        .list-item:hover .word-text strong,
+        .list-item:hover .phonetic,
+        .list-item:hover .sense-count,
+        .list-item:hover .list-meta {
+            color: #ffffff !important;
+        }
+        .sense-option {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent) !important;
+            border-radius: 12px;
+        }
+        .sense-option:hover:not(:disabled) {
+            border-color: #3b82f6 !important;
+            background: #eff6ff !important;
+            color: #0f172a !important;
+        }
+        .sense-option.correct-answer {
+            background: #dcfce7 !important;
+            color: #052e16 !important;
+            border-color: #22c55e !important;
+        }
+        .sense-option.wrong-answer {
+            background: #fee2e2 !important;
+            color: #7f1d1d !important;
+            border-color: #ef4444 !important;
+        }
+        .sense-example {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-left-color: #6366f1;
+            text-decoration: none !important;
+        }
+        .sense-translation {
+            margin-top: 6px;
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: .9;
+        }
+        .sense-chain span {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-color: color-mix(in srgb, var(--text-color) 20%, transparent) !important;
+        }
+        .sense-chain b {
+            color: color-mix(in srgb, var(--text-color) 55%, transparent) !important;
+        }
+        .sense-explanation {
+            color: var(--text-color) !important;
+        }
+
+        .stats-grid .stat-card .label,
+        .stats-category h4,
+        .stats-section h4,
+        .stats-category .cat-stat-item .name,
+        .stats-category .cat-stat-item .count,
+        .stats-section .stat-card .label,
+        .stat-card .label {
+            color: var(--text-color) !important;
+        }
+        .stats-category h4,
+        .stats-section h4 {
+            opacity: .85;
+        }
+
+        .daily-banner,
+        .daily-stat,
+        .daily-controls,
+        .daily-item,
+        .daily-empty,
+        .daily-review-answer,
+        .daily-review-actions button,
+        .daily-remove-wrong {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important;
+        }
+        .daily-title,
+        .daily-section-title,
+        .daily-item b,
+        .daily-review-word,
+        .daily-review-def,
+        .daily-review-core,
+        .daily-review-example,
+        .daily-review-note,
+        .daily-stat .num,
+        .daily-stat .lbl,
+        .daily-banner b,
+        .daily-banner span,
+        .daily-sub,
+        .daily-review-prompt,
+        .daily-review-phonetic {
+            color: var(--text-color) !important;
+        }
+        .daily-stat .num {
+            color: #2563eb !important;
+        }
+        .daily-tag {
+            color: #1d4ed8 !important;
+        }
+        .daily-tag.due {
+            color: #b45309 !important;
+        }
+        .daily-tag.wrong {
+            color: #b91c1c !important;
+        }
+        .daily-start,
+        .daily-review-reveal-wrap button {
+            color: #fff !important;
+        }
+        .list-load-more button {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent) !important;
+            border-radius: 12px;
+        }
+        .game-summary {
+            max-width: 720px;
+            margin: 16px auto;
+            padding: 12px 14px;
+            border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+        }
+        .game-summary h4 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        .game-summary-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .game-summary-word {
+            border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            color: var(--text-color);
+            border-radius: 999px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .game-summary-word:hover {
+            background: #1e293b;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -4772,7 +4942,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.23 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.24 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -4810,10 +4980,8 @@
                             <option value="hierarchy">📂 层级列表</option>
                             <option value="alphabetical">🔤 字母</option>
                             <option value="tone">😊 情感色彩</option>
-                            <option value="topic">📚 主题</option>
                             <option value="pos">📌 词性</option>
                             <option value="level">⭐ 难度</option>
-                            <option value="origin">🌍 来源</option>
                             <option value="formality">📝 语体</option>
                             <option value="grammar">📖 语法属性</option>
                         </select></span>
@@ -5259,7 +5427,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.23', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.24', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6736,7 +6904,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.23',
+                    appVersion: '0.4.24',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -6963,8 +7131,15 @@
                 return { zh: s, en: '' };
             },
 
-            wordZhSummary(word) {
-                const parts = (word && word.senses ? word.senses : [])
+            chineseDefinition(text) {
+                let s = String(text || '').trim();
+                s = s.replace(/^\s*(n|v|vt|vi|adj|adv|prep|conj|pron|num|art|int|aux)\.?\s*/i, '');
+                s = s.replace(/[（(][^）)]*[A-Za-z][^）)]*[）)]/g, '');
+                s = s.replace(/[A-Za-z][A-Za-z\s,;:'"()\/.-]*/g, ' ');
+                s = s.replace(/\s+/g, ' ').replace(/^[；;，,、\s]+|[；;，,、\s]+$/g, '').trim();
+                return s || String(text || '').trim();
+            },
+            wordZhSummary(word) {                const parts = (word && word.senses ? word.senses : [])
                     .map(s => (s.defZh && s.defZh.trim()) || this.splitDefinition(s.definition).zh)
                     .filter(Boolean);
                 return [...new Set(parts)].join(' ｜ ');
@@ -8016,6 +8191,34 @@
             // ============================================================
             //  翻卡牌 (原有)
             // ============================================================
+            gameSummaryHtml(entries) {
+                const seen = new Set();
+                const rows = [];
+                for (const e of entries || []) {
+                    const id = e && (e.wordId || e.id || e.pairId || e);
+                    if (!id || seen.has(String(id))) continue;
+                    seen.add(String(id));
+                    const w = this.words.find(x => String(x.id) === String(id));
+                    if (!w) continue;
+                    rows.push(`<button type="button" class="game-summary-word" data-word-id="${w.id}" data-sense-id="${e && e.senseId || ''}">${this.escapeHtml(w.word)}</button>`);
+                }
+                if (!rows.length) return '';
+                return `<div class="game-summary"><h4>📋 本局总结 · 点单词可跳转</h4><div class="game-summary-list">${rows.join('')}</div></div>`;
+            },
+            bindGameSummary(container) {
+                container.querySelectorAll('.game-summary-word').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.stopGameTimers();
+                        this.currentGame = null;
+                        this.currentMode = 'dictionary';
+                        this.currentWordId = Number(btn.dataset.wordId);
+                        this.currentSenseId = btn.dataset.senseId ? Number(btn.dataset.senseId) : null;
+                        this.renderList();
+                        this.renderRightPanel();
+                    });
+                });
+            },
+
             renderFlashcardGame() {
                 const container = document.getElementById('rightPanel');
                 const activeWords = this.words.filter(w => !w.deleted);
@@ -8135,6 +8338,7 @@
                             <div class="game-result">
                                 <div class="big-score">${state.correct} / ${state.order.length}</div>
                                 <div class="sub">本轮能回忆出核心感觉的单词数</div>
+                                ${this.gameSummaryHtml((state.order || []).slice(0, 30).map(id => ({ wordId: id })))}
                                 <button id="coreRecallRetryBtn">🔄 再来一轮</button>
                             </div>
                         </div>
@@ -8146,6 +8350,7 @@
                         delete this.gameStates.coreRecall;
                         this.renderCoreRecallGame();
                     });
+                    this.bindGameSummary(container);
                     return;
                 }
 
@@ -8588,6 +8793,7 @@
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
+                                ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
                                 <button id="rootRetryBtn">🔄 再来一局</button>
                             </div>
                         </div>
@@ -8600,6 +8806,7 @@
                         delete this.gameStates.rootChallenge;
                         this.renderRootChallenge();
                     });
+                    this.bindGameSummary(container);
                     return;
                 }
 
@@ -8720,16 +8927,10 @@
                         const senses = (w.senses || []).filter(s => s && s.definition);
                         if (senses.length < 2) continue;
                         const senseDefs = [...new Set(senses.map(s => s.definition).filter(Boolean))];
-                        const otherDefs = allDefs.filter(d => !senseDefs.includes(d));
-                        // 先放本词的全部义项；不足 4 个才补其他词的释义。
-                        // 这样正确答案一定在选项里，也能完整看到一词多义。
+                        // 只用本词的义项，避免其他词的释义长期混入造成误导。
                         const defOptions = (correct) => {
                             const picked = [...senseDefs];
                             if (correct && !picked.includes(correct)) picked.push(correct);
-                            for (const d of shuffle(otherDefs)) {
-                                if (picked.length >= 4) break;
-                                if (!picked.includes(d)) picked.push(d);
-                            }
                             return shuffle(picked);
                         };
                         let q = null;
@@ -8744,11 +8945,12 @@
                                 q = {
                                     type: 'example',
                                     word: w.word,
-                                    prompt: String(sense.example).replace(new RegExp(this.escapeRegex(w.word), 'ig'), '_____'),
+                                    prompt: String(sense.example || ''),
                                     question: `这句话中的「${w.word}」对应哪个义项？`,
                                     options,
                                     answer: sense.definition,
                                     explanation: `${w.word} · ${sense.definition}`,
+                                    translation: sense.exampleZh || '',
                                     chain: ((w.core && w.core.chain) || []).map(n => n.label).filter(Boolean),
                                     wordId: w.id,
                                     senseId: sense.id
@@ -8827,6 +9029,7 @@
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
+                                ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
                                 <button id="senseRetryBtn">🔄 再来一局</button>
                             </div>
                         </div>
@@ -8839,6 +9042,7 @@
                         delete this.gameStates.senseChain;
                         this.renderSenseChainGame();
                     });
+                    this.bindGameSummary(container);
                     return;
                 }
 
@@ -8851,6 +9055,7 @@
                     ? `<div class="feedback-banner ${correct ? 'correct' : 'wrong'}">
                         ${correct ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
                         <div class="sense-explanation">${this.escapeHtml(q.explanation || '')}</div>
+                        ${q.translation ? `<div class="sense-translation">中文：${this.escapeHtml(q.translation)}</div>` : ''}
                     </div>`
                     : '';
                 const chainHtml = (q.chain || []).length
@@ -9202,6 +9407,7 @@
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore/total*100) : 0}%</div>
+                                ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
                                 <button id="shooterRetryBtn">🔄 再来一局</button>
                             </div>
                         </div>
@@ -9214,6 +9420,7 @@
                         delete this.gameStates.wordShooter;
                         this.renderWordShooter();
                     });
+                    this.bindGameSummary(container);
                     return;
                 }
 
@@ -9320,7 +9527,7 @@
                         const sense = this.pickSense(w);
                         if (sense) {
                             cards.push({ type: 'word', text: w.word, pairId: w.id, senseId: sense.id });
-                            cards.push({ type: 'def', text: sense.definition, pairId: w.id, senseId: sense.id });
+                            cards.push({ type: 'def', text: this.chineseDefinition(sense.definition), pairId: w.id, senseId: sense.id });
                         }
                     });
                     for (let i = cards.length - 1; i > 0; i--) {
@@ -9355,6 +9562,7 @@
                             <div class="game-result">
                                 <div class="big-score">${matched} / ${total}</div>
                                 <div class="sub">${matched === total ? '完美通关！' : '继续加油！'}</div>
+                                ${this.gameSummaryHtml((state.cards || []).filter(c => c.type === 'word').map(c => ({ wordId: c.pairId, senseId: c.senseId })))}
                                 <button id="matchRetryBtn">🔄 再来一局</button>
                             </div>
                         </div>
@@ -9367,6 +9575,7 @@
                         delete this.gameStates.wordMatch;
                         this.renderWordMatch();
                     });
+                    this.bindGameSummary(container);
                     return;
                 }
 
@@ -9743,10 +9952,8 @@
                 const senseListHtml = word.senses.map((s, idx) => {
                     const tags = [];
                     if (s.tone) tags.push('情感:' + s.tone);
-                    if (s.topic) tags.push('主题:' + s.topic);
                     if (s.pos) tags.push('词性:' + s.pos);
                     if (s.level) tags.push('难度:' + s.level);
-                    if (s.origin) tags.push('来源:' + s.origin);
                     if (s.formality) tags.push('语体:' + s.formality);
                     if (s.grammar) tags.push('语法:' + s.grammar);
                     const tagHtml = tags.length ? tags.map(t => `<span>${this.escapeHtml(t)}</span>`).join('') : '';
@@ -9994,7 +10201,7 @@
                     w.core.quality !== 'needs-review').length;
                 const synGroupCount = (this.extras.synonymGroups || []).length;
                 const rootFamilyCount = (this.extras.rootFamilies || []).length;
-                const fields = ['tone', 'topic', 'pos', 'level', 'origin', 'formality', 'grammar'];
+                const fields = ['tone', 'pos', 'level', 'formality', 'grammar'];
                 const stats = {};
                 fields.forEach(f => stats[f] = {});
                 activeWords.forEach(w => {
@@ -10034,8 +10241,8 @@
                     statCard(dueSenses, '⏰ 到期义项', '#0ea5e9'),
                     statCard(wrongSenses, '❗ 错题义项', '#ef4444')
                 ].join('') + `</div></div>`;
-                const fieldLabels = { tone: '😊 情感色彩', topic: '📚 主题', pos: '📌 词性', level: '⭐ 难度',
-                    origin: '🌍 来源', formality: '📝 语体', grammar: '📖 语法属性' };
+                const fieldLabels = { tone: '😊 情感色彩', pos: '📌 词性', level: '⭐ 难度',
+                    formality: '📝 语体', grammar: '📖 语法属性' };
                 fields.forEach(f => {
                     const data = stats[f];
                     if (Object.keys(data).length > 0) {
@@ -11426,6 +11633,32 @@
                         e.preventDefault();
                         this.closeWordEditor();
                         return;
+                    }
+                    if (e.key === 'Escape') {
+                        if (this.currentGame) {
+                            e.preventDefault();
+                            this.leaveGame();
+                            return;
+                        }
+                        if (this.currentSenseId) {
+                            e.preventDefault();
+                            this.currentSenseId = null;
+                            this.renderRightPanel();
+                            this.renderList();
+                            return;
+                        }
+                        if (this.currentWordId) {
+                            e.preventDefault();
+                            this.currentWordId = null;
+                            this.renderRightPanel();
+                            this.renderList();
+                            return;
+                        }
+                        if (!document.body.classList.contains('is-fullscreen')) {
+                            e.preventDefault();
+                            if (confirm('确定关闭智能单词本吗？')) window.close();
+                            return;
+                        }
                     }
                     const target = e.target;
                     const editable = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
