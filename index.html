@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.21 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.22 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.21 beta</title>
+    <title>智能单词本 v0.4.22 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -2165,6 +2165,7 @@
             display: flex;
         }
         .modal {
+            position: relative;
             background: white;
             max-width: 700px;
             width: 100%;
@@ -2179,15 +2180,30 @@
             margin-bottom: 16px;
         }
         .modal .close-modal {
-            float: right;
-            background: none;
-            border: none;
-            font-size: 24px;
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 20;
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            float: none;
+            background: #1e293b;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            font-size: 17px;
+            line-height: 1;
             cursor: pointer;
-            color: #94a3b8;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
+            transition: background .15s ease, transform .15s ease;
         }
         .modal .close-modal:hover {
-            color: #0f172a;
+            background: #dc2626;
+            color: #ffffff;
+            transform: scale(1.06);
         }
         .export-grid {
             display: grid;
@@ -4618,7 +4634,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.21 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.22 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5105,7 +5121,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.21', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.22', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6582,7 +6598,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.21',
+                    appVersion: '0.4.22',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
