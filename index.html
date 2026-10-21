@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.26 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.27 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.26 beta</title>
+    <title>智能单词本 v0.4.27 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4433,6 +4433,8 @@
         }
         :root {
             --visibility-veil: transparent;
+            --visibility-text-shadow: transparent;
+            --visibility-frame-color: transparent;
         }
         body.visibility-boost .top-bar,
         body.visibility-boost .left-panel,
@@ -4474,7 +4476,7 @@
         body.visibility-boost .root-family-head,
         body.visibility-boost .culture-block,
         body.visibility-boost .culture-eggs {
-            text-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+            text-shadow: 0 1px 2px var(--visibility-text-shadow);
         }
         body.visibility-boost .left-panel,
         body.visibility-boost .right-panel,
@@ -5091,10 +5093,10 @@
         body.visibility-boost .stats-category h4,
         body.visibility-boost .stat-card .label,
         body.visibility-boost .game-summary-row {
-            text-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+            text-shadow: 0 1px 2px var(--visibility-text-shadow);
         }
         body.visibility-boost .right-panel.review-visibility {
-            border: 2px solid color-mix(in srgb, var(--text-color) 24%, transparent) !important;
+            border: 2px solid var(--visibility-frame-color) !important;
             border-radius: 20px;
             box-shadow: inset 0 0 0 9999px var(--visibility-veil),
                 inset 0 0 0 3px color-mix(in srgb, var(--text-color) 10%, transparent) !important;
@@ -5131,6 +5133,20 @@
         .game-summary-row .summary-core {
             color: var(--text-color) !important;
         }
+        body.performance-mode *,
+        body.performance-mode *::before,
+        body.performance-mode *::after {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            animation: none !important;
+            transition: none !important;
+        }
+        body.performance-mode .app {
+            box-shadow: none !important;
+        }
+        body.performance-mode #appWallpaperVideo {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -5139,7 +5155,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.26 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.27 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5622,7 +5638,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.26', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.27', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5791,6 +5807,8 @@
                     panelOpacity: 0.88,
                     autoTextColor: true,
                     visibilityBoost: true,
+                    visibilityStrength: 0.7,
+                    performanceMode: false,
                     wallpaper: '',
                     wallpaperId: '',
                     wallpaperKind: '',
@@ -5964,6 +5982,9 @@
 
             async saveData(immediate = false) {
                 clearTimeout(this.saveTimer);
+                this.dataRevision = (this.dataRevision || 0) + 1;
+                this._displayCache = null;
+                this._filterCache = null;
                 this.dataDirty = true;
                 const seq = ++this.saveSeq;
                 const doSave = async () => {
@@ -6410,6 +6431,8 @@
                             if (typeof t.textColor === 'string') this.settings.theme.textColor = t.textColor;
                             if (typeof t.autoTextColor === 'boolean') this.settings.theme.autoTextColor = t.autoTextColor;
                             if (typeof t.visibilityBoost === 'boolean') this.settings.theme.visibilityBoost = t.visibilityBoost;
+                            if (Number.isFinite(Number(t.visibilityStrength))) this.settings.theme.visibilityStrength = Math.max(0, Math.min(1, Number(t.visibilityStrength)));
+                            if (typeof t.performanceMode === 'boolean') this.settings.theme.performanceMode = t.performanceMode;
                             if (Number.isFinite(Number(t.appOpacity))) this.settings.theme.appOpacity = Math.max(0, Math.min(1, Number(t.appOpacity)));
                             if (Number.isFinite(Number(t.panelOpacity))) this.settings.theme.panelOpacity = Math.max(0, Math.min(1, Number(t.panelOpacity)));
                             if (Number.isFinite(Number(t.wallpaperOpacity))) this.settings.theme.wallpaperOpacity = Math.max(0, Math.min(1, Number(t.wallpaperOpacity)));
@@ -6438,6 +6461,7 @@
                 root.style.setProperty('--panel-opacity', String(Math.round((Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88) * 100)) + '%');
                 root.style.setProperty('--wallpaper-opacity', String(Number.isFinite(Number(t.wallpaperOpacity)) ? t.wallpaperOpacity : 0.35));
                 document.body.classList.toggle('has-wallpaper', !!(t.wallpaper || t.wallpaperId));
+                document.body.classList.toggle('performance-mode', t.performanceMode === true);
                 const img = document.getElementById('appWallpaper');
                 const video = document.getElementById('appWallpaperVideo');
                 if (!reloadWallpaper) {
@@ -6460,13 +6484,20 @@
                 const enabled = this.settings.theme.visibilityBoost !== false;
                 document.body.classList.toggle('visibility-boost', enabled);
                 const root = document.documentElement;
-                if (!enabled) {
+                const strength = Math.max(0, Math.min(1, Number(this.settings.theme.visibilityStrength ?? 0.7)));
+                if (!enabled || strength <= 0) {
                     root.style.setProperty('--visibility-veil', 'transparent');
+                    root.style.setProperty('--visibility-text-shadow', 'transparent');
+                    root.style.setProperty('--visibility-frame-color', 'transparent');
                     return;
                 }
                 const color = getComputedStyle(root).getPropertyValue('--text-color').trim() || '#0f172a';
                 const lightText = this.hexBrightness(color) > 0.55;
-                root.style.setProperty('--visibility-veil', lightText ? 'rgba(0, 0, 0, .26)' : 'rgba(255, 255, 255, .32)');
+                root.style.setProperty('--visibility-veil',
+                    lightText ? `rgba(0, 0, 0, ${(0.38 * strength).toFixed(3)})` : `rgba(255, 255, 255, ${(0.45 * strength).toFixed(3)})`);
+                root.style.setProperty('--visibility-text-shadow', `rgba(0, 0, 0, ${(0.35 * strength).toFixed(3)})`);
+                root.style.setProperty('--visibility-frame-color',
+                    lightText ? `rgba(255, 255, 255, ${(0.30 * strength).toFixed(3)})` : `rgba(15, 23, 42, ${(0.28 * strength).toFixed(3)})`);
             },
 
             async sampleWallpaperBrightness() {
@@ -6919,6 +6950,14 @@
                                 <input type="checkbox" id="settingsVisibilityBoost" ${t.visibilityBoost !== false ? 'checked' : ''}>
                             </label>
                             <div class="settings-row">
+                                <span><b>可见性强度</b><small>0–100%；觉得碍眼就调低，觉得看不清就调高。</small></span>
+                                <div class="settings-range-row"><input type="range" id="settingsVisibilityStrength" min="0" max="100" step="1" value="${Math.round((t.visibilityStrength ?? 0.7) * 100)}" ${t.visibilityBoost === false ? 'disabled' : ''}><span id="settingsVisibilityStrengthValue">${Math.round((t.visibilityStrength ?? 0.7) * 100)}%</span></div>
+                            </div>
+                            <label class="settings-row">
+                                <span><b>流畅模式</b><small>关闭毛玻璃、动画和部分阴影，低性能电脑更顺。</small></span>
+                                <input type="checkbox" id="settingsPerformanceMode" ${t.performanceMode ? 'checked' : ''}>
+                            </label>
+                            <div class="settings-row">
                                 <span><b>整体不透明度</b><small>0–100%，调低后壁纸会从面板下透出来。</small></span>
                                 <div class="settings-range-row"><input type="range" id="settingsAppOpacity" min="0" max="1" step="0.01" value="${t.appOpacity ?? 0.96}"><span id="settingsAppOpacityValue">${Math.round((t.appOpacity ?? 0.96) * 100)}%</span></div>
                             </div>
@@ -6990,7 +7029,23 @@
                 const visibility = document.getElementById('settingsVisibilityBoost');
                 if (visibility) visibility.addEventListener('change', () => {
                     this.settings.theme.visibilityBoost = visibility.checked;
+                    const strength = document.getElementById('settingsVisibilityStrength');
+                    if (strength) strength.disabled = !visibility.checked;
                     this.applyVisibility();
+                    this.saveSettings();
+                });
+                const visibilityStrength = document.getElementById('settingsVisibilityStrength');
+                if (visibilityStrength) visibilityStrength.addEventListener('input', () => {
+                    this.settings.theme.visibilityStrength = Math.max(0, Math.min(1, Number(visibilityStrength.value) / 100));
+                    const label = document.getElementById('settingsVisibilityStrengthValue');
+                    if (label) label.textContent = `${visibilityStrength.value}%`;
+                    this.applyVisibility();
+                    this.saveSettings();
+                });
+                const performanceMode = document.getElementById('settingsPerformanceMode');
+                if (performanceMode) performanceMode.addEventListener('change', () => {
+                    this.settings.theme.performanceMode = performanceMode.checked;
+                    document.body.classList.toggle('performance-mode', performanceMode.checked);
                     this.saveSettings();
                 });
                 const file = document.getElementById('settingsWallpaperFile');
@@ -7083,7 +7138,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.26',
+                    appVersion: '0.4.27',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -7441,11 +7496,14 @@
             },
 
             getDisplayWords() {
+                const cacheKey = `${this.currentMode}|${this.activeDeckId}|${this.words.length}|${this.dataRevision || 0}|${this.deckWords ? this.deckWords.size : 0}`;
+                if (this._displayCache && this._displayCache.key === cacheKey) return this._displayCache.list;
                 let list = this.currentMode === 'recycle' ? this.words.filter(w => w.deleted === true) : this.words.filter(w =>
                     w.deleted !== true);
                 if (this.currentMode !== 'recycle' && this.activeDeckId !== 'all') {
                     list = list.filter(w => this.deckWords.has(this.deckKey(this.activeDeckId, w.id)));
                 }
+                this._displayCache = { key: cacheKey, list };
                 return list;
             },
 
@@ -7472,11 +7530,15 @@
             getFilteredWords() {
                 let list = this.getDisplayWords();
                 const query = this.searchQuery.trim();
+                const cacheKey = `${this._displayCache ? this._displayCache.key : ''}|${query}`;
+                if (this._filterCache && this._filterCache.key === cacheKey) return this._filterCache.list;
                 if (query) {
                     const ids = this.searchIndex.search(query);
                     if (ids) list = list.filter(w => ids.has(w.id));
                 }
-                return list.sort((a, b) => a.word.localeCompare(b.word));
+                const result = [...list].sort((a, b) => a.word.localeCompare(b.word));
+                this._filterCache = { key: cacheKey, list: result };
+                return result;
             },
 
             updateSearchSummary(count) {

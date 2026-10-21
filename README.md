@@ -34,7 +34,7 @@ https://github.com/1436805877/smart-vocab-bydpsk/releases
 本机已生成免安装便携版：
 
 ```text
-release/SmartVocab-0.4.26-portable.zip
+release/SmartVocab-0.4.27-portable.zip
 ```
 
 解压后双击 `SmartVocab.exe` 即可运行。首次启动会使用独立的桌面数据目录，需要把网页版导出的 JSON 导入一次。
