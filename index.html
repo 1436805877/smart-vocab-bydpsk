@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.24 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.25 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.24 beta</title>
+    <title>智能单词本 v0.4.25 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4918,8 +4918,49 @@
         }
         .game-summary-list {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 8px;
+        }
+        .game-summary-row {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            color: var(--text-color);
+            border-radius: 12px;
+            padding: 9px 12px;
+            cursor: pointer;
+        }
+        .game-summary-row:hover {
+            background: #1e293b;
+            color: #fff;
+        }
+        .game-summary-row:hover .summary-def,
+        .game-summary-row:hover .summary-core,
+        .game-summary-row:hover .summary-phonetic {
+            color: #e2e8f0;
+        }
+        .summary-word {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .summary-phonetic {
+            margin-left: 8px;
+            font-size: 12px;
+            font-weight: 400;
+            color: color-mix(in srgb, var(--text-color) 60%, transparent);
+        }
+        .summary-core {
+            margin-top: 2px;
+            font-size: 13px;
+            color: #4f46e5;
+        }
+        .summary-def {
+            margin-top: 2px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: color-mix(in srgb, var(--text-color) 82%, transparent);
         }
         .game-summary-word {
             border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
@@ -4934,6 +4975,124 @@
             background: #1e293b;
             color: #fff;
         }
+        .creative-target-word {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--text-color);
+            text-align: center;
+        }
+        .creative-target-def {
+            max-width: 720px;
+            margin: 6px auto;
+            text-align: center;
+            color: color-mix(in srgb, var(--text-color) 80%, transparent);
+        }
+        .creative-progress {
+            margin-top: 4px;
+            text-align: center;
+            color: color-mix(in srgb, var(--text-color) 60%, transparent);
+            font-size: 13px;
+        }
+        .creative-main-btn,
+        .creative-reset-btn {
+            border: none;
+            border-radius: 30px;
+            padding: 9px 24px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .creative-main-btn {
+            background: #3b82f6;
+            color: #fff;
+        }
+        .creative-reset-btn {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            color: var(--text-color);
+            border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+            margin-left: 8px;
+        }
+        .creative-inline-feedback {
+            color: #b91c1c;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .creative-story {
+            max-width: 760px;
+            margin: 16px auto;
+            padding: 16px 18px;
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+            color: var(--text-color);
+            line-height: 1.8;
+            font-size: 16px;
+        }
+        .creative-sentence-list {
+            max-width: 760px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .creative-sentence-row {
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+        }
+        .creative-sentence-word {
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .creative-sentence-def {
+            font-size: 13px;
+            color: color-mix(in srgb, var(--text-color) 70%, transparent);
+        }
+        .creative-sentence-text {
+            margin-top: 3px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        /* 可见性加强：复习中心 / 统计 / 今日 同样受设置开关支配 */
+        body.visibility-boost .game-card,
+        body.visibility-boost .flashcard-game .card,
+        body.visibility-boost .core-recall-answer,
+        body.visibility-boost .core-recall-missing,
+        body.visibility-boost .game-status,
+        body.visibility-boost .sense-option,
+        body.visibility-boost .root-option,
+        body.visibility-boost .sense-example,
+        body.visibility-boost .sense-chain span,
+        body.visibility-boost .daily-stat,
+        body.visibility-boost .daily-item,
+        body.visibility-boost .daily-review-answer,
+        body.visibility-boost .stat-card,
+        body.visibility-boost .stats-category,
+        body.visibility-boost .game-summary {
+            box-shadow: inset 0 0 0 9999px var(--visibility-veil) !important;
+        }
+        body.visibility-boost .game-card .game-name,
+        body.visibility-boost .game-card .game-desc,
+        body.visibility-boost .flashcard-game .card .front,
+        body.visibility-boost .flashcard-game .card .back,
+        body.visibility-boost .core-recall-word,
+        body.visibility-boost .core-recall-feeling,
+        body.visibility-boost .game-question,
+        body.visibility-boost .game-progress,
+        body.visibility-boost .game-result .sub,
+        body.visibility-boost .sense-option,
+        body.visibility-boost .root-option,
+        body.visibility-boost .sense-example,
+        body.visibility-boost .daily-title,
+        body.visibility-boost .daily-section-title,
+        body.visibility-boost .daily-item b,
+        body.visibility-boost .daily-review-word,
+        body.visibility-boost .daily-review-def,
+        body.visibility-boost .stats-category h4,
+        body.visibility-boost .stat-card .label,
+        body.visibility-boost .game-summary-row {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+        }
     </style>
 </head>
 <body>
@@ -4942,7 +5101,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.24 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.25 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5086,9 +5245,7 @@
                     <div class="help-mode"><b>🌱 词根拆解</b><span>按前缀/词根/后缀拼出单词。</span></div>
                     <div class="help-mode"><b>🔗 词义链</b><span>从本义到引申义，理解多义词的逻辑。</span></div>
                     <div class="help-mode"><b>⌨️ 拼写挑战</b><span>听/看中文或例句，拼出英文单词。</span></div>
-                    <div class="help-mode"><b>🎯 单词射手</b><span>在限定时间里快速识别正确释义。</span></div>
-                    <div class="help-mode"><b>🍬 消消乐</b><span>把单词和释义配对消除，轻松复习。</span></div>
-                    <div class="help-mode"><b>✍️ 创意造句</b><span>用目标词写句子，练主动输出。</span></div>
+                    <div class="help-mode"><b>✍️ 创意造句</b><span>一次一个单词，最后拼成一段话。</span></div>
                 </div>
                 <p>另外还有「今日复习」和「错题复习」：答错的义项进入错题本，连续答对后自动移出。</p>
 
@@ -5427,7 +5584,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.24', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.25', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5737,27 +5894,11 @@
                         badge: '拼写',
                         render: () => this.renderSpellingChallenge()
                     },
-                    wordShooter: {
-                        id: 'wordShooter',
-                        name: '单词射手',
-                        icon: '🎯',
-                        desc: '每题10秒，快速从四个选项中选出正确的释义',
-                        badge: '瞄准',
-                        render: () => this.renderWordShooter()
-                    },
-                    wordMatch: {
-                        id: 'wordMatch',
-                        name: '消消乐',
-                        icon: '🧩',
-                        desc: '匹配单词和释义，全部消除过关',
-                        badge: '配对',
-                        render: () => this.renderWordMatch()
-                    },
                     creativeWriting: {
                         id: 'creativeWriting',
                         name: '创意造句',
                         icon: '✏️',
-                        desc: '用给出的单词组成一个连贯的句子或小故事',
+                        desc: '一次一个单词，写完最后拼成一段话',
                         badge: '创意',
                         render: () => this.renderCreativeWriting()
                     }
@@ -6904,7 +7045,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.24',
+                    appVersion: '0.4.25',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -7863,6 +8004,14 @@
                 if (start) start.addEventListener('click', () => this.startDailyReview('daily'));
                 const wrongStart = document.getElementById('wrongStartBtn');
                 if (wrongStart) wrongStart.addEventListener('click', () => this.startDailyReview('wrong'));
+                const dailyPage = container.querySelector('.daily-page');
+                if (dailyPage) {
+                    dailyPage.addEventListener('click', (e) => {
+                        if (e.target.closest('button,input,select,textarea,a')) return;
+                        const startBtn = document.getElementById('dailyStartBtn');
+                        if (startBtn && !startBtn.disabled) startBtn.click();
+                    });
+                }
                 container.querySelectorAll('.daily-remove-wrong').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const p = this.progress.get(btn.dataset.key);
@@ -8200,13 +8349,20 @@
                     seen.add(String(id));
                     const w = this.words.find(x => String(x.id) === String(id));
                     if (!w) continue;
-                    rows.push(`<button type="button" class="game-summary-word" data-word-id="${w.id}" data-sense-id="${e && e.senseId || ''}">${this.escapeHtml(w.word)}</button>`);
+                    const sens = (w.senses || []).filter(s => s && s.definition);
+                    const defs = sens.length ? sens.map(s => s.definition).join('；') : '（暂无释义）';
+                    const core = (w.core && w.core.feeling) ? `<div class="summary-core">核心感觉：${this.escapeHtml(w.core.feeling)}</div>` : '';
+                    rows.push(`<button type="button" class="game-summary-row" data-word-id="${w.id}" data-sense-id="${e && e.senseId || ''}">
+                        <div class="summary-word">${this.escapeHtml(w.word)}${w.phonetic ? `<span class="summary-phonetic">${this.escapeHtml(w.phonetic)}</span>` : ''}</div>
+                        ${core}
+                        <div class="summary-def">释义：${this.escapeHtml(defs)}</div>
+                    </button>`);
                 }
                 if (!rows.length) return '';
-                return `<div class="game-summary"><h4>📋 本局总结 · 点单词可跳转</h4><div class="game-summary-list">${rows.join('')}</div></div>`;
+                return `<div class="game-summary"><h4>📋 本局总结 · 点任意一行可跳转</h4><div class="game-summary-list">${rows.join('')}</div></div>`;
             },
             bindGameSummary(container) {
-                container.querySelectorAll('.game-summary-word').forEach(btn => {
+                container.querySelectorAll('.game-summary-row').forEach(btn => {
                     btn.addEventListener('click', () => {
                         this.stopGameTimers();
                         this.currentGame = null;
@@ -8257,6 +8413,7 @@
                                 ` : `
                                     <div class="back">
                                         <div class="note" style="margin-bottom:6px;">义项 ${senseIndex} / ${word.senses.length}</div>
+                                        ${word.core && word.core.feeling ? `<div class="note" style="margin-bottom:6px;color:#4f46e5;">🧭 核心感觉：${this.escapeHtml(word.core.feeling)}</div>` : ''}
                                         <div class="def">📖 ${this.escapeHtml(sense.definition || '（无）')}</div>
                                         ${sense.example ? `<div class="ex">📝 ${this.escapeHtml(sense.example)}</div>` : ''}
                                         ${sense.notes && sense.notes[0] ? `<div class="note">✏️ ${this.escapeHtml(sense.notes[0])}</div>` : ''}
@@ -9671,64 +9828,25 @@
             renderCreativeWriting() {
                 const container = document.getElementById('rightPanel');
                 const activeWords = this.words.filter(w => !w.deleted);
-                if (activeWords.length < 8) {
+                if (activeWords.length < 3) {
                     container.innerHTML =
-                        `<div class="game-container"><div class="empty-review">需要至少8个单词，当前仅 ${activeWords.length} 个，请添加更多单词。</div></div>`;
+                        `<div class="game-container"><div class="empty-review">需要至少3个单词，当前仅 ${activeWords.length} 个。</div></div>`;
                     return;
                 }
                 const state = this.gameStates.creativeWriting || {};
                 if (!state.initialized) {
-                    // 随机选择8-10个单词
-                    const count = Math.min(10, Math.max(8, activeWords.length));
                     const shuffled = [...activeWords].sort(() => Math.random() - 0.5);
-                    const selected = shuffled.slice(0, count);
-                    state.words = selected.map(w => ({
-                        id: w.id,
-                        word: w.word,
-                        definition: (this.pickSense(w) || {}).definition || ''
-                    }));
-                    state.used = new Set();
-                    state.submitted = false;
+                    state.words = shuffled.slice(0, Math.min(5, shuffled.length)).map(w => {
+                        const sense = this.pickSense(w) || {};
+                        return { id: w.id, word: w.word, definition: sense.definition || '', senseId: sense.id || '' };
+                    });
+                    state.index = 0;
+                    state.entries = [];
                     state.feedback = '';
-                    state.input = '';
+                    state.phase = 'writing';
                     state.initialized = true;
                     this.gameStates.creativeWriting = state;
                 }
-
-                const handleSubmit = () => {
-                    if (state.submitted) return;
-                    const input = document.getElementById('creativeInput');
-                    const text = input.value.trim();
-                    if (!text) {
-                        state.feedback = '⚠️ 请写一个句子或小故事';
-                        this.renderCreativeWriting();
-                        return;
-                    }
-                    state.input = text;
-                    state.submitted = true;
-                    // 检查使用了哪些单词
-                    const words = state.words.map(w => w.word.toLowerCase());
-                    const tokens = text.toLowerCase().split(/[\s,;.!?()"'\/\\\[\]{}|<>@#$%^&*~`+=\-–—，。；：！？、]+/).filter(t => t.length >
-                        0);
-                    const usedWords = new Set();
-                    words.forEach(w => {
-                        if (tokens.includes(w)) usedWords.add(w);
-                    });
-                    state.used = usedWords;
-                    state.words.forEach(sw => {
-                        if (usedWords.has(sw.word.toLowerCase())) this.recordReview(sw.id, true);
-                    });
-                    const total = words.length;
-                    const usedCount = usedWords.size;
-                    const missing = words.filter(w => !usedWords.has(w));
-                    if (usedCount === total) {
-                        state.feedback = `🎉 完美！你使用了所有 ${total} 个单词！句子/故事非常棒！`;
-                    } else {
-                        state.feedback =
-                        `✅ 你使用了 ${usedCount}/${total} 个单词。未使用：${missing.join('、')}。继续加油！`;
-                    }
-                    this.renderCreativeWriting();
-                };
 
                 const resetGame = () => {
                     this.flushReview();
@@ -9736,84 +9854,74 @@
                     this.renderCreativeWriting();
                 };
 
-                const goBack = () => {
-                    this.leaveGame();
-                };
+                const back = `<div class="game-header"><div class="game-title">✏️ 创意造句 <small>一次一个单词，最后拼成一段话</small></div><button class="back-btn" id="creativeBackBtn">← 返回</button></div>`;
 
-                const words = state.words;
-                const usedSet = state.used;
-                const submitted = state.submitted;
-                const feedback = state.feedback || '';
-
-                let chipHtml = words.map(w => {
-                    const isUsed = usedSet.has(w.word.toLowerCase());
-                    return `<span class="word-chip ${isUsed ? 'used' : ''}" title="${this.escapeHtml(w.definition)}">${this.escapeHtml(w.word)}</span>`;
-                }).join('');
-
-                let feedbackHtml = '';
-                if (submitted) {
-                    feedbackHtml = `
-                        <div class="creative-feedback">
-                            <div>${this.escapeHtml(feedback)}</div>
-                            <div style="margin-top:8px;font-size:14px;color:#64748b;">
-                                💡 提示：将鼠标悬停在单词上可查看释义。
+                if (state.phase === 'summary') {
+                    const story = state.entries.map(e => e.sentence).join(' ');
+                    const rows = state.entries.map((e, i) => `
+                        <div class="creative-sentence-row">
+                            <div class="creative-sentence-word">${this.escapeHtml(e.word)}</div>
+                            <div class="creative-sentence-def">${this.escapeHtml(e.definition || '')}</div>
+                            <div class="creative-sentence-text">${this.escapeHtml(e.sentence)}</div>
+                        </div>`).join('');
+                    container.innerHTML = `
+                        <div class="game-container">
+                            ${back}
+                            <div class="game-result" style="padding-bottom:0;">
+                                <div class="big-score">${state.entries.length} / ${state.words.length}</div>
+                                <div class="sub">本组已全部完成</div>
                             </div>
-                        </div>
-                    `;
+                            <div class="creative-story">${this.escapeHtml(story)}</div>
+                            <div class="creative-sentence-list">${rows}</div>
+                            <div style="text-align:center;margin:18px 0;">
+                                <button id="creativeAgainBtn" class="creative-main-btn">🔄 再来一组</button>
+                            </div>
+                        </div>`;
+                    document.getElementById('creativeBackBtn').addEventListener('click', () => this.leaveGame());
+                    document.getElementById('creativeAgainBtn').addEventListener('click', resetGame);
+                    return;
                 }
 
-                const html = `
+                const current = state.words[state.index];
+                if (!current) { state.phase = 'summary'; this.renderCreativeWriting(); return; }
+                const progress = `${state.index + 1} / ${state.words.length}`;
+                container.innerHTML = `
                     <div class="game-container">
-                        <div class="game-header">
-                            <div class="game-title">✏️ 创意造句 <small>用给出的单词造句或编故事</small></div>
-                            <button class="back-btn" id="creativeBackBtn">← 返回</button>
-                        </div>
-                        <div style="text-align:center;margin-bottom:12px;">
-                            <span style="font-size:14px;color:#64748b;">💡 使用下方所有单词（共 ${words.length} 个）</span>
-                        </div>
-                        <div class="word-chips">
-                            ${chipHtml}
+                        ${back}
+                        <div style="text-align:center;margin:10px 0 4px;">
+                            <div class="creative-target-word">${this.escapeHtml(current.word)}</div>
+                            <div class="creative-target-def">${this.escapeHtml(current.definition || '')}</div>
+                            <div class="creative-progress">第 ${progress} 个</div>
                         </div>
                         <div style="max-width:700px;margin:0 auto;">
-                            <textarea id="creativeInput" class="creative-textarea" placeholder="在这里写下你的句子或小故事..." ${submitted ? 'disabled' : ''}>${submitted ? this.escapeHtml(state.input) : ''}</textarea>
-                            ${!submitted ? `
-                                <div style="text-align:right;margin-top:10px;">
-                                    <button id="creativeSubmitBtn" style="padding:8px 32px;border:none;border-radius:30px;background:#3b82f6;color:white;font-weight:600;font-size:16px;cursor:pointer;">提交</button>
-                                    <button id="creativeResetBtn" style="padding:8px 24px;border:none;border-radius:30px;background:#e2e8f0;color:#475569;font-weight:500;font-size:14px;cursor:pointer;margin-left:8px;">换一批</button>
-                                </div>
-                            ` : `
-                                <div style="text-align:right;margin-top:10px;">
-                                    <button id="creativeResetBtn2" style="padding:8px 24px;border:none;border-radius:30px;background:#e2e8f0;color:#475569;font-weight:500;font-size:14px;cursor:pointer;">换一批</button>
-                                </div>
-                            `}
-                            ${feedbackHtml}
+                            <textarea id="creativeInput" class="creative-textarea" placeholder="用「${this.escapeHtml(current.word)}」写一个句子...">${this.escapeHtml(state.feedback || '') ? '' : ''}</textarea>
+                            ${state.feedback ? `<div class="creative-inline-feedback">${this.escapeHtml(state.feedback)}</div>` : ''}
+                            <div style="text-align:right;margin-top:10px;">
+                                <button id="creativeSubmitBtn" class="creative-main-btn">提交这一句</button>
+                                <button id="creativeResetBtn" class="creative-reset-btn">换一组</button>
+                            </div>
                         </div>
-                    </div>
-                `;
-                container.innerHTML = html;
-
-                const backBtn = document.getElementById('creativeBackBtn');
-                if (backBtn) backBtn.addEventListener('click', goBack);
-
-                if (!submitted) {
-                    const submitBtn = document.getElementById('creativeSubmitBtn');
-                    if (submitBtn) submitBtn.addEventListener('click', handleSubmit);
-                    const resetBtn = document.getElementById('creativeResetBtn');
-                    if (resetBtn) resetBtn.addEventListener('click', resetGame);
-                    const input = document.getElementById('creativeInput');
-                    if (input) {
-                        input.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
-                                e.preventDefault();
-                                handleSubmit();
-                            }
-                        });
-                        setTimeout(() => input.focus(), 100);
-                    }
-                } else {
-                    const resetBtn = document.getElementById('creativeResetBtn2');
-                    if (resetBtn) resetBtn.addEventListener('click', resetGame);
-                }
+                    </div>`;
+                document.getElementById('creativeBackBtn').addEventListener('click', () => this.leaveGame());
+                const input = document.getElementById('creativeInput');
+                const submit = () => {
+                    const text = input.value.trim();
+                    if (!text) { state.feedback = '请先写一个句子'; this.renderCreativeWriting(); return; }
+                    const used = new RegExp(`(^|[^a-zA-Z])${this.escapeRegex(current.word)}([^a-zA-Z]|$)`, 'i').test(text);
+                    if (!used) { state.feedback = `请用上「${current.word}」`; this.renderCreativeWriting(); return; }
+                    state.entries.push({ word: current.word, definition: current.definition, sentence: text });
+                    this.recordReview(current.id, true, current.senseId);
+                    state.feedback = '';
+                    state.index++;
+                    if (state.index >= state.words.length) state.phase = 'summary';
+                    this.renderCreativeWriting();
+                };
+                document.getElementById('creativeSubmitBtn').addEventListener('click', submit);
+                document.getElementById('creativeResetBtn').addEventListener('click', resetGame);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) { e.preventDefault(); submit(); }
+                });
+                setTimeout(() => input.focus(), 100);
             },
 
             // ---- 词典详情 (原有) ----
