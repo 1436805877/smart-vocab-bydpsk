@@ -4,6 +4,13 @@ contextBridge.exposeInMainWorld('desktop', {
   isElectron: true,
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke('app:version'),
+  setFullscreen: (flag) => ipcRenderer.invoke('app:setFullscreen', flag),
+  isFullscreen: () => ipcRenderer.invoke('app:isFullscreen'),
+  onFullscreenChanged: (callback) => {
+    const listener = (_event, value) => callback(!!value);
+    ipcRenderer.on('app:fullscreenChanged', listener);
+    return () => ipcRenderer.removeListener('app:fullscreenChanged', listener);
+  },
   getDesktopWallpaper: () => ipcRenderer.invoke('theme:desktopWallpaper'),
   openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
   saveTextFile: (payload) => ipcRenderer.invoke('file:saveText', payload),

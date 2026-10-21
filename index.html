@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.19 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.20 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.19 beta</title>
+    <title>智能单词本 v0.4.20 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4556,7 +4556,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.19 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.20 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5043,7 +5043,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.19', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.20', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6120,6 +6120,65 @@
                 await this.renderWallpaperGallery();
             },
 
+            blobToDataUrl(blob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ''));
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            },
+
+            async exportWallpaperLibrary() {
+                try {
+                    const items = await this.wallpaperList();
+                    const payload = {
+                        app: '智能单词本',
+                        type: 'wallpaper-library',
+                        version: 1,
+                        exportedAt: new Date().toISOString(),
+                        items: await Promise.all(items.map(async item => ({
+                            id: item.id,
+                            name: item.name,
+                            kind: item.kind,
+                            createdAt: item.createdAt,
+                            dataUrl: await this.blobToDataUrl(item.blob)
+                        })))
+                    };
+                    this.downloadFile(JSON.stringify(payload), `壁纸库_${new Date().toISOString().slice(0, 10)}.json`, 'application/json;charset=utf-8');
+                    this.showToast('壁纸库已导出', 'success');
+                } catch (e) {
+                    this.showToast('导出壁纸库失败：' + (e.message || e), 'error');
+                }
+            },
+
+            async importWallpaperLibrary(file) {
+                if (!file) return;
+                try {
+                    const payload = JSON.parse(await file.text());
+                    const items = Array.isArray(payload) ? payload : (payload.items || []);
+                    if (!items.length) throw new Error('文件里没有壁纸');
+                    let added = 0;
+                    for (const item of items) {
+                        if (!item.dataUrl) continue;
+                        const blob = await (await fetch(item.dataUrl)).blob();
+                        const id = 'wp_import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+                        await this.wallpaperPut({
+                            id,
+                            name: item.name || '导入壁纸',
+                            kind: item.kind === 'video' ? 'video' : 'image',
+                            blob,
+                            createdAt: Date.now()
+                        });
+                        added++;
+                    }
+                    await this.renderWallpaperGallery();
+                    this.showToast(`已导入 ${added} 张壁纸`, 'success');
+                } catch (e) {
+                    this.showToast('导入壁纸库失败：' + (e.message || e), 'error');
+                }
+            },
+
             async useWallpaper(id) {
                 const items = await this.wallpaperList();
                 const item = items.find(x => x.id === id);
@@ -6312,6 +6371,8 @@
                                 <span><b>壁纸库</b><small>图片、GIF、MP4/WebM 动态壁纸都可以；保存在 App 内，随时切换。</small></span>
                                 <div class="settings-file-row">
                                     <input type="file" id="settingsWallpaperFile" accept="image/*,video/*" multiple>
+                                    <button type="button" class="settings-mini-btn" id="settingsWallpaperExport">导出壁纸库</button>
+                                    <label class="settings-mini-btn" style="cursor:pointer;">导入壁纸库<input type="file" id="settingsWallpaperImport" accept="application/json,.json" hidden></label>
                                     <button type="button" class="settings-mini-btn" id="settingsWallpaperClear">清除当前壁纸</button>
                                 </div>
                             </div>
@@ -6380,6 +6441,14 @@
                 });
                 const clear = document.getElementById('settingsWallpaperClear');
                 if (clear) clear.addEventListener('click', () => this.clearWallpaper());
+                const exportWallpapers = document.getElementById('settingsWallpaperExport');
+                if (exportWallpapers) exportWallpapers.addEventListener('click', () => this.exportWallpaperLibrary());
+                const importWallpapers = document.getElementById('settingsWallpaperImport');
+                if (importWallpapers) importWallpapers.addEventListener('change', async () => {
+                    const f = importWallpapers.files && importWallpapers.files[0];
+                    importWallpapers.value = '';
+                    if (f) await this.importWallpaperLibrary(f);
+                });
                 const gallery = document.getElementById('settingsWallpaperGallery');
                 if (gallery) gallery.addEventListener('click', async (e) => {
                     const btn = e.target.closest('[data-wallpaper-action]');
@@ -6451,7 +6520,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.19',
+                    appVersion: '0.4.20',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -10827,6 +10896,13 @@
             },
 
             async toggleFullscreen() {
+                if (window.desktop && window.desktop.setFullscreen) {
+                    const active = await window.desktop.setFullscreen(!this._isFullscreen);
+                    this._isFullscreen = !!active;
+                    document.body.classList.toggle('is-fullscreen', this._isFullscreen);
+                    this.syncFullscreenButton();
+                    return;
+                }
                 try {
                     if (!document.fullscreenElement) {
                         await document.documentElement.requestFullscreen();
@@ -10840,14 +10916,19 @@
                 this.syncFullscreenButton();
             },
             async exitFullscreen() {
-                try {
-                    if (document.fullscreenElement) await document.exitFullscreen();
-                } catch (e) { /* ignore */ }
+                if (window.desktop && window.desktop.setFullscreen) {
+                    await window.desktop.setFullscreen(false);
+                    this._isFullscreen = false;
+                } else {
+                    try {
+                        if (document.fullscreenElement) await document.exitFullscreen();
+                    } catch (e) { /* ignore */ }
+                }
                 document.body.classList.remove('is-fullscreen');
                 this.syncFullscreenButton();
             },
             syncFullscreenButton() {
-                const active = !!(document.fullscreenElement || document.body.classList.contains('is-fullscreen'));
+                const active = !!(this._isFullscreen || document.fullscreenElement || document.body.classList.contains('is-fullscreen'));
                 const btn = document.getElementById('fullscreenBtn');
                 if (btn) btn.textContent = active ? '⛶' : '⛶';
                 if (btn) btn.title = active ? '退出全屏（Esc）' : '全屏（F11）';
@@ -10858,6 +10939,18 @@
                 const helpOverlay = document.getElementById('helpOverlay');
                 document.getElementById('fullscreenBtn').addEventListener('click', () => this.toggleFullscreen());
                 document.addEventListener('fullscreenchange', () => this.syncFullscreenButton());
+                if (window.desktop && window.desktop.onFullscreenChanged) {
+                    window.desktop.onFullscreenChanged(active => {
+                        this._isFullscreen = !!active;
+                        document.body.classList.toggle('is-fullscreen', this._isFullscreen);
+                        this.syncFullscreenButton();
+                    });
+                    window.desktop.isFullscreen().then(active => {
+                        this._isFullscreen = !!active;
+                        document.body.classList.toggle('is-fullscreen', this._isFullscreen);
+                        this.syncFullscreenButton();
+                    }).catch(() => {});
+                }
                 document.getElementById('helpBtn').addEventListener('click', () => helpOverlay.classList.add('show'));
                 document.getElementById('helpCloseBtn').addEventListener('click', () => helpOverlay.classList.remove('show'));
                 helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.classList.remove('show'); });

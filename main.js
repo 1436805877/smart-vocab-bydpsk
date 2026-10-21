@@ -113,6 +113,18 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+  mainWindow.on('enter-full-screen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:fullscreenChanged', true);
+  });
+  mainWindow.on('leave-full-screen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:fullscreenChanged', false);
+  });
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'Escape' && mainWindow && mainWindow.isFullScreen()) {
+      event.preventDefault();
+      mainWindow.setFullScreen(false);
+    }
+  });
 }
 
 function buildMenu() {
@@ -288,6 +300,13 @@ async function pruneBackups(keep = 7) {
 }
 
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('app:setFullscreen', (_event, flag) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  const next = !!flag;
+  if (mainWindow.isFullScreen() !== next) mainWindow.setFullScreen(next);
+  return mainWindow.isFullScreen();
+});
+ipcMain.handle('app:isFullscreen', () => !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen()));
 ipcMain.handle('theme:desktopWallpaper', async () => {
   if (process.platform !== 'win32') return { ok: false, error: '当前只支持 Windows 桌面壁纸' };
   try {
