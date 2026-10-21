@@ -38,8 +38,8 @@ npm run dist
 
 输出：
 
-- `release/SmartVocab-0.4.18-x64.exe`（NSIS 安装包）
-- `release/SmartVocab-0.4.18-portable.exe`（便携版）
+- `release/SmartVocab-0.4.19-x64.exe`（NSIS 安装包）
+- `release/SmartVocab-0.4.19-portable.exe`（便携版）
 
 如果 `electron-builder` 在本机被权限/网络卡住，可以先生成免安装便携版：
 

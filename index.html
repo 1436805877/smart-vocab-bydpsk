@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.18 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.19 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.18 beta</title>
+    <title>智能单词本 v0.4.19 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4518,19 +4518,32 @@
         html:fullscreen body,
         body.is-fullscreen {
             padding: 0;
+            margin: 0;
             overflow: hidden;
+            background: transparent;
         }
         html:fullscreen .app,
         body.is-fullscreen .app {
+            width: 100vw;
             height: 100vh;
             max-width: none;
+            margin: 0;
+            border: none;
             border-radius: 0;
-            padding: 10px 12px;
+            padding: 0;
+            box-shadow: none;
+        }
+        html:fullscreen .top-bar,
+        body.is-fullscreen .top-bar {
+            margin: 0;
+            border-radius: 0;
+            padding: 10px 14px 12px;
         }
         html:fullscreen .main,
         body.is-fullscreen .main {
             height: auto;
             min-height: 0;
+            padding: 0 14px 14px;
         }
         .fullscreen-btn {
             font-size: 16px;
@@ -4543,7 +4556,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.18 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.19 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5030,7 +5043,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.18', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.19', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6438,7 +6451,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.18',
+                    appVersion: '0.4.19',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -10818,11 +10831,19 @@
                     if (!document.fullscreenElement) {
                         await document.documentElement.requestFullscreen();
                     } else {
-                        await document.exitFullscreen();
+                        await this.exitFullscreen();
+                        return;
                     }
                 } catch (e) {
-                    document.body.classList.toggle('is-fullscreen');
+                    document.body.classList.add('is-fullscreen');
                 }
+                this.syncFullscreenButton();
+            },
+            async exitFullscreen() {
+                try {
+                    if (document.fullscreenElement) await document.exitFullscreen();
+                } catch (e) { /* ignore */ }
+                document.body.classList.remove('is-fullscreen');
                 this.syncFullscreenButton();
             },
             syncFullscreenButton() {
@@ -10984,6 +11005,11 @@
                 });
 
                 document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && (document.fullscreenElement || document.body.classList.contains('is-fullscreen'))) {
+                        e.preventDefault();
+                        this.exitFullscreen();
+                        return;
+                    }
                     if (e.key === 'F11') {
                         e.preventDefault();
                         this.toggleFullscreen();
