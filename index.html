@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.22 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.23 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.22 beta</title>
+    <title>智能单词本 v0.4.23 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4626,6 +4626,144 @@
         .fullscreen-btn {
             font-size: 16px;
         }
+        /* ===== 弹窗对比度：白色界面固定使用深色字 ===== */
+        .modal h2,
+        .modal h1,
+        .modal p,
+        .modal label,
+        .modal .text-sm,
+        .modal .export-card strong,
+        .modal .import-mode-card strong {
+            color: #0f172a !important;
+        }
+        .modal .text-muted,
+        .modal .export-card span,
+        .modal .import-mode-card span {
+            color: #475569 !important;
+        }
+        .modal .export-card,
+        .modal .import-mode-card {
+            background: #ffffff !important;
+            border-color: #dbe3ee !important;
+        }
+        .modal .export-card:hover,
+        .modal .import-mode-card:hover {
+            background: #eff6ff !important;
+        }
+        .modal .import-mode-card.active {
+            background: #eef2ff !important;
+            border-color: #818cf8 !important;
+        }
+        body.has-wallpaper .help-modal,
+        body.has-wallpaper .help-modal .help-body {
+            background: #ffffff !important;
+        }
+        .help-modal .help-body {
+            background: #fbfcff !important;
+        }
+        .help-modal .help-head h2,
+        .help-modal .help-body h3,
+        .help-modal .help-body p,
+        .help-modal .help-body li,
+        .help-modal .help-body b,
+        .help-modal .help-body strong {
+            color: #0f172a !important;
+        }
+        .help-modal .help-body code {
+            color: #0f172a !important;
+            background: #eef2f7 !important;
+        }
+        .help-modal .help-head {
+            background: #eef2ff !important;
+        }
+
+        /* ===== 词库/分组下拉：控制框跟随面板 ===== */
+        .panel-header select {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent) !important;
+            border-radius: 10px;
+            padding: 4px 8px;
+        }
+        .panel-header select option {
+            background: #ffffff;
+            color: #0f172a;
+        }
+        .deck-filter-input {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+        }
+
+        /* ===== 复习游戏：内部白色面板统一跟随主题 ===== */
+        .game-card,
+        .flashcard-game .card,
+        .core-recall-answer,
+        .core-recall-missing,
+        .core-recall-legacy,
+        .core-recall-reveal-wrap button,
+        .game-header .back-btn,
+        .game-status,
+        .game-input input,
+        .creative-textarea,
+        .creative-feedback,
+        .wordchain-game .chain-input-area input,
+        .wordchain-game .chain-input-area .chain-restart,
+        .game-skip-audio {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important;
+        }
+        .game-card .game-name,
+        .game-card .game-desc,
+        .game-card .game-badge,
+        .game-header .game-title,
+        .game-header .game-title small,
+        .flashcard-game .card .front,
+        .flashcard-game .card .front .phonetic-small,
+        .flashcard-game .card .back,
+        .flashcard-game .card .back .def,
+        .flashcard-game .card .back .ex,
+        .flashcard-game .card .back .note,
+        .core-recall-feeling,
+        .core-recall-answer.legacy .core-recall-feeling,
+        .core-recall-legacy-text,
+        .core-recall-reveal-wrap button,
+        .core-recall-image,
+        .core-recall-hint,
+        .core-recall-missing,
+        .core-recall-missing-title,
+        .core-recall-missing-desc,
+        .game-question,
+        .game-progress,
+        .game-result .sub,
+        .match-grid .match-card,
+        .creative-feedback .stat,
+        .wordchain-game .chain-def,
+        .wordchain-game .chain-word,
+        .wordchain-game .chain-gameover {
+            color: var(--text-color) !important;
+        }
+        .game-options button:not(.correct-answer):not(.wrong-answer) {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important;
+        }
+        .match-grid .match-card:not(.selected):not(.matched):not(.wrong-match) {
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent) !important;
+            color: var(--text-color) !important;
+            border-color: color-mix(in srgb, var(--text-color) 18%, transparent) !important;
+        }
+        .game-options button.correct-answer {
+            color: #052e16 !important;
+        }
+        .game-options button.wrong-answer {
+            color: #7f1d1d !important;
+        }
+        .game-input input::placeholder,
+        .creative-textarea::placeholder,
+        .chain-input-area input::placeholder {
+            color: color-mix(in srgb, var(--text-color) 55%, transparent) !important;
+        }
     </style>
 </head>
 <body>
@@ -4634,7 +4772,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.22 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.23 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5121,7 +5259,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.22', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.23', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6598,7 +6736,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.22',
+                    appVersion: '0.4.23',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -8336,6 +8474,11 @@
                         }
                         return a;
                     };
+                    const makeOptions = (correct, pool) => {
+                        const answer = String(correct);
+                        const distractors = shuffle(uniq(pool.filter(x => x && String(x) !== answer))).slice(0, 3);
+                        return shuffle([correct, ...distractors]);
+                    };
                     const used = new Set();
                     for (let attempt = 0; attempt < 80 && state.questions.length < 10; attempt++) {
                         const w = candidates[Math.floor(Math.random() * candidates.length)];
@@ -8352,10 +8495,10 @@
                             const correct = family.members.find(m => m && m.word &&
                                 String(m.word).toLowerCase() !== String(w.word).toLowerCase());
                             if (correct) {
-                                const options = shuffle(uniq([correct.word,
+                                const options = makeOptions(correct.word, [
                                     ...family.members.map(m => m && m.word),
                                     ...allFamilyWords.filter(x => String(x).toLowerCase() !== String(w.word).toLowerCase())
-                                ])).slice(0, 4);
+                                ]);
                                 if (options.length >= 2) {
                                     q = {
                                         type: 'family',
@@ -8373,7 +8516,7 @@
 
                         // 字面义题
                         if (!q && w.morphology.literal && allLiterals.length >= 2) {
-                            const options = shuffle(uniq([w.morphology.literal, ...allLiterals])).slice(0, 4);
+                            const options = makeOptions(w.morphology.literal, allLiterals);
                             if (options.length >= 2) {
                                 q = {
                                     type: 'literal',
@@ -8390,7 +8533,7 @@
 
                         // 词根含义题
                         if (!q && rootPart && allMeanings.length >= 2) {
-                            const options = shuffle(uniq([rootPart.meaning, ...allMeanings])).slice(0, 4);
+                            const options = makeOptions(rootPart.meaning, allMeanings);
                             if (options.length >= 2) {
                                 q = {
                                     type: 'meaning',
@@ -11076,6 +11219,43 @@
                 document.getElementById('helpBtn').addEventListener('click', () => helpOverlay.classList.add('show'));
                 document.getElementById('helpCloseBtn').addEventListener('click', () => helpOverlay.classList.remove('show'));
                 helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.classList.remove('show'); });
+                document.addEventListener('dragover', (e) => {
+                    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault();
+                });
+                document.addEventListener('drop', async (e) => {
+                    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+                    e.preventDefault();
+                    const files = Array.from(e.dataTransfer.files);
+                    const words = [];
+                    const media = [];
+                    for (const f of files) {
+                        const name = String(f.name || '').toLowerCase();
+                        if (name.endsWith('.json')) {
+                            try {
+                                const payload = JSON.parse(await f.text());
+                                if (payload && payload.type === 'wallpaper-library') {
+                                    await this.importWallpaperLibrary(f);
+                                } else {
+                                    words.push(f);
+                                }
+                            } catch (err) {
+                                words.push(f);
+                            }
+                        } else if (f.type.startsWith('image/') || f.type.startsWith('video/') ||
+                            /\.(gif|png|jpe?g|webp|bmp|mp4|webm|mov|mkv)$/i.test(name)) {
+                            media.push(f);
+                        }
+                    }
+                    for (const f of media) {
+                        try { await this.addWallpaperFile(f); }
+                        catch (err) { this.showToast('导入壁纸失败：' + (err.message || err), 'error'); }
+                    }
+                    if (words.length) {
+                        await this.importFiles(words, { ...(this.importOptions || {}) });
+                    } else if (!media.length) {
+                        this.showToast('拖入的文件格式不支持', 'info');
+                    }
+                });
                 document.addEventListener('visibilitychange', () => {
                     if (document.visibilityState === 'hidden') this.autoBackupIfNeeded();
                 });
@@ -11220,7 +11400,14 @@
                 });
 
                 document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape' && (document.fullscreenElement || document.body.classList.contains('is-fullscreen'))) {
+                    if (e.key === 'Escape') {
+                        const openModal = document.querySelector('.modal-overlay.show, .conflict-modal-overlay.show');
+                        if (openModal) {
+                            e.preventDefault();
+                            openModal.classList.remove('show');
+                            return;
+                        }
+                    }                    if (e.key === 'Escape' && (document.fullscreenElement || document.body.classList.contains('is-fullscreen'))) {
                         e.preventDefault();
                         this.exitFullscreen();
                         return;
