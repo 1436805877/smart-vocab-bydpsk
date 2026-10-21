@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.20 beta（SQLite 数据层测试版）
+    智能单词本 v0.4.21 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.20 beta</title>
+    <title>智能单词本 v0.4.21 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -889,6 +889,68 @@
         }
         .sense-switcher .add-sense-btn:hover {
             background: #dbeafe;
+        }
+        .sense-select {
+            position: relative;
+            flex: 1;
+            min-width: 180px;
+        }
+        .sense-select-trigger {
+            width: 100%;
+            text-align: left;
+            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            color: var(--text-color);
+            border-radius: 20px;
+            padding: 7px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .sense-select-trigger:hover {
+            border-color: color-mix(in srgb, var(--text-color) 35%, transparent);
+        }
+        .sense-select-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 80;
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+            border-radius: 12px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, .22);
+            padding: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            backdrop-filter: blur(4px);
+        }
+        .sense-select-menu.show {
+            display: block;
+        }
+        .sense-select-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            line-height: 1.5;
+            cursor: pointer;
+            white-space: normal;
+        }
+        .sense-select-item:hover {
+            background: color-mix(in srgb, var(--text-color) 12%, transparent);
+        }
+        .sense-select-item.active {
+            background: color-mix(in srgb, var(--text-color) 18%, transparent);
+            font-weight: 600;
         }
         .detail-section {
             margin-bottom: 20px;
@@ -4556,7 +4618,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.20 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.4.21 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5043,7 +5105,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.20', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.4.21', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6520,7 +6582,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.20',
+                    appVersion: '0.4.21',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -9387,6 +9449,43 @@
             },
 
             // ---- 词典详情 (原有) ----
+            senseSwitcherHtml(word) {
+                const currentIdx = (word.senses || []).findIndex(s => s.id === this.currentSenseId);
+                const label = currentIdx >= 0
+                    ? `释义 ${currentIdx + 1}：${this.escapeHtml((word.senses[currentIdx].definition || '').slice(0, 36))}`
+                    : '📋 总览';
+                const items = [
+                    `<button type="button" class="sense-select-item ${currentIdx < 0 ? 'active' : ''}" data-value="__overview__">📋 总览</button>`,
+                    ...(word.senses || []).map((s, idx) => `<button type="button" class="sense-select-item ${idx === currentIdx ? 'active' : ''}" data-value="${s.id}">释义 ${idx + 1}：${this.escapeHtml((s.definition || '（空释义）').slice(0, 60))}</button>`)
+                ].join('');
+                const options = [
+                    '<option value="__overview__">📋 总览</option>',
+                    ...(word.senses || []).map((s, idx) => `<option value="${s.id}">释义 ${idx + 1}</option>`)
+                ].join('');
+                return `<div class="sense-select"><button type="button" class="sense-select-trigger" id="senseSelectTrigger"><span>${label}</span><span>▾</span></button><div class="sense-select-menu" id="senseSelectMenu">${items}</div><select id="senseSwitcher" style="display:none;">${options}</select></div>`;
+            },
+            bindSenseSelect(container) {
+                if (container._senseSelectBound) return;
+                container._senseSelectBound = true;
+                container.addEventListener('click', (e) => {
+                    const trigger = e.target.closest('#senseSelectTrigger');
+                    const menu = document.getElementById('senseSelectMenu');
+                    if (trigger) {
+                        e.preventDefault();
+                        if (menu) menu.classList.toggle('show');
+                        return;
+                    }
+                    const item = e.target.closest('.sense-select-item');
+                    if (item) {
+                        const select = document.getElementById('senseSwitcher');
+                        if (menu) menu.classList.remove('show');
+                        if (select) {
+                            select.value = item.dataset.value;
+                            select.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+            },
             detailNavBar(word, backToOverview = false) {
                 const backLabel = backToOverview ? '← 返回单词界面' : '← 返回列表';
                 const danger = word.deleted
@@ -9505,9 +9604,10 @@
                     ).join('');
                 const overviewOption = '<option value="__overview__" selected>📋 总览</option>';
                 let html =
-                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}<div class="detail-section definitions-section"><h4>📖 释义</h4><div class="overview-sense-list">${senseListHtml}</div></div>${rootHtml}${cultureHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>📋 单词总览</h4><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailOverviewSaveBar" hidden><button id="saveOverviewBtn">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div></div><div class="sense-switcher"><label>切换</label>${this.senseSwitcherHtml(word)}<button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}<div class="detail-section definitions-section"><h4>📖 释义</h4><div class="overview-sense-list">${senseListHtml}</div></div>${rootHtml}${cultureHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>📋 单词总览</h4><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailOverviewSaveBar" hidden><button id="saveOverviewBtn">💾 保存修改</button></div>`;
                 container.innerHTML = html;
                 this.bindDetailNav();
+                this.bindSenseSelect(container);
 
                 document.getElementById('addWordNoteBtn').addEventListener('click', () => {
                     if (!word.wordNotes) word.wordNotes = [];
@@ -9613,9 +9713,10 @@
                     return `<div class="note-item ${isPrimary ? 'primary' : ''}" data-note-index="${idx}"><div class="note-text" contenteditable="true">${highlightText(n || '')}</div><div class="note-actions"><button class="delete-note" data-index="${idx}" title="删除注释">✕</button></div></div>`;
                 }).join('');
                 let html =
-                    `${this.detailNavBar(word, true)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div></div><div class="sense-switcher"><label>切换</label><select id="senseSwitcher">${overviewOption}${senseOptions}</select><button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailSaveBar" hidden style="display:none;"><button id="saveDetailBtn">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word, true)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div></div><div class="sense-switcher"><label>切换</label>${this.senseSwitcherHtml(word)}<button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailSaveBar" hidden style="display:none;"><button id="saveDetailBtn">💾 保存修改</button></div>`;
                 container.innerHTML = html;
                 this.bindDetailNav(true);
+                this.bindSenseSelect(container);
 
                 document.getElementById('senseSwitcher').addEventListener('change', function() {
                     const val = this.value;
@@ -10939,6 +11040,11 @@
                 const helpOverlay = document.getElementById('helpOverlay');
                 document.getElementById('fullscreenBtn').addEventListener('click', () => this.toggleFullscreen());
                 document.addEventListener('fullscreenchange', () => this.syncFullscreenButton());
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.sense-select')) {
+                        document.querySelectorAll('.sense-select-menu.show').forEach(m => m.classList.remove('show'));
+                    }
+                });
                 if (window.desktop && window.desktop.onFullscreenChanged) {
                     window.desktop.onFullscreenChanged(active => {
                         this._isFullscreen = !!active;
