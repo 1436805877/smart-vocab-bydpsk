@@ -12,6 +12,42 @@ let mainWindow = null;
 
 // productName 改为 SmartVocab 以避免安装路径含中文；用户数据目录保持不变。
 app.setPath('userData', path.join(app.getPath('appData'), 'smart-vocab'));
+// 有些 Windows/Electron 组合在非英文工作目录下会找不到临时资源；
+// 主数据与缓存全部使用 ASCII 的 %APPDATA%\smart-vocab，工作目录也切过去。
+try {
+  const userData = app.getPath('userData');
+  fsSync.mkdirSync(userData, { recursive: true });
+  app.setPath('sessionData', path.join(userData, 'session'));
+  process.chdir(userData);
+} catch (e) { /* ignore */ }
+
+const storageDir = path.join(app.getPath('userData'), 'storage');
+const settingsFile = path.join(storageDir, 'settings.json');
+const wallpaperDir = path.join(storageDir, 'wallpapers');
+const wallpaperManifest = path.join(wallpaperDir, 'manifest.json');
+
+function ensureStorageDirs() {
+  fsSync.mkdirSync(storageDir, { recursive: true });
+  fsSync.mkdirSync(wallpaperDir, { recursive: true });
+}
+
+function readWallpaperManifest() {
+  try {
+    ensureStorageDirs();
+    if (!fsSync.existsSync(wallpaperManifest)) return [];
+    const data = JSON.parse(fsSync.readFileSync(wallpaperManifest, 'utf8'));
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeWallpaperManifest(items) {
+  ensureStorageDirs();
+  const tmp = wallpaperManifest + '.tmp';
+  fsSync.writeFileSync(tmp, JSON.stringify(items, null, 2), 'utf8');
+  fsSync.renameSync(tmp, wallpaperManifest);
+}
 
 // 启动日志：便携版目录和临时目录各写一份，方便排查“双击没反应”
 const logFiles = [
@@ -307,6 +343,82 @@ ipcMain.handle('app:setFullscreen', (_event, flag) => {
   return mainWindow.isFullScreen();
 });
 ipcMain.handle('app:isFullscreen', () => !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen()));
+
+ipcMain.handle('storage:readSettings', async () => {
+  try {
+    ensureStorageDirs();
+    if (!fsSync.existsSync(settingsFile)) return null;
+    return JSON.parse(fsSync.readFileSync(settingsFile, 'utf8'));
+  } catch (e) {
+    return null;
+  }
+});
+
+ipcMain.handle('storage:writeSettings', async (_event, data) => {
+  try {
+    ensureStorageDirs();
+    const tmp = settingsFile + '.tmp';
+    fsSync.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+    fsSync.renameSync(tmp, settingsFile);
+    return true;
+  } catch (e) {
+    return false;
+  }
+});
+
+ipcMain.handle('wallpaper:list', async () => {
+  const items = readWallpaperManifest();
+  return items.filter(item => item && item.id && fsSync.existsSync(path.join(wallpaperDir, item.fileName)));
+});
+
+ipcMain.handle('wallpaper:get', async (_event, id) => {
+  const item = readWallpaperManifest().find(x => x && x.id === id);
+  if (!item) return null;
+  const file = path.join(wallpaperDir, item.fileName);
+  if (!fsSync.existsSync(file)) return null;
+  const buffer = fsSync.readFileSync(file);
+  return { buffer, mime: item.mime || 'application/octet-stream' };
+});
+
+ipcMain.handle('wallpaper:save', async (_event, payload) => {
+  try {
+    ensureStorageDirs();
+    const id = String(payload.id || '');
+    if (!id) return null;
+    const kind = payload.kind === 'video' ? 'video' : 'image';
+    const ext = kind === 'video' ? '.mp4' : '.png';
+    const fileName = id.replace(/[^a-zA-Z0-9_-]/g, '') + ext;
+    const buffer = Buffer.from(payload.buffer || []);
+    fsSync.writeFileSync(path.join(wallpaperDir, fileName), buffer);
+    const items = readWallpaperManifest().filter(x => x && x.id !== id);
+    const meta = {
+      id, name: String(payload.name || '壁纸'), kind,
+      createdAt: Number(payload.createdAt) || Date.now(),
+      mime: String(payload.mime || (kind === 'video' ? 'video/mp4' : 'image/png')),
+      fileName
+    };
+    items.push(meta);
+    writeWallpaperManifest(items);
+    return meta;
+  } catch (e) {
+    return null;
+  }
+});
+
+ipcMain.handle('wallpaper:delete', async (_event, id) => {
+  try {
+    const items = readWallpaperManifest();
+    const item = items.find(x => x && x.id === id);
+    if (item && item.fileName) {
+      const file = path.join(wallpaperDir, item.fileName);
+      if (fsSync.existsSync(file)) fsSync.unlinkSync(file);
+    }
+    writeWallpaperManifest(items.filter(x => x && x.id !== id));
+    return true;
+  } catch (e) {
+    return false;
+  }
+});
 ipcMain.handle('theme:desktopWallpaper', async () => {
   if (process.platform !== 'win32') return { ok: false, error: '当前只支持 Windows 桌面壁纸' };
   try {

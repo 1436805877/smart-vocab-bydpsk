@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.32 — 2026-10-22
+
+### 存储
+
+- 设置从浏览器 localStorage 迁移到专用文件：
+  - `%APPDATA%\smart-vocab\storage\settings.json`
+  - 仍保留 localStorage 仅作兼容回退。
+- 壁纸库从浏览器 IndexedDB 迁移到专用目录：
+  - `%APPDATA%\smart-vocab\storage\wallpapers\`
+  - 首次启动自动迁移已有 IndexedDB 壁纸。
+- 单词/词库/进度继续使用 SQLite：
+  - `%APPDATA%\smart-vocab\wordbook.db`
+- 壁纸导入/导出、切换逻辑不变。
+
+### 非英文路径
+
+- 启动时把进程工作目录、sessionData 切到 ASCII 的 `%APPDATA%\smart-vocab`；
+- 数据、缓存、壁纸都不再依赖软件所在目录；
+- 降低解压到中文/非英文路径时的启动问题。
+
 ## 0.4.31 — 2026-10-22
 
 ### 性能

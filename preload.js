@@ -4,6 +4,12 @@ contextBridge.exposeInMainWorld('desktop', {
   isElectron: true,
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke('app:version'),
+  readSettings: () => ipcRenderer.invoke('storage:readSettings'),
+  writeSettings: (data) => ipcRenderer.invoke('storage:writeSettings', data),
+  listWallpapers: () => ipcRenderer.invoke('wallpaper:list'),
+  getWallpaper: (id) => ipcRenderer.invoke('wallpaper:get', id),
+  saveWallpaper: (payload) => ipcRenderer.invoke('wallpaper:save', payload),
+  deleteWallpaper: (id) => ipcRenderer.invoke('wallpaper:delete', id),
   setFullscreen: (flag) => ipcRenderer.invoke('app:setFullscreen', flag),
   isFullscreen: () => ipcRenderer.invoke('app:isFullscreen'),
   onFullscreenChanged: (callback) => {
