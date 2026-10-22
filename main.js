@@ -126,6 +126,8 @@ function createWindow() {
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     log('render-process-gone', details);
   });
+  mainWindow.webContents.on('unresponsive', () => log('renderer unresponsive'));
+  mainWindow.webContents.on('responsive', () => log('renderer responsive'));
   mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
     log('preload-error', { preloadPath, error: String(error && error.stack || error) });
   });
@@ -237,12 +239,30 @@ let mirrorDb = null;
 function getMirrorDb() {
   if (mirrorDb) return mirrorDb;
   const { DatabaseSync } = require('node:sqlite');
-  mirrorDb = new DatabaseSync(path.join(app.getPath('userData'), 'wordbook-mirror.db'));
-  mirrorDb.exec(`CREATE TABLE IF NOT EXISTS mirror (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    saved_at INTEGER NOT NULL,
-    payload TEXT NOT NULL
-  )`);
+  const file = path.join(app.getPath('userData'), 'wordbook-mirror.db');
+  const open = () => {
+    try { fsSync.chmodSync(file, 0o666); } catch { /* ignore */ }
+    const db = new DatabaseSync(file);
+    db.exec(`CREATE TABLE IF NOT EXISTS mirror (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      saved_at INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    )`);
+    return db;
+  };
+  try {
+    mirrorDb = open();
+  } catch (error) {
+    log('mirror open failed, recreating', error);
+    try {
+      const bad = file + '.bad-' + Date.now();
+      if (fsSync.existsSync(file)) fsSync.renameSync(file, bad);
+      mirrorDb = open();
+    } catch (again) {
+      log('mirror recreate failed', again);
+      throw again;
+    }
+  }
   return mirrorDb;
 }
 
@@ -251,7 +271,9 @@ const DB_STORES = ['words', 'extras', 'progress', 'decks', 'deckWords', 'backups
 function getAppDb() {
   if (appDb) return appDb;
   const { DatabaseSync } = require('node:sqlite');
-  appDb = new DatabaseSync(path.join(app.getPath('userData'), 'wordbook.db'));
+  const file = path.join(app.getPath('userData'), 'wordbook.db');
+  try { fsSync.chmodSync(file, 0o666); } catch { /* ignore */ }
+  appDb = new DatabaseSync(file);
   appDb.exec(`
     CREATE TABLE IF NOT EXISTS objects (
       store TEXT NOT NULL,
@@ -613,6 +635,7 @@ ipcMain.handle('file:openText', async (_event, payload) => {
 
 app.whenReady().then(() => {
   log('app ready');
+  app.on('child-process-gone', (_event, details) => log('child-process-gone', details));
   app.setAppUserModelId(APP_ID);
   log('userData:', app.getPath('userData'));
   buildMenu();
