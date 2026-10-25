@@ -21,6 +21,16 @@ contextBridge.exposeInMainWorld('desktop', {
     return () => ipcRenderer.removeListener('app:fullscreenChanged', listener);
   },
   getDesktopWallpaper: () => ipcRenderer.invoke('theme:desktopWallpaper'),
+  getUpdateState: () => ipcRenderer.invoke('update:getState'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  openUpdateRelease: () => ipcRenderer.invoke('update:openRelease'),
+  onUpdateState: (callback) => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('update:state', listener);
+    return () => ipcRenderer.removeListener('update:state', listener);
+  },
   openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
   saveTextFile: (payload) => ipcRenderer.invoke('file:saveText', payload),
   openTextFile: (payload) => ipcRenderer.invoke('file:openText', payload),

@@ -6,6 +6,7 @@ const os = require('node:os');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const execFileAsync = promisify(execFile);
+const updater = require('./lib/updater');
 
 const APP_ID = 'com.mokiklok.smartvocab';
 let mainWindow = null;
@@ -684,6 +685,7 @@ app.whenReady().then(() => {
   log('userData:', app.getPath('userData'));
   buildMenu();
   log('menu built');
+  updater.setup({ getWindow: () => mainWindow, log });
   createWindow();
   log('window created');
 

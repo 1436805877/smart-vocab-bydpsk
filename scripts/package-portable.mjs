@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,11 +29,35 @@ for (const file of ['index.html', 'main.js', 'preload.js', 'data-cet6.json.gz', 
 await fsp.cp(path.join(root, 'assets'), path.join(appDir, 'assets'), { recursive: true });
 await fsp.cp(path.join(root, 'lib'), path.join(appDir, 'lib'), { recursive: true });
 
+// 复制生产依赖（electron-updater 及其传递依赖），排除 electron/构建工具等 devDependencies。
+try {
+  const isWin = process.platform === 'win32';
+  const command = isWin ? (process.env.ComSpec || 'cmd.exe') : 'npm';
+  const args = isWin
+    ? ['/d', '/s', '/c', 'npm ls --omit=dev --all --parseable']
+    : ['ls', '--omit=dev', '--all', '--parseable'];
+  const listed = execFileSync(command, args, {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim().split(/\r?\n/).filter(Boolean);
+  const modules = [...new Set(listed)]
+    .map(p => path.resolve(p))
+    .filter(p => p.startsWith(path.join(root, 'node_modules') + path.sep) && fs.existsSync(p));
+  for (const mod of modules) {
+    const rel = path.relative(root, mod);
+    await fsp.cp(mod, path.join(appDir, rel), { recursive: true });
+  }
+  console.log('Production dependencies copied:', modules.length);
+} catch (err) {
+  console.warn('无法枚举生产依赖，更新功能可能不可用:', err.message);
+}
+
 // 重命名主程序
 await fsp.rename(path.join(outDir, 'electron.exe'), path.join(outDir, 'SmartVocab.exe'));
 
 await fsp.writeFile(path.join(outDir, 'README.txt'),
-  '智能单词本 0.1 beta（便携版）\r\n\r\n' +
+  '智能单词本 0.5.2 beta（便携版）\r\n\r\n' +
   '1. 必须先把整个文件夹解压出来，不能直接在压缩包里双击 exe。\r\n' +
   '2. 双击 SmartVocab.exe 启动。\r\n' +
   '3. 如果没反应，运行 启动诊断.bat，把 startup.log 和窗口里的退出码发给我。\r\n' +

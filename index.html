@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.1 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.2 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.1 beta</title>
+    <title>智能单词本 v0.5.2 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4165,6 +4165,74 @@
             letter-spacing: .04em;
             padding: 12px 0 6px;
         }
+        .update-card {
+            margin-top: 16px;
+        }
+        .update-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 8px 0 4px;
+            font-size: 13px;
+        }
+        .update-version {
+            font-weight: 700;
+            color: var(--text-color, #0f172a);
+        }
+        .update-status {
+            color: var(--text-color, #475569);
+            opacity: .78;
+            line-height: 1.5;
+        }
+        .update-status.available { color: #4f46e5; opacity: 1; }
+        .update-status.ok { color: #15803d; opacity: 1; }
+        .update-status.error { color: #dc2626; opacity: 1; }
+        .update-status.downloading { color: #4f46e5; opacity: 1; }
+        .update-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 8px 0 12px;
+        }
+        .settings-mini-btn:disabled {
+            opacity: .55;
+            cursor: default;
+        }
+        .settings-mini-btn.primary,
+        body.has-wallpaper .settings-mini-btn.primary {
+            background: #4f46e5 !important;
+            color: #fff !important;
+            border-color: #4f46e5 !important;
+        }
+        .update-progress {
+            height: 7px;
+            border-radius: 99px;
+            overflow: hidden;
+            background: color-mix(in srgb, var(--text-color, #0f172a) 12%, transparent);
+            margin: 4px 0 6px;
+        }
+        .update-progress span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #6366f1, #22c55e);
+            transition: width .25s ease;
+        }
+        .update-notes {
+            max-height: 112px;
+            overflow: auto;
+            margin: 0 0 12px;
+            padding: 9px 11px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--panel-bg, #fff) 72%, transparent);
+            border: 1px solid color-mix(in srgb, var(--text-color, #0f172a) 12%, transparent);
+            color: var(--text-color, #334155);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        body.performance-mode .update-progress span { transition: none; }
         .wallpaper-gallery {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -5248,7 +5316,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.1 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.2 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5731,7 +5799,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.1', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.2', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5875,6 +5943,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
+            appVersion: '0.5.2',
             storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
@@ -5892,6 +5961,7 @@
             settings: {
                 autoNext: true,
                 autoNextDelay: 1500,
+                autoCheckUpdates: true,
                 theme: {
                     bgColor: '#f3f6fb',
                     panelColor: '#ffffff',
@@ -5936,6 +6006,9 @@
             toastTimer: null,
             builtinLibrary: null,
             builtinEnabled: false,
+            updateState: null,
+            updateUnsubscribe: null,
+            updateCheckTimer: null,
 
             currentGame: null,
             flashcardIndex: 0,
@@ -6004,6 +6077,7 @@
                     this.currentSenseId = null; }
                 this.render();
                 this.hideBootScreen();
+                this.initUpdater();
                 this.migrateWallpapersToDesktop().then(() => this.applyWallpaper()).catch(() => {});
                 this.autoBackupIfNeeded().catch(e => console.error(e));
                 this.saveMirror();
@@ -6570,6 +6644,7 @@
             applySettingsData(s) {
                 if (!s || typeof s !== 'object') return;
                 this.settings.autoNext = s.autoNext !== false;
+                this.settings.autoCheckUpdates = s.autoCheckUpdates !== false;
                 const d = Number(s.autoNextDelay);
                 if (Number.isFinite(d)) this.settings.autoNextDelay = Math.max(300, Math.min(10000, d));
                 if (s.theme && typeof s.theme === 'object') {
@@ -7242,6 +7317,152 @@
                 }
             },
 
+            initUpdater() {
+                const api = window.desktop;
+                if (!api || typeof api.getUpdateState !== 'function') {
+                    this.updateState = {
+                        status: 'web',
+                        currentVersion: this.appVersion,
+                        packaged: false,
+                        message: '网页版不检查更新；桌面安装版支持应用内更新。'
+                    };
+                    return;
+                }
+                if (typeof api.onUpdateState === 'function' && !this.updateUnsubscribe) {
+                    this.updateUnsubscribe = api.onUpdateState(state => {
+                        this.updateState = state || null;
+                        this.refreshUpdateSection();
+                    });
+                }
+                api.getUpdateState().then(state => {
+                    this.updateState = state || null;
+                    this.refreshUpdateSection();
+                    if (this.settings.autoCheckUpdates && this.updateState && this.updateState.packaged) {
+                        clearTimeout(this.updateCheckTimer);
+                        this.updateCheckTimer = setTimeout(() => {
+                            this.handleUpdateAction('check', true);
+                        }, 2600);
+                    }
+                }).catch(err => {
+                    console.warn('读取更新状态失败:', err);
+                    this.updateState = {
+                        status: 'error',
+                        currentVersion: this.appVersion,
+                        packaged: false,
+                        canCheck: false,
+                        message: '读取更新状态失败，请重启应用后再试。'
+                    };
+                    this.refreshUpdateSection();
+                });
+            },
+
+            refreshUpdateSection() {
+                const host = document.getElementById('settingsUpdateSection');
+                if (!host) return;
+                host.innerHTML = this.updateSectionHtml();
+            },
+
+            updateSectionHtml() {
+                const u = this.updateState;
+                const version = (u && u.currentVersion) || this.appVersion || '0.5.2';
+                const status = (u && u.status) || 'idle';
+                const pct = Math.max(0, Math.min(100, Math.round(Number(u && u.progress) || 0)));
+                const notes = u && u.releaseNotes
+                    ? `<div class="update-notes">${this.escapeHtml(String(u.releaseNotes)).replace(/\n/g, '<br>')}</div>`
+                    : '';
+                let tone = 'idle';
+                let text = '还没有检查过更新。安装版会从 GitHub Release 检查新版本。';
+                let action = `<button type="button" class="settings-mini-btn primary" data-update-action="check">检查更新</button>`;
+
+                if (!u) {
+                    text = '正在读取更新状态…';
+                    action = `<button type="button" class="settings-mini-btn" disabled>读取中…</button>`;
+                } else if (status === 'dev') {
+                    tone = 'dev';
+                    text = '开发模式不检查更新；打包安装后启用。';
+                    action = `<button type="button" class="settings-mini-btn" disabled>打包后可用</button>`;
+                } else if (status === 'web') {
+                    tone = 'dev';
+                    text = u.message || '网页版不检查更新；桌面安装版支持应用内更新。';
+                    action = '';
+                } else if (status === 'checking') {
+                    tone = 'checking';
+                    text = '正在连接 GitHub 检查新版本…';
+                    action = `<button type="button" class="settings-mini-btn" disabled>检查中…</button>`;
+                } else if (status === 'available') {
+                    tone = 'available';
+                    text = u.portable
+                        ? `发现新版本 v${u.latestVersion || ''}。便携版请打开发布页下载新版。`
+                        : `发现新版本 v${u.latestVersion || ''}，可以下载并安装。`;
+                    action = u.portable
+                        ? `<button type="button" class="settings-mini-btn primary" data-update-action="release">打开发布页</button>`
+                        : `<button type="button" class="settings-mini-btn primary" data-update-action="download">下载更新</button>`;
+                } else if (status === 'downloading') {
+                    tone = 'downloading';
+                    text = u.message || `正在下载 v${u.latestVersion || ''}…`;
+                    action = `<button type="button" class="settings-mini-btn" disabled>下载中 ${pct}%</button>`;
+                } else if (status === 'downloaded') {
+                    tone = 'downloaded';
+                    text = u.message || '更新已下载，重启后安装。';
+                    action = `<button type="button" class="settings-mini-btn primary" data-update-action="install">重启并安装</button>`;
+                } else if (status === 'not-available') {
+                    tone = 'ok';
+                    text = u.message || `当前已是最新版本（v${version}）。`;
+                    action = `<button type="button" class="settings-mini-btn" data-update-action="check">重新检查</button>`;
+                } else if (status === 'error') {
+                    tone = 'error';
+                    text = u.message || '检查更新失败。';
+                    action = `<button type="button" class="settings-mini-btn" data-update-action="check">重试</button>`;
+                }
+
+                const progress = status === 'downloading'
+                    ? `<div class="update-progress"><span style="width:${pct}%"></span></div>`
+                    : '';
+                return `
+                    <div class="update-line">
+                        <span class="update-version">当前 v${this.escapeHtml(version)}${u && u.portable ? ' · 便携版' : ''}${u && u.status === 'web' ? ' · 网页版' : (u && u.packaged ? '' : ' · 开发')}</span>
+                        <span class="update-status ${tone}">${this.escapeHtml(text)}</span>
+                    </div>
+                    ${progress}
+                    <div class="update-actions">
+                        ${action}
+                        ${action.includes('data-update-action="release"') ? '' : '<button type="button" class="settings-mini-btn" data-update-action="release">打开发布页</button>'}
+                    </div>
+                    ${notes}
+                `;
+            },
+
+            async handleUpdateAction(action, silent = false) {
+                const api = window.desktop;
+                if (!api) return;
+                try {
+                    let state = null;
+                    if (action === 'check' && typeof api.checkForUpdates === 'function') {
+                        state = await api.checkForUpdates();
+                    } else if (action === 'download' && typeof api.downloadUpdate === 'function') {
+                        state = await api.downloadUpdate();
+                    } else if (action === 'install' && typeof api.installUpdate === 'function') {
+                        state = await api.installUpdate();
+                    } else if (action === 'release' && typeof api.openUpdateRelease === 'function') {
+                        await api.openUpdateRelease();
+                        return;
+                    }
+                    if (state) {
+                        this.updateState = state;
+                        this.refreshUpdateSection();
+                    }
+                    if (!silent && action === 'check' && state) {
+                        if (state.status === 'not-available') this.showToast(`已是最新版本 v${state.currentVersion || ''}`, 'success');
+                        else if (state.status === 'available') this.showToast(`发现新版本 v${state.latestVersion}`, 'success');
+                        else if (state.status === 'error') this.showToast(state.message || '检查更新失败', 'error');
+                        else if (state.status === 'dev') this.showToast('开发模式不检查更新', 'info');
+                    }
+                } catch (err) {
+                    const message = (err && err.message) || String(err);
+                    if (!silent) this.showToast('更新操作失败：' + message, 'error');
+                }
+            },
+
             renderSettings(container) {
                 const t = this.settings.theme || {};
                 container.innerHTML = `
@@ -7303,6 +7524,15 @@
                             ${window.desktop && window.desktop.getDesktopWallpaper ? `<div class="settings-row"><span><b>桌面壁纸</b><small>读取当前 Windows 桌面壁纸并加入壁纸库。</small></span><button type="button" class="settings-mini-btn" id="settingsDesktopWallpaper">读取桌面壁纸</button></div>` : ''}
                         </div>
 
+                        <div class="settings-card update-card">
+                            <div class="settings-section-label">🔄 版本更新</div>
+                            <div id="settingsUpdateSection">${this.updateSectionHtml()}</div>
+                            <label class="settings-row">
+                                <span><b>启动时自动检查更新</b><small>安装版会在后台连接 GitHub 检查；便携版只提示新版本，不会覆盖正在运行的程序。</small></span>
+                                <input type="checkbox" id="settingsAutoCheckUpdates" ${this.settings.autoCheckUpdates ? 'checked' : ''}>
+                            </label>
+                        </div>
+
                         <div class="settings-card">
                             <div class="settings-section-label">📚 学习</div>
                             <label class="settings-row">
@@ -7328,6 +7558,19 @@
                         <div class="backup-hint" style="margin-top:10px;">当前桌面存储：${this.storageMode === 'sqlite' ? 'SQLite 主存储' : 'IndexedDB（回退）'}</div>
                     </div>
                 `;
+                const updateHost = document.getElementById('settingsUpdateSection');
+                if (updateHost) updateHost.addEventListener('click', (event) => {
+                    const btn = event.target.closest('[data-update-action]');
+                    if (!btn || btn.disabled) return;
+                    this.handleUpdateAction(btn.dataset.updateAction);
+                });
+                const autoUpdate = document.getElementById('settingsAutoCheckUpdates');
+                if (autoUpdate) autoUpdate.addEventListener('change', () => {
+                    this.settings.autoCheckUpdates = autoUpdate.checked;
+                    this.saveSettings();
+                    clearTimeout(this.updateCheckTimer);
+                    if (autoUpdate.checked) this.handleUpdateAction('check');
+                });
                 const autoNext = document.getElementById('autoNextToggle');
                 if (autoNext) autoNext.addEventListener('change', () => {
                     this.settings.autoNext = autoNext.checked;
@@ -7460,7 +7703,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.1',
+                    appVersion: '0.5.2',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,

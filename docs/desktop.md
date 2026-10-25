@@ -1,4 +1,4 @@
-﻿# Windows 桌面版（Electron）
+# Windows 桌面版（Electron）
 
 0.1 开始提供 Windows 桌面壳，复用 `index.html` 的全部界面，并增加：
 
@@ -93,5 +93,6 @@ npm run portable
 ## 后续
 
 - 0.3：SQLite + 自动备份 + 旧数据导入。
-- 0.4：自动更新（`electron-updater`）+ 签名。
-- 0.5：Capacitor 手机端。
+- 0.4：SQLite/文件存储、壁纸库、路径兼容。
+- 0.5：内置 4036 词库、壁纸专属外观、应用内更新（`electron-updater`）。
+- 0.6：Capacitor 手机端。
