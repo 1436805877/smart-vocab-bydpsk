@@ -35,13 +35,16 @@ Release 页面（安装包构建完成后）：
 
 https://github.com/1436805877/smart-vocab-bydpsk/releases
 
-本机已生成免安装便携版：
+0.5.0 安装包与免安装便携版从 Release 下载：
 
 ```text
-release/SmartVocab-0.5.0-portable.zip
+https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.0
 ```
 
-解压后双击 `SmartVocab.exe` 即可运行。首次启动会使用独立的桌面数据目录，并自动写入内置六级词库，不需要再手动导入 JSON。
+- `SmartVocab-0.5.0-x64.exe`：安装版
+- `SmartVocab-0.5.0-portable.exe`：免安装，双击即可运行
+
+首次启动会使用独立的桌面数据目录，并自动写入内置六级词库，不需要再手动导入 JSON。
 
 ## 0.1 的范围
 
