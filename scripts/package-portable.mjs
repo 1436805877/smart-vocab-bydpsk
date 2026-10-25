@@ -22,10 +22,11 @@ await fsp.cp(electronDist, outDir, { recursive: true });
 await fsp.rm(path.join(outDir, 'resources', 'default_app.asar'), { force: true });
 await fsp.mkdir(appDir, { recursive: true });
 
-for (const file of ['index.html', 'main.js', 'preload.js', 'package.json']) {
+for (const file of ['index.html', 'main.js', 'preload.js', 'data-cet6.json.gz', 'package.json']) {
   await fsp.copyFile(path.join(root, file), path.join(appDir, file));
 }
 await fsp.cp(path.join(root, 'assets'), path.join(appDir, 'assets'), { recursive: true });
+await fsp.cp(path.join(root, 'lib'), path.join(appDir, 'lib'), { recursive: true });
 
 // 重命名主程序
 await fsp.rename(path.join(outDir, 'electron.exe'), path.join(outDir, 'SmartVocab.exe'));

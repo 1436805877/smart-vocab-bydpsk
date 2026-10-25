@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('desktop', {
   isElectron: true,
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke('app:version'),
+  ensureBuiltinWordbook: () => ipcRenderer.invoke('app:ensureBuiltinWordbook'),
+  restoreBuiltinWordbook: () => ipcRenderer.invoke('app:restoreBuiltinWordbook'),
   readSettings: () => ipcRenderer.invoke('storage:readSettings'),
   writeSettings: (data) => ipcRenderer.invoke('storage:writeSettings', data),
   listWallpapers: () => ipcRenderer.invoke('wallpaper:list'),

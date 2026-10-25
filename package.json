@@ -1,8 +1,8 @@
 {
   "name": "smart-vocab",
-  "version": "0.4.34",
+  "version": "0.5.0",
   "private": true,
-  "description": "智能单词本 0.1 beta — 核心感觉 + 词根演变 + 近义辨析",
+  "description": "智能单词本 0.5 beta — 内置六级 4036 词 + 核心感觉 + 词根演变 + 近义辨析",
   "main": "main.js",
   "author": "Mokiklok",
   "license": "MIT",
@@ -30,6 +30,8 @@
       "index.html",
       "main.js",
       "preload.js",
+      "lib/**/*",
+      "data-cet6.json.gz",
       "assets/**/*",
       "package.json"
     ],

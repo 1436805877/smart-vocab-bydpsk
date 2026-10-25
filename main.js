@@ -11,7 +11,11 @@ const APP_ID = 'com.mokiklok.smartvocab';
 let mainWindow = null;
 
 // productName 改为 SmartVocab 以避免安装路径含中文；用户数据目录保持不变。
-app.setPath('userData', path.join(app.getPath('appData'), 'smart-vocab'));
+// SMARTVOCAB_DATA_DIR 仅用于便携测试/多份数据隔离，正常启动仍用 %APPDATA%\smart-vocab。
+const dataRoot = process.env.SMARTVOCAB_DATA_DIR
+  ? path.resolve(process.env.SMARTVOCAB_DATA_DIR)
+  : path.join(app.getPath('appData'), 'smart-vocab');
+app.setPath('userData', dataRoot);
 // 有些 Windows/Electron 组合在非英文工作目录下会找不到临时资源；
 // 主数据与缓存全部使用 ASCII 的 %APPDATA%\smart-vocab，工作目录也切过去。
 try {
@@ -330,6 +334,22 @@ function dbImportAll(db, payload) {
   }
 }
 
+const { createBuiltinLibrary } = require('./lib/builtin-library');
+const builtinLibrary = createBuiltinLibrary({
+  dataFile: path.join(__dirname, 'data-cet6.json.gz'),
+  markerFile: path.join(storageDir, 'builtin-library.json'),
+  ensureStorageDirs,
+  getAppDb,
+  dbCounts,
+  dbReadAll,
+  dbImportAll,
+  log,
+});
+
+function ensureBuiltinWordbook(force = false) {
+  return builtinLibrary.ensure(force);
+}
+
 function safeBackupName(name) {
   const base = path.basename(String(name || ''));
   return /^[A-Za-z0-9._-]+\.json$/.test(base) ? base : null;
@@ -358,6 +378,8 @@ async function pruneBackups(keep = 7) {
 }
 
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('app:ensureBuiltinWordbook', () => ensureBuiltinWordbook(false));
+ipcMain.handle('app:restoreBuiltinWordbook', () => ensureBuiltinWordbook(true));
 ipcMain.handle('app:setFullscreen', (_event, flag) => {
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   const next = !!flag;

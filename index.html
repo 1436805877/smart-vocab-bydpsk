@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.4.34 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.0 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.4.34 beta</title>
+    <title>智能单词本 v0.5.0 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -689,6 +689,21 @@
             color: #94a3b8;
             padding: 40px 0;
             font-size: 15px;
+        }
+        .restore-builtin-btn {
+            margin-top: 14px;
+            width: auto;
+            max-width: 100%;
+            padding: 10px 18px;
+            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--panel-bg) 82%, transparent);
+            color: var(--text-color);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .restore-builtin-btn:hover {
+            background: color-mix(in srgb, var(--panel-bg) 68%, transparent);
         }
         .right-panel {
             background: #fafcff;
@@ -5147,15 +5162,63 @@
         body.performance-mode #appWallpaperVideo {
             display: none !important;
         }
+        #bootScreen {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, #eef4ff, #f8fbff 55%, #e8f0fb);
+            color: #1e293b;
+            transition: opacity .25s ease;
+        }
+        #bootScreen.boot-done {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .boot-card {
+            text-align: center;
+            padding: 28px 34px;
+        }
+        .boot-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .boot-text {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 14px;
+        }
+        .boot-spinner {
+            width: 28px;
+            height: 28px;
+            margin: 18px auto 0;
+            border: 3px solid #cbd5e1;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: bootSpin .8s linear infinite;
+        }
+        @keyframes bootSpin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <div id="bootScreen">
+        <div class="boot-card">
+            <div class="boot-title">📖 智能单词本</div>
+            <div class="boot-spinner"></div>
+            <div class="boot-text" id="bootText">正在准备内置六级词库…</div>
+        </div>
+    </div>
     <div class="app-wallpaper" id="appWallpaper"></div>
     <video class="app-wallpaper" id="appWallpaperVideo" muted loop autoplay playsinline></video>
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.4.34 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.0 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5638,7 +5701,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.4.34', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.0', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5841,6 +5904,8 @@
             importConflictData: null,
             lastDeletedId: null,
             toastTimer: null,
+            builtinLibrary: null,
+            builtinEnabled: false,
 
             currentGame: null,
             flashcardIndex: 0,
@@ -5870,6 +5935,19 @@
                     await this.db.init();
                     this.storageMode = 'indexeddb';
                 }
+                if (this.storageMode === 'sqlite' && window.desktop &&
+                    typeof window.desktop.ensureBuiltinWordbook === 'function') {
+                    this.builtinEnabled = true;
+                    try {
+                        this.builtinLibrary = await window.desktop.ensureBuiltinWordbook();
+                        if (this.builtinLibrary && this.builtinLibrary.seeded) {
+                            console.info(`已内置六级词库：${this.builtinLibrary.wordCount} 词`);
+                        }
+                    } catch (e) {
+                        console.error('内置词库初始化失败:', e);
+                        this.builtinLibrary = { ok: false, error: e.message || String(e) };
+                    }
+                }
                 try {
                     await this.loadData();
                     await this.loadDecks();
@@ -5895,10 +5973,18 @@
                 if (display.length > 0) { this.currentWordId = display[0].id;
                     this.currentSenseId = null; }
                 this.render();
+                this.hideBootScreen();
                 this.migrateWallpapersToDesktop().then(() => this.applyWallpaper()).catch(() => {});
                 this.autoBackupIfNeeded().catch(e => console.error(e));
                 this.saveMirror();
                 setInterval(() => this.autoBackupIfNeeded(), 6 * 3600 * 1000);
+            },
+
+            hideBootScreen() {
+                const el = document.getElementById('bootScreen');
+                if (!el) return;
+                el.classList.add('boot-done');
+                setTimeout(() => el.remove(), 300);
             },
 
             registerGames() {
@@ -6132,7 +6218,7 @@
                         'myWordsData_v8_2'); }
                     localStorage.removeItem('myCategoriesData_v8_2');
                 }
-                if (words.length === 0) {
+                if (words.length === 0 && !this.builtinEnabled) {
                     words = [{
                         id: 1,
                         word: 'abide',
@@ -6235,6 +6321,39 @@
                 }
                 this.words = words.map(w => this.migrateWord(w));
                 await this.saveData(true);
+            },
+
+            async restoreBuiltinLibrary() {
+                if (!window.desktop || typeof window.desktop.restoreBuiltinWordbook !== 'function') {
+                    this.showToast('仅桌面版支持恢复内置词库', 'info');
+                    return;
+                }
+                if (!confirm('将写入内置的六级 4036 词标准词库，并替换当前空白词库。继续吗？')) return;
+                this.showToast('正在恢复内置词库…', 'info');
+                try {
+                    const result = await window.desktop.restoreBuiltinWordbook();
+                    if (!result || !result.ok) throw new Error((result && result.error) || '恢复失败');
+                    // 恢复前不要用旧 decks 覆盖内置词库
+                    this.decksLoaded = false;
+                    this.decks = [];
+                    this.deckWords = new Set();
+                    this.activeDeckId = 'all';
+                    await this.loadData();
+                    await this.loadDecks();
+                    this.seedIdSequence();
+                    this.buildIndex();
+                    this.renderAlphaNav();
+                    const display = this.getDisplayWords();
+                    if (display.length > 0) {
+                        this.currentWordId = display[0].id;
+                        this.currentSenseId = null;
+                    }
+                    this.render();
+                    this.showToast(`✅ 已恢复内置词库：${result.wordCount || this.words.length} 词`, 'success');
+                } catch (e) {
+                    console.error(e);
+                    this.showToast('恢复内置词库失败：' + (e.message || e), 'error');
+                }
             },
 
             deckKey(deckId, wordId) {
@@ -7200,7 +7319,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.4.34',
+                    appVersion: '0.5.0',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -7788,8 +7907,9 @@
 
                 if (this.currentGroupBy === 'hierarchy') {
                     if (filteredWords.length === 0) {
-                        container.innerHTML =
-                            `<div class="empty-state">${query ? '🔍 没有匹配的单词' : '还没有单词，添加一个吧！'}</div>`;
+                        container.innerHTML = query ?
+                            `<div class="empty-state">🔍 没有匹配的单词</div>` :
+                            `<div class="empty-state">还没有单词。${this.builtinEnabled ? '<br><button type="button" class="restore-builtin-btn" id="restoreBuiltinBtn">📚 恢复内置六级词库（4036 词）</button>' : '添加一个吧！'}</div>`;
                         return;
                     }
                     let html = '';
@@ -11885,6 +12005,10 @@
                     if (e.key === 'Escape') App.toggleAddWordForm(false);
                 });
 
+                document.addEventListener('click', (e) => {
+                    const btn = e.target.closest && e.target.closest('#restoreBuiltinBtn');
+                    if (btn) App.restoreBuiltinLibrary();
+                });
                 document.getElementById('batchSelectAllBtn').addEventListener('click', () => App.batchSelectAll());
                 document.getElementById('batchDeleteBtn').addEventListener('click', () => App.batchDeleteWords());
                 document.getElementById('emptyRecycleBtn').addEventListener('click', () => App.emptyRecycleBin());
@@ -12089,7 +12213,13 @@
             escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
         };
 
-        document.addEventListener('DOMContentLoaded', () => App.init());
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init().catch((err) => {
+                console.error('应用初始化失败:', err);
+                const text = document.getElementById('bootText');
+                if (text) text.textContent = '初始化失败：' + (err && err.message ? err.message : err);
+            });
+        });
     </script>
 </body>
 </html>
