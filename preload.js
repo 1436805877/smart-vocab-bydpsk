@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('desktop', {
   getWallpaper: (id) => ipcRenderer.invoke('wallpaper:get', id),
   saveWallpaper: (payload) => ipcRenderer.invoke('wallpaper:save', payload),
   deleteWallpaper: (id) => ipcRenderer.invoke('wallpaper:delete', id),
+  setWallpaperPreset: (id, preset) => ipcRenderer.invoke('wallpaper:setPreset', { id, preset }),
   setFullscreen: (flag) => ipcRenderer.invoke('app:setFullscreen', flag),
   isFullscreen: () => ipcRenderer.invoke('app:isFullscreen'),
   onFullscreenChanged: (callback) => {

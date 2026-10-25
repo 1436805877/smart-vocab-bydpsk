@@ -441,6 +441,7 @@ ipcMain.handle('wallpaper:save', async (_event, payload) => {
       mime: String(payload.mime || (kind === 'video' ? 'video/mp4' : 'image/png')),
       fileName
     };
+    if (payload.preset && typeof payload.preset === 'object') meta.preset = payload.preset;
     items.push(meta);
     writeWallpaperManifest(items);
     return meta;
@@ -458,6 +459,27 @@ ipcMain.handle('wallpaper:delete', async (_event, id) => {
       if (fsSync.existsSync(file)) fsSync.unlinkSync(file);
     }
     writeWallpaperManifest(items.filter(x => x && x.id !== id));
+    return true;
+  } catch (e) {
+    return false;
+  }
+});
+
+ipcMain.handle('wallpaper:setPreset', async (_event, payload = {}) => {
+  try {
+    const id = String(payload.id || '');
+    if (!id) return false;
+    const items = readWallpaperManifest();
+    const index = items.findIndex(x => x && x.id === id);
+    if (index < 0) return false;
+    if (payload.preset && typeof payload.preset === 'object') {
+      items[index] = { ...items[index], preset: payload.preset };
+    } else {
+      const next = { ...items[index] };
+      delete next.preset;
+      items[index] = next;
+    }
+    writeWallpaperManifest(items);
     return true;
   } catch (e) {
     return false;

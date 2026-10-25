@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.0 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.1 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.0 beta</title>
+    <title>智能单词本 v0.5.1 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4172,14 +4172,15 @@
             margin-top: 10px;
         }
         .wallpaper-card {
-            border: 1px solid #e2e8f0;
+            border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
             border-radius: 12px;
             overflow: hidden;
-            background: white;
+            background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
+            color: var(--text-color);
             transition: box-shadow .15s ease, border-color .15s ease;
         }
         .wallpaper-card:hover {
-            box-shadow: 0 8px 18px rgba(15, 23, 42, .1);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, .12);
             border-color: #a5b4fc;
         }
         .wallpaper-card.active {
@@ -4199,7 +4200,8 @@
         }
         .wallpaper-name {
             font-size: 12px;
-            color: #475569;
+            color: var(--text-color);
+            opacity: .82;
             padding: 6px 8px 2px;
             white-space: nowrap;
             overflow: hidden;
@@ -4207,22 +4209,50 @@
         }
         .wallpaper-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 4px;
             padding: 4px 8px 8px;
         }
         .wallpaper-actions button {
-            flex: 1;
-            border: 1px solid #dbe3ee;
-            background: #f8fafc;
-            color: #475569;
+            flex: 1 1 40%;
+            border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+            background: color-mix(in srgb, var(--panel-bg) 65%, transparent);
+            color: var(--text-color);
             border-radius: 8px;
             padding: 4px 2px;
             font-size: 11px;
             cursor: pointer;
         }
         .wallpaper-actions button:hover {
-            background: #eef2ff;
-            color: #4f46e5;
+            background: color-mix(in srgb, #4f46e5 18%, transparent);
+            color: #818cf8;
+        }
+        .wallpaper-default {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 4px;
+            min-height: 18px;
+            padding: 0 8px 4px;
+            font-size: 10px;
+            color: color-mix(in srgb, var(--text-color) 58%, transparent);
+            line-height: 1.35;
+        }
+        .wallpaper-default.has-preset {
+            color: #a78bfa;
+        }
+        .wallpaper-default button {
+            flex: 0 0 auto;
+            border: none;
+            background: transparent;
+            color: color-mix(in srgb, var(--text-color) 55%, transparent);
+            font-size: 10px;
+            padding: 0;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .wallpaper-default button:hover {
+            color: #fb7185;
         }
         .wallpaper-empty {
             color: #94a3b8;
@@ -5218,7 +5248,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.0 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.1 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5383,7 +5413,7 @@
 
                 <h3>六、数据安全</h3>
                 <p>桌面版主存储是 SQLite，网页版是 IndexedDB。桌面版还会写 SQLite 镜像和本地备份。</p>
-                <p>「设置 → 个性化」可以改页面背景色、面板色、文字颜色、整体不透明度、面板不透明度和壁纸透明度；壁纸会存进 App 的壁纸库，可以随时切换。支持图片、GIF、MP4/WebM 动态壁纸；桌面版还可以直接读取当前 Windows 桌面壁纸。Wallpaper Engine 的 .pkg 场景格式不能直接解码，请先导出成图片、GIF 或视频。</p>
+                <p>「设置 → 个性化」可以改页面背景色、面板色、文字颜色、整体不透明度、面板不透明度和壁纸透明度；壁纸会存进 App 的壁纸库，可以随时切换；每张壁纸还能保存一套默认外观，切换时自动套用。支持图片、GIF、MP4/WebM 动态壁纸；桌面版还可以直接读取当前 Windows 桌面壁纸。Wallpaper Engine 的 .pkg 场景格式不能直接解码，请先导出成图片、GIF 或视频。</p>
                 <div class="help-note">清理浏览器数据、重装系统、换电脑前，先「导出 → JSON」备份。恢复前软件也会自动备份当前数据。</div>
 
                 <h3>七、常见问题</h3>
@@ -5701,7 +5731,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.0', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.1', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6741,7 +6771,8 @@
                         kind: item.kind,
                         createdAt: item.createdAt,
                         mime: item.blob.type || (item.kind === 'video' ? 'video/mp4' : 'image/png'),
-                        buffer
+                        buffer,
+                        preset: item.preset || null
                     });
                     return saved || item;
                 }
@@ -6917,6 +6948,7 @@
                             name: item.name,
                             kind: item.kind,
                             createdAt: item.createdAt,
+                            preset: this.normalizeScreenPreset(item.preset),
                             dataUrl: await this.blobToDataUrl(item.blob)
                         })))
                     };
@@ -6943,7 +6975,8 @@
                             name: item.name || '导入壁纸',
                             kind: item.kind === 'video' ? 'video' : 'image',
                             blob,
-                            createdAt: Date.now()
+                            createdAt: Date.now(),
+                            preset: this.normalizeScreenPreset(item.preset) || undefined
                         });
                         added++;
                     }
@@ -6954,6 +6987,91 @@
                 }
             },
 
+            normalizeScreenPreset(raw) {
+                if (!raw || typeof raw !== 'object') return null;
+                const out = {};
+                ['bgColor', 'panelColor', 'textColor'].forEach(key => {
+                    if (/^#[0-9a-f]{6}$/i.test(String(raw[key] || ''))) out[key] = String(raw[key]);
+                });
+                ['autoTextColor', 'visibilityBoost', 'performanceMode'].forEach(key => {
+                    if (typeof raw[key] === 'boolean') out[key] = raw[key];
+                });
+                ['visibilityStrength', 'appOpacity', 'panelOpacity', 'wallpaperOpacity'].forEach(key => {
+                    const n = Number(raw[key]);
+                    if (Number.isFinite(n)) out[key] = Math.max(0, Math.min(1, n));
+                });
+                return Object.keys(out).length ? out : null;
+            },
+
+            captureScreenPreset() {
+                const t = this.settings.theme || {};
+                return this.normalizeScreenPreset({
+                    bgColor: t.bgColor,
+                    panelColor: t.panelColor,
+                    textColor: t.textColor,
+                    autoTextColor: t.autoTextColor,
+                    visibilityBoost: t.visibilityBoost,
+                    visibilityStrength: t.visibilityStrength,
+                    performanceMode: t.performanceMode,
+                    appOpacity: t.appOpacity,
+                    panelOpacity: t.panelOpacity,
+                    wallpaperOpacity: t.wallpaperOpacity
+                });
+            },
+
+            async updateWallpaperPreset(id, preset) {
+                const normalized = preset ? this.normalizeScreenPreset(preset) : null;
+                const payload = normalized
+                    ? { ...normalized, savedAt: Number(preset && preset.savedAt) || Date.now() }
+                    : null;
+                if (window.desktop && window.desktop.setWallpaperPreset) {
+                    try { return !!(await window.desktop.setWallpaperPreset(id, payload)); }
+                    catch { return false; }
+                }
+                try {
+                    const db = await this.wallpaperDB();
+                    const item = await new Promise((resolve, reject) => {
+                        const req = db.transaction('items', 'readonly').objectStore('items').get(id);
+                        req.onsuccess = () => resolve(req.result || null);
+                        req.onerror = () => reject(req.error);
+                    });
+                    if (!item) return false;
+                    if (payload) item.preset = payload;
+                    else delete item.preset;
+                    await new Promise((resolve, reject) => {
+                        const req = db.transaction('items', 'readwrite').objectStore('items').put(item);
+                        req.onsuccess = () => resolve();
+                        req.onerror = () => reject(req.error);
+                    });
+                    return true;
+                } catch { return false; }
+            },
+
+            async saveCurrentWallpaperPreset(id) {
+                const target = id || this.settings.theme.wallpaperId;
+                if (!target) { this.showToast('先选一张壁纸', 'error'); return; }
+                const active = target === this.settings.theme.wallpaperId;
+                if (!active && !confirm('这张壁纸尚未启用。仍把当前界面外观保存为它的默认设置吗？\n\n之后切换到它时会自动应用，当前画面不会变化。')) return;
+                try {
+                    const ok = await this.updateWallpaperPreset(target, this.captureScreenPreset());
+                    if (!ok) throw new Error('壁纸记录不存在或无法写入');
+                    await this.renderWallpaperGallery();
+                    this.showToast(active ? '已保存当前外观，下次使用这张壁纸时自动应用' : '已保存这张壁纸的默认外观，切换时自动应用', 'success');
+                } catch (e) {
+                    this.showToast('保存外观失败：' + (e.message || e), 'error');
+                }
+            },
+
+            async clearWallpaperPreset(id) {
+                const ok = await this.updateWallpaperPreset(id, null);
+                if (!ok) {
+                    this.showToast('清除壁纸外观失败', 'error');
+                    return;
+                }
+                await this.renderWallpaperGallery();
+                this.showToast('已清除该壁纸的默认外观', 'success');
+            },
+
             async useWallpaper(id) {
                 const items = await this.wallpaperList();
                 const item = items.find(x => x.id === id);
@@ -6961,10 +7079,13 @@
                 this.settings.theme.wallpaperId = item.id;
                 this.settings.theme.wallpaperKind = item.kind;
                 this.settings.theme.wallpaper = '';
+                const preset = this.normalizeScreenPreset(item.preset);
+                if (preset) Object.assign(this.settings.theme, preset);
                 this.applyTheme();
                 this.saveSettings();
-                await this.renderWallpaperGallery();
-                this.showToast('已切换壁纸', 'success');
+                if (this.currentMode === 'settings') this.renderRightPanel();
+                else await this.renderWallpaperGallery();
+                this.showToast(preset ? '已切换壁纸并应用默认外观' : '已切换壁纸', 'success');
             },
 
             async clearWallpaper() {
@@ -6997,7 +7118,25 @@
                             : `<img src="${url}" alt="">`;
                     } catch { /* ignore */ }
                     const active = this.settings.theme.wallpaperId === item.id;
-                    return `<div class="wallpaper-card ${active ? 'active' : ''}" data-wallpaper-id="${item.id}"><div class="wallpaper-thumb">${preview}</div><div class="wallpaper-name">${this.escapeHtml(item.name || '壁纸')}${item.kind === 'video' ? ' · 动态' : ''}</div><div class="wallpaper-actions"><button type="button" data-wallpaper-action="use">${active ? '使用中' : '使用'}</button><button type="button" data-wallpaper-action="delete">删除</button></div></div>`;
+                    const preset = this.normalizeScreenPreset(item.preset);
+                    const presetBits = [];
+                    if (preset) {
+                        if (Number.isFinite(Number(preset.panelOpacity))) presetBits.push(`面板 ${Math.round(Number(preset.panelOpacity) * 100)}%`);
+                        if (typeof preset.autoTextColor === 'boolean') presetBits.push(preset.autoTextColor ? '自动文字' : '固定文字');
+                    }
+                    const presetLabel = preset
+                        ? `⭐ 默认外观${presetBits.length ? ' · ' + presetBits.join(' · ') : ''}`
+                        : '默认外观：跟随当前界面';
+                    return `<div class="wallpaper-card ${active ? 'active' : ''}" data-wallpaper-id="${item.id}">
+                        <div class="wallpaper-thumb">${preview}</div>
+                        <div class="wallpaper-name">${this.escapeHtml(item.name || '壁纸')}${item.kind === 'video' ? ' · 动态' : ''}</div>
+                        <div class="wallpaper-default ${preset ? 'has-preset' : ''}"><span>${presetLabel}</span>${preset ? '<button type="button" data-wallpaper-action="clear-preset" title="清除该壁纸的默认外观">清除</button>' : ''}</div>
+                        <div class="wallpaper-actions">
+                            <button type="button" data-wallpaper-action="use">${active ? '使用中' : '使用'}</button>
+                            <button type="button" data-wallpaper-action="save-preset" title="把当前界面参数保存为这张壁纸的默认外观">${preset ? '更新外观' : '存为默认'}</button>
+                            <button type="button" data-wallpaper-action="delete">删除</button>
+                        </div>
+                    </div>`;
                 }).join('');
             },
 
@@ -7160,7 +7299,7 @@
                                 </div>
                             </div>
                             <div class="wallpaper-gallery" id="settingsWallpaperGallery"></div>
-                            <div class="settings-hint">Wallpaper Engine 的 .pkg 场景格式无法直接解码；请导出为图片、GIF 或 MP4/WebM 后添加。</div>
+                            <div class="settings-hint">每张壁纸都可以点「存为默认」，把当前背景色、面板色、文字色、透明度、可见性和流畅模式绑定到它；之后切换壁纸会自动套用。未设置时跟随当前界面。Wallpaper Engine 的 .pkg 场景格式无法直接解码；请导出为图片、GIF 或 MP4/WebM 后添加。</div>
                             ${window.desktop && window.desktop.getDesktopWallpaper ? `<div class="settings-row"><span><b>桌面壁纸</b><small>读取当前 Windows 桌面壁纸并加入壁纸库。</small></span><button type="button" class="settings-mini-btn" id="settingsDesktopWallpaper">读取桌面壁纸</button></div>` : ''}
                         </div>
 
@@ -7255,6 +7394,8 @@
                     if (!btn || !card) return;
                     const id = card.dataset.wallpaperId;
                     if (btn.dataset.wallpaperAction === 'use') await this.useWallpaper(id);
+                    if (btn.dataset.wallpaperAction === 'save-preset') await this.saveCurrentWallpaperPreset(id);
+                    if (btn.dataset.wallpaperAction === 'clear-preset') await this.clearWallpaperPreset(id);
                     if (btn.dataset.wallpaperAction === 'delete') {
                         await this.wallpaperDelete(id);
                         if (this.settings.theme.wallpaperId === id) {
@@ -7319,7 +7460,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.0',
+                    appVersion: '0.5.1',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
