@@ -1,4 +1,4 @@
-# 智能单词本 0.5.4 beta
+# 智能单词本 0.5.5 beta
 
 一个单文件、离线优先的单词学习应用，按「核心感觉 + 词根演变 + 近义辨析」组织单词，而不是把单词等同于一条中文翻译。
 
@@ -22,6 +22,12 @@
 
 0.5.3 起，安装版在下载前和安装前都会自动创建完整 JSON 备份；备份失败会取消更新。备份仍保存在本机，更新只读取公开的 Release 信息和 `latest.yml`，不会上传词库、进度或壁纸。开发模式不检查更新。
 
+## 学习仪表盘
+
+统计页现在显示今日复习/新学、连续学习天数、到期义项、正确率、未来 7 天到期量和近 7 天学习量。每个词库有独立进度卡，可直接切换；单词列表可按未学、学习中、已掌握、错题、文化彩蛋筛选。搜索同时覆盖词根家族和近义组，筛选与搜索可组合使用。
+
+学习记录按天保存在设置文件 `studyLog` 中，保留最近 400 天，并按词库分别累计。它不包含具体作答内容，只记录复习次数、正确数、新学义项和词库归属。
+
 ## 运行
 
 直接双击 `index.html`，或在本目录启动静态服务器：
@@ -42,6 +48,7 @@ npm install
 npm start                       # 开发运行
 npm run test:builtin            # 内置词库版本/校验/导入保护回归
 npm run test:update-safety      # 更新前备份/中止逻辑回归
+npm run test:study              # 学习记录/连续天数/状态筛选回归
 npm run dist                    # 生成 Windows 安装包 + 便携版
 ```
 
@@ -51,14 +58,14 @@ Release 页面（安装包构建完成后）：
 
 https://github.com/1436805877/smart-vocab-bydpsk/releases
 
-0.5.4 安装包与免安装便携版从 Release 下载：
+0.5.5 安装包与免安装便携版从 Release 下载：
 
 ```text
-https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.4
+https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.5
 ```
 
-- `SmartVocab-0.5.4-x64.exe`：安装版（支持应用内检查和更新）
-- `SmartVocab-0.5.4-portable.exe`：免安装，双击即可运行（更新时打开发布页）
+- `SmartVocab-0.5.5-x64.exe`：安装版（支持应用内检查和更新）
+- `SmartVocab-0.5.5-portable.exe`：免安装，双击即可运行（更新时打开发布页）
 
 首次启动会使用独立的桌面数据目录，并自动写入内置六级词库，不需要再手动导入 JSON。
 

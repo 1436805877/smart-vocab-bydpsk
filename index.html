@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.4 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.5 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.4 beta</title>
+    <title>智能单词本 v0.5.5 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -2166,6 +2166,128 @@
         .stats-category .cat-stat-item .count {
             color: #475569;
         }
+
+        /* ===== 学习仪表盘 ===== */
+        .dash-page {
+            --dash-surface: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            --dash-line: color-mix(in srgb, var(--text-color) 12%, transparent);
+            --dash-muted: color-mix(in srgb, var(--text-color) 62%, transparent);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            color: var(--text-color);
+            padding-bottom: 10px;
+        }
+        .dash-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .dash-title-row h3 { margin: 0; font-size: 24px; color: var(--text-color); }
+        .dash-subtitle { margin-top: 5px; color: var(--dash-muted); font-size: 13px; }
+        .dash-refresh, .dash-link {
+            border: 1px solid var(--dash-line); background: transparent; color: var(--text-color);
+            border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+        }
+        .dash-refresh:hover, .dash-link:hover { background: color-mix(in srgb, var(--text-color) 8%, transparent); }
+        .dash-hero {
+            display: flex; align-items: center; justify-content: space-between; gap: 22px;
+            padding: 22px 24px; border: 1px solid var(--dash-line); border-radius: 18px;
+            background: var(--dash-surface); box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
+        }
+        .dash-hero-main { flex: 1; min-width: 0; }
+        .dash-kicker { font-size: 12px; letter-spacing: .08em; color: var(--dash-muted); text-transform: uppercase; }
+        .dash-hero-name { margin-top: 5px; font-size: 28px; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+        .dash-hero-sub { margin-top: 7px; color: var(--dash-muted); font-size: 13px; }
+        .dash-hero-track, .dash-deck-track {
+            height: 9px; border-radius: 999px; background: color-mix(in srgb, var(--text-color) 10%, transparent);
+            overflow: hidden; margin-top: 14px;
+        }
+        .dash-hero-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6366f1, #22c55e); transition: width .3s ease; }
+        .dash-hero-foot { margin-top: 7px; color: var(--dash-muted); font-size: 12px; }
+        .dash-hero-actions { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; min-width: 160px; }
+        .dash-primary, .dash-secondary {
+            border-radius: 12px; padding: 10px 15px; font-size: 13px; font-weight: 700; cursor: pointer;
+            border: 1px solid transparent; white-space: nowrap;
+        }
+        .dash-primary { background: #4f46e5; color: #fff; box-shadow: 0 6px 14px rgba(79, 70, 229, .25); }
+        .dash-secondary { background: transparent; color: var(--text-color); border-color: var(--dash-line); }
+        .dash-primary:hover { background: #4338ca; transform: translateY(-1px); }
+        .dash-secondary:hover { background: color-mix(in srgb, var(--text-color) 8%, transparent); }
+        .dash-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+        .dash-metric {
+            display: flex; align-items: flex-start; gap: 10px; padding: 14px 12px;
+            border: 1px solid var(--dash-line); border-radius: 14px; background: var(--dash-surface); min-width: 0;
+        }
+        .dash-metric-icon { font-size: 20px; line-height: 1; margin-top: 2px; }
+        .dash-metric-value { font-size: 24px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+        .dash-metric-label { margin-top: 3px; color: var(--dash-muted); font-size: 12px; white-space: nowrap; }
+        .dash-metric-hint { margin-top: 3px; color: var(--dash-muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dash-metric.blue { border-left: 3px solid #3b82f6; }
+        .dash-metric.green { border-left: 3px solid #22c55e; }
+        .dash-metric.orange { border-left: 3px solid #f97316; }
+        .dash-metric.amber { border-left: 3px solid #f59e0b; }
+        .dash-metric.violet { border-left: 3px solid #8b5cf6; }
+        .dash-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .dash-panel {
+            padding: 16px 18px; border: 1px solid var(--dash-line); border-radius: 16px;
+            background: var(--dash-surface); min-width: 0;
+        }
+        .dash-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+        .dash-panel-head h4 { margin: 0; font-size: 14px; color: var(--text-color); }
+        .dash-panel-head > span { color: var(--dash-muted); font-size: 11px; white-space: nowrap; }
+        .dash-bars { display: flex; align-items: flex-end; gap: 8px; height: 132px; padding-top: 4px; }
+        .dash-bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+        .dash-bar-value { font-size: 11px; font-weight: 700; color: var(--dash-muted); height: 14px; }
+        .dash-bar-track { width: 100%; flex: 1; display: flex; align-items: flex-end; justify-content: center; }
+        .dash-bar-fill { width: 72%; max-width: 34px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #818cf8, #4f46e5); transition: height .25s ease; }
+        .dash-bars.activity .dash-bar-fill { background: linear-gradient(180deg, #4ade80, #16a34a); }
+        .dash-bar-label { font-size: 10px; color: var(--dash-muted); white-space: nowrap; }
+        .dash-bar-sub { font-size: 9px; color: var(--dash-muted); }
+        .dash-note { margin-top: 8px; color: var(--dash-muted); font-size: 11px; }
+        .dash-deck-section { padding-bottom: 18px; }
+        .dash-deck-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+        .dash-deck-card {
+            position: relative; padding: 13px 14px; border: 1px solid var(--dash-line); border-radius: 13px;
+            background: color-mix(in srgb, var(--panel-bg) var(--panel-opacity), transparent);
+            cursor: pointer; transition: border-color .15s ease, transform .15s ease;
+        }
+        .dash-deck-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, #6366f1 55%, var(--dash-line)); }
+        .dash-deck-card.active { border-color: #6366f1; box-shadow: 0 0 0 2px color-mix(in srgb, #6366f1 18%, transparent); }
+        .dash-deck-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+        .dash-deck-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dash-lock { font-size: 10px; color: var(--dash-muted); white-space: nowrap; }
+        .dash-deck-pct { margin-top: 9px; font-size: 13px; font-weight: 700; }
+        .dash-deck-pct span { font-size: 11px; font-weight: 400; color: var(--dash-muted); }
+        .dash-deck-track { height: 6px; margin-top: 7px; }
+        .dash-deck-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6366f1, #22c55e); }
+        .dash-deck-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; color: var(--dash-muted); font-size: 10px; }
+        .dash-deck-open {
+            margin-top: 9px; border: 0; background: transparent; color: #6366f1; font-size: 11px;
+            font-weight: 700; padding: 0; cursor: pointer;
+        }
+        body.has-wallpaper .dash-deck-open, body.visibility-boost .dash-deck-open { color: #a5b4fc; }
+        .dash-details { border: 1px solid var(--dash-line); border-radius: 14px; background: var(--dash-surface); padding: 0 16px; }
+        .dash-details summary { cursor: pointer; padding: 13px 0; font-size: 13px; font-weight: 700; color: var(--text-color); }
+        .dash-detail-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; padding: 4px 0 14px; }
+        .dash-detail-metrics > div { padding: 9px 10px; border-radius: 10px; background: color-mix(in srgb, var(--text-color) 5%, transparent); }
+        .dash-detail-metrics b { display: block; font-size: 18px; }
+        .dash-detail-metrics span { color: var(--dash-muted); font-size: 10px; }
+        .dash-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding-bottom: 14px; }
+        .dash-field h5 { margin: 0 0 6px; font-size: 11px; color: var(--dash-muted); }
+        .dash-field-row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px dashed var(--dash-line); font-size: 11px; }
+        .dash-field-row:last-child { border-bottom: 0; }
+        .dash-field-row b { color: var(--text-color); }
+        .clear-list-filter-btn {
+            margin-top: 10px; border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca;
+            border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+        }
+        @media (max-width: 1100px) {
+            .dash-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 820px) {
+            .dash-hero { flex-direction: column; align-items: stretch; }
+            .dash-hero-actions { flex-direction: row; }
+            .dash-columns { grid-template-columns: 1fr; }
+            .dash-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
         .modal-overlay {
             display: none;
             position: fixed;
@@ -5325,7 +5447,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.4 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.5 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5367,6 +5489,14 @@
                             <option value="level">⭐ 难度</option>
                             <option value="formality">📝 语体</option>
                             <option value="grammar">📖 语法属性</option>
+                        </select></span>
+                        <span class="mode-title">筛选<select id="listFilterSelect" title="按学习状态筛选">
+                            <option value="all">全部状态</option>
+                            <option value="unlearned">🌱 未学</option>
+                            <option value="learning">🔄 学习中</option>
+                            <option value="mastered">✅ 已掌握</option>
+                            <option value="wrong">❗ 错题</option>
+                            <option value="culture">🏛️ 文化彩蛋</option>
                         </select></span>
                         <span class="panel-actions">
                             <button class="action-btn list-tool" id="randomBtn" title="随机单词">🎲 随机</button>
@@ -5808,7 +5938,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.4', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.5', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5906,15 +6036,40 @@
         class SearchIndex {
             constructor() {
                 this.textMap = new Map();
+                this.rootFamilyMap = new Map();
+                this.synonymGroupMap = new Map();
             }
             clear() {
                 this.textMap.clear();
+            }
+            setExtras(extras = {}) {
+                this.rootFamilyMap = new Map((extras.rootFamilies || []).map(f => [f.id, f]));
+                this.synonymGroupMap = new Map((extras.synonymGroups || []).map(g => [g.id, g]));
             }
             normalize(text) {
                 return String(text == null ? '' : text).toLowerCase();
             }
             collectText(word) {
-                const parts = [word.word, word.phonetic, ...(word.wordNotes || [])];
+                const parts = [word.word, word.phonetic, ...(word.wordNotes || []), word.etymology];
+                const core = word.core || {};
+                parts.push(core.feeling, core.image, ...(core.keywords || []));
+                (core.chain || []).forEach(c => { if (c) parts.push(c.stage, c.label, c.bridge); });
+                const morph = word.morphology || {};
+                parts.push(morph.literal);
+                (morph.parts || []).forEach(p => { if (p) parts.push(p.form, p.meaning, p.type); });
+                const culture = word.culture || {};
+                parts.push(culture.background, culture.usage, ...(culture.easterEggs || []));
+                const rootFamily = morph.rootFamilyId && this.rootFamilyMap.get(morph.rootFamilyId);
+                if (rootFamily) {
+                    parts.push(rootFamily.root, rootFamily.meaning, rootFamily.origin, rootFamily.mnemonic);
+                    (rootFamily.members || []).forEach(m => parts.push(m.word, m.meaning));
+                }
+                (word.synonymGroupIds || []).forEach(id => {
+                    const group = this.synonymGroupMap.get(id);
+                    if (!group) return;
+                    parts.push(group.name, group.mnemonic, ...(group.dimensions || []));
+                    (group.members || []).forEach(m => parts.push(m.word, m.nuance));
+                });
                 (word.senses || []).forEach(s => {
                     parts.push(s.definition, s.example, s.synonyms, s.collocations, s.pitfall);
                     (s.notes || []).forEach(n => parts.push(n));
@@ -5952,7 +6107,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
-            appVersion: '0.5.4',
+            appVersion: '0.5.5',
             storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
@@ -5989,6 +6144,9 @@
             },
             pendingNext: null,
             pendingNextTimer: null,
+            studyLog: {},
+            settingsSaveTimer: null,
+            listFilter: 'all',
             undoStack: [],
             redoStack: [],
             applyingUndo: false,
@@ -6209,6 +6367,11 @@
             },
 
             async flushSave() {
+                if (this.settingsSaveTimer) {
+                    clearTimeout(this.settingsSaveTimer);
+                    this.settingsSaveTimer = null;
+                    this.saveSettings();
+                }
                 if (!this.dataDirty && !this.reviewDirty) return;
                 clearTimeout(this.saveTimer);
                 clearTimeout(this.reviewSaveTimer);
@@ -6279,10 +6442,68 @@
                 return p;
             },
 
+            localDateKey(ts = Date.now()) {
+                const d = new Date(ts);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            },
+
+            sanitizeStudyLog(raw) {
+                const out = {};
+                if (!raw || typeof raw !== 'object') return out;
+                Object.entries(raw).forEach(([key, value]) => {
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !value || typeof value !== 'object') return;
+                    const entry = {
+                        reviews: Math.max(0, Number(value.reviews) || 0),
+                        correct: Math.max(0, Number(value.correct) || 0),
+                        newSenses: Math.max(0, Number(value.newSenses) || 0),
+                        byDeck: {}
+                    };
+                    if (value.byDeck && typeof value.byDeck === 'object') {
+                        Object.entries(value.byDeck).forEach(([deckId, count]) => {
+                            const n = Math.max(0, Number(count) || 0);
+                            if (n) entry.byDeck[String(deckId)] = n;
+                        });
+                    }
+                    out[key] = entry;
+                });
+                return out;
+            },
+
+            scheduleSettingsSave() {
+                clearTimeout(this.settingsSaveTimer);
+                this.settingsSaveTimer = setTimeout(() => {
+                    this.settingsSaveTimer = null;
+                    this.saveSettings();
+                }, 1200);
+            },
+
+            recordStudyActivity(correct, isNewSense, word = null) {
+                const key = this.localDateKey();
+                const entry = this.studyLog[key] || { reviews: 0, correct: 0, newSenses: 0, byDeck: {} };
+                entry.reviews += 1;
+                if (correct) entry.correct += 1;
+                if (isNewSense) entry.newSenses += 1;
+                // 一次作答可能同时属于“全部”和某个具体词库，分别累计，切词库后统计才准确。
+                const deckIds = new Set([this.activeDeckId || 'all']);
+                if (word) {
+                    (this.decks || []).forEach(deck => {
+                        if (this.deckWords.has(this.deckKey(deck.id, word.id))) deckIds.add(deck.id);
+                    });
+                }
+                deckIds.forEach(deckId => {
+                    entry.byDeck[deckId] = (entry.byDeck[deckId] || 0) + 1;
+                });
+                this.studyLog[key] = entry;
+                this._statsCache = null;
+                this.scheduleSettingsSave();
+            },
+
             // 复习结果统一回写：供所有游戏调用，避免只有翻卡牌更新掌握度。
             recordReview(wordId, correct, senseId = null, grade = null) {
                 const w = this.words.find(x => x.id === wordId);
                 if (!w) return;
+                const senseKey = (senseId !== null && senseId !== undefined) ? this.senseKey(wordId, senseId) : null;
+                const isNewSense = !!(senseKey && !this.progress.has(senseKey));
                 w.lastReviewDate = Date.now();
                 w.reviewCount = (w.reviewCount || 0) + 1;
                 if (correct) {
@@ -6292,9 +6513,13 @@
                     w.mastery = 'learning';
                 }
                 const g = (grade === null || grade === undefined) ? (correct ? 2 : 0) : Number(grade);
-                if (senseId !== null && senseId !== undefined) {
+                if (senseKey) {
                     this.scheduleSenseReview(wordId, senseId, Number.isFinite(g) ? g : (correct ? 2 : 0));
                 }
+                this.recordStudyActivity(correct, isNewSense, w);
+                this._filterCache = null;
+                this._displayCache = null;
+                this._statsCache = null;
                 this.reviewDirty = true;
                 this.dataDirty = true;
                 clearTimeout(this.reviewSaveTimer);
@@ -6308,6 +6533,9 @@
                 if (!this.reviewDirty) return;
                 this.reviewDirty = false;
                 clearTimeout(this.reviewSaveTimer);
+                clearTimeout(this.settingsSaveTimer);
+                this.settingsSaveTimer = null;
+                this.saveSettings();
                 this.saveData();
             },
 
@@ -6673,6 +6901,19 @@
                     if (typeof t.wallpaperId === 'string') this.settings.theme.wallpaperId = t.wallpaperId;
                     if (typeof t.wallpaperKind === 'string') this.settings.theme.wallpaperKind = t.wallpaperKind;
                 }
+                if (s.studyLog && typeof s.studyLog === 'object') {
+                    const incoming = this.sanitizeStudyLog(s.studyLog);
+                    Object.entries(incoming).forEach(([key, entry]) => {
+                        const current = this.studyLog[key];
+                        if (!current) { this.studyLog[key] = entry; return; }
+                        current.reviews = Math.max(current.reviews, entry.reviews);
+                        current.correct = Math.max(current.correct, entry.correct);
+                        current.newSenses = Math.max(current.newSenses, entry.newSenses);
+                        Object.entries(entry.byDeck).forEach(([deckId, count]) => {
+                            current.byDeck[deckId] = Math.max(current.byDeck[deckId] || 0, count);
+                        });
+                    });
+                }
             },
             loadSettings() {
                 let localRaw = null;
@@ -6696,6 +6937,11 @@
 
             saveSettings() {
                 const snapshot = JSON.parse(JSON.stringify(this.settings));
+                const cutoff = this.localDateKey(Date.now() - 400 * 86400000);
+                snapshot.studyLog = {};
+                Object.entries(this.studyLog || {}).forEach(([key, entry]) => {
+                    if (key >= cutoff) snapshot.studyLog[key] = entry;
+                });
                 try { localStorage.setItem('smartVocabSettings', JSON.stringify(snapshot)); } catch (e) { /* ignore */ }
                 if (window.desktop && window.desktop.writeSettings) {
                     window.desktop.writeSettings(snapshot).catch(() => {});
@@ -7374,7 +7620,7 @@
 
             updateSectionHtml() {
                 const u = this.updateState;
-                const version = (u && u.currentVersion) || this.appVersion || '0.5.4';
+                const version = (u && u.currentVersion) || this.appVersion || '0.5.5';
                 const status = (u && u.status) || 'idle';
                 const pct = Math.max(0, Math.min(100, Math.round(Number(u && u.progress) || 0)));
                 const notes = u && u.releaseNotes
@@ -7771,7 +8017,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.4',
+                    appVersion: '0.5.5',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -8147,6 +8393,7 @@
             },
 
             buildIndex() {
+                this.searchIndex.setExtras(this.extras);
                 this.searchIndex.rebuild(this.words);
             },
 
@@ -8187,11 +8434,52 @@
                     .filter(Boolean);
             },
 
+            wordHasProgress(word) {
+                return (word.senses || []).some(s => s && this.progress.has(this.senseKey(word.id, s.id)));
+            },
+
+            wordHasWrong(word) {
+                return (word.senses || []).some(s => {
+                    const p = s && this.progress.get(this.senseKey(word.id, s.id));
+                    return !!(p && p.wrongActive);
+                });
+            },
+
+            wordHasCulture(word) {
+                const c = word.culture || {};
+                return !!(c.background || c.usage || (Array.isArray(c.easterEggs) && c.easterEggs.length));
+            },
+
+            listFilterName() {
+                return {
+                    all: '全部状态',
+                    unlearned: '未学',
+                    learning: '学习中',
+                    mastered: '已掌握',
+                    wrong: '错题',
+                    culture: '文化彩蛋'
+                }[this.listFilter] || '全部状态';
+            },
+
+            matchListFilter(word) {
+                switch (this.listFilter) {
+                    case 'unlearned': return !this.wordHasProgress(word) && word.mastery !== 'learning' && word.mastery !== 'mastered';
+                    case 'learning': return word.mastery === 'learning' || (this.wordHasProgress(word) && word.mastery !== 'mastered');
+                    case 'mastered': return word.mastery === 'mastered';
+                    case 'wrong': return this.wordHasWrong(word);
+                    case 'culture': return this.wordHasCulture(word);
+                    default: return true;
+                }
+            },
+
             getFilteredWords() {
                 let list = this.getDisplayWords();
                 const query = this.searchQuery.trim();
-                const cacheKey = `${this._displayCache ? this._displayCache.key : ''}|${query}`;
+                const cacheKey = `${this._displayCache ? this._displayCache.key : ''}|${query}|${this.listFilter}`;
                 if (this._filterCache && this._filterCache.key === cacheKey) return this._filterCache.list;
+                if (this.currentMode !== 'recycle' && this.listFilter !== 'all') {
+                    list = list.filter(w => this.matchListFilter(w));
+                }
                 if (query) {
                     const ids = this.searchIndex.search(query);
                     if (ids) list = list.filter(w => ids.has(w.id));
@@ -8331,6 +8619,7 @@
                 this.updateNavButtons();
                 this.updateDeckSelect();
                 this.updateGroupBySelect();
+                this.updateFilterSelect();
                 this.updateAlphaNav();
             },
             updateNavButtons() {
@@ -8347,6 +8636,10 @@
             updateGroupBySelect() {
                 const sel = document.getElementById('groupBySelect');
                 if (sel.value !== this.currentGroupBy) sel.value = this.currentGroupBy;
+            },
+            updateFilterSelect() {
+                const sel = document.getElementById('listFilterSelect');
+                if (sel && sel.value !== this.listFilter) sel.value = this.listFilter;
             },
 
             renderList(filteredWordsInput = null) {
@@ -8386,9 +8679,16 @@
 
                 if (this.currentGroupBy === 'hierarchy') {
                     if (filteredWords.length === 0) {
-                        container.innerHTML = query ?
-                            `<div class="empty-state">🔍 没有匹配的单词</div>` :
-                            `<div class="empty-state">还没有单词。${this.builtinEnabled ? '<br><button type="button" class="restore-builtin-btn" id="restoreBuiltinBtn">📚 恢复内置六级词库（4036 词）</button>' : '添加一个吧！'}</div>`;
+                        const hasAny = this.getDisplayWords().length > 0;
+                        if (query) container.innerHTML = `<div class="empty-state">🔍 没有匹配的单词</div>`;
+                        else if (!hasAny) container.innerHTML = `<div class="empty-state">还没有单词。${this.builtinEnabled ? '<br><button type="button" class="restore-builtin-btn" id="restoreBuiltinBtn">📚 恢复内置六级词库（4036 词）</button>' : '添加一个吧！'}</div>`;
+                        else container.innerHTML = `<div class="empty-state">当前筛选「${this.escapeHtml(this.listFilterName())}」下没有单词。<br><button type="button" class="clear-list-filter-btn">显示全部状态</button></div>`;
+                        const clearFilter = container.querySelector('.clear-list-filter-btn');
+                        if (clearFilter) clearFilter.addEventListener('click', () => {
+                            this.listFilter = 'all';
+                            this.updateFilterSelect();
+                            this.renderList();
+                        });
                         return;
                     }
                     let html = '';
@@ -8449,7 +8749,15 @@
                 }
 
                 if (groups.length === 0 || groups.every(g => g.items.length === 0)) {
-                    container.innerHTML = `<div class="empty-state">${query ? '🔍 没有匹配的条目' : '还没有单词，添加一个吧！'}</div>`;
+                    if (query) container.innerHTML = `<div class="empty-state">🔍 没有匹配的条目</div>`;
+                    else if (this.listFilter !== 'all') container.innerHTML = `<div class="empty-state">当前筛选「${this.escapeHtml(this.listFilterName())}」下没有单词。<br><button type="button" class="clear-list-filter-btn">显示全部状态</button></div>`;
+                    else container.innerHTML = `<div class="empty-state">还没有单词，添加一个吧！</div>`;
+                    const clearFilter = container.querySelector('.clear-list-filter-btn');
+                    if (clearFilter) clearFilter.addEventListener('click', () => {
+                        this.listFilter = 'all';
+                        this.updateFilterSelect();
+                        this.renderList();
+                    });
                     return;
                 }
                 let html = '';
@@ -11104,90 +11412,272 @@
                 });
             },
 
+            getStudyStreak() {
+                let cursor = new Date();
+                let key = this.localDateKey(cursor.getTime());
+                if (!(this.studyLog[key] && this.studyLog[key].reviews > 0)) {
+                    cursor.setDate(cursor.getDate() - 1);
+                }
+                let streak = 0;
+                while (streak < 3650) {
+                    key = this.localDateKey(cursor.getTime());
+                    const entry = this.studyLog[key];
+                    if (!entry || !entry.reviews) break;
+                    streak += 1;
+                    cursor.setDate(cursor.getDate() - 1);
+                }
+                return streak;
+            },
+
             renderStats(container) {
-                const statsCacheKey = `${this.dataRevision || 0}|${this.words.length}|${this.progress.size}`;
+                const now = Date.now();
+                const todayKey = this.localDateKey(now);
+                const todayLog = this.studyLog[todayKey] || { reviews: 0, correct: 0, newSenses: 0, byDeck: {} };
+                const statsCacheKey = `${this.dataRevision || 0}|${this.words.length}|${this.progress.size}|${this.activeDeckId}|${todayKey}|${todayLog.reviews}`;
                 if (this._statsCache && this._statsCache.key === statsCacheKey) {
                     container.innerHTML = this._statsCache.html;
+                    this.bindDashboardActions(container);
                     return;
                 }
+
                 const activeWords = this.words.filter(w => !w.deleted);
-                const totalWords = activeWords.length;
-                const totalSenses = activeWords.reduce((acc, w) => acc + w.senses.length, 0);
-                const mastered = activeWords.filter(w => w.mastery === 'mastered').length;
-                const learning = activeWords.filter(w => w.mastery === 'learning').length;
-                const unknown = activeWords.filter(w => w.mastery === 'unknown' || !w.mastery).length;
-                const now = Date.now();
-                const dueForReview = activeWords.filter(w => (now - w.lastReviewDate) / 86400000 > 2).length;
-                const activeSenseKeys = new Set();
-                activeWords.forEach(w => (w.senses || []).forEach(s => { if (s) activeSenseKeys.add(this.senseKey(w.id, s.id)); }));
-                const dueSenses = [...this.progress.values()].filter(p => (p.dueAt || 0) <= now && activeSenseKeys.has(p.key)).length;
-                const learnedSenses = this.progress.size;
-                const wrongSenses = [...this.progress.values()].filter(p => p.wrongActive && activeSenseKeys.has(p.key)).length;
-                const deletedCount = this.words.filter(w => w.deleted).length;
-                const totalReviews = activeWords.reduce((acc, w) => acc + (w.reviewCount || 0), 0);
-                const totalCorrect = activeWords.reduce((acc, w) => acc + (w.correctCount || 0), 0);
-                const accuracy = totalReviews > 0 ? Math.round(totalCorrect / totalReviews * 100) : 0;
-                const coreReady = activeWords.filter(w => w.core && w.core.feeling &&
-                    w.core.quality !== 'needs-review').length;
-                const synGroupCount = (this.extras.synonymGroups || []).length;
-                const rootFamilyCount = (this.extras.rootFamilies || []).length;
+                const scopedWords = activeWords.filter(w => this.wordInActiveDeck(w));
+                const scopedIds = new Set(scopedWords.map(w => w.id));
+                const scopedSenseKeys = new Set();
+                scopedWords.forEach(w => (w.senses || []).forEach(s => {
+                    if (s) scopedSenseKeys.add(this.senseKey(w.id, s.id));
+                }));
+                const dayStart = new Date(now);
+                dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + 1);
+
+                let totalSenses = 0;
+                let learnedSenses = 0;
+                let dueSenses = 0;
+                let overdueSenses = 0;
+                let wrongSenses = 0;
+                let newWords = 0;
+                let masteredWords = 0;
+                let learningWords = 0;
+                scopedWords.forEach(w => {
+                    const senses = (w.senses || []).filter(Boolean);
+                    totalSenses += senses.length;
+                    let hasProgress = false;
+                    senses.forEach(s => {
+                        const p = this.progress.get(this.senseKey(w.id, s.id));
+                        if (!p) return;
+                        hasProgress = true;
+                        learnedSenses += 1;
+                        if ((p.dueAt || 0) <= now) dueSenses += 1;
+                        if ((p.dueAt || 0) < dayStart.getTime()) overdueSenses += 1;
+                        if (p.wrongActive) wrongSenses += 1;
+                    });
+                    const started = hasProgress || w.mastery === 'learning' || w.mastery === 'mastered';
+                    if (!started) newWords += 1;
+                    if (w.mastery === 'mastered') masteredWords += 1;
+                    else if (started) learningWords += 1;
+                });
+                const totalWords = scopedWords.length;
+                const accuracy = todayLog.reviews > 0 ? Math.round(todayLog.correct / todayLog.reviews * 100) : 0;
+                const todayNew = todayLog.newSenses || 0;
+                const streak = this.getStudyStreak();
+
+                const forecast = Array.from({ length: 7 }, (_, i) => {
+                    const start = new Date(dayStart);
+                    start.setDate(start.getDate() + i);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 1);
+                    let count = 0;
+                    this.progress.forEach(p => {
+                        if (!scopedSenseKeys.has(p.key)) return;
+                        const due = p.dueAt || 0;
+                        if (due < end.getTime() && (i === 0 || due >= start.getTime())) count += 1;
+                    });
+                    return {
+                        label: i === 0 ? '今天' : `${start.getMonth() + 1}/${start.getDate()}`,
+                        count
+                    };
+                });
+                const forecastMax = Math.max(1, ...forecast.map(d => d.count));
+                const futureForecast = forecast.slice(1).reduce((sum, d) => sum + d.count, 0);
+
+                const activity = Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date(dayStart);
+                    d.setDate(d.getDate() - (6 - i));
+                    const key = this.localDateKey(d.getTime());
+                    const entry = this.studyLog[key] || {};
+                    return {
+                        key,
+                        label: i === 6 ? '今天' : `${d.getMonth() + 1}/${d.getDate()}`,
+                        reviews: entry.reviews || 0,
+                        newSenses: entry.newSenses || 0
+                    };
+                });
+                const activityMax = Math.max(1, ...activity.map(d => d.reviews));
+
+                const deckRows = [{ id: 'all', name: '全部词库', kind: 'all' }, ...(this.decks || [])].map(deck => {
+                    const members = deck.id === 'all' ? activeWords : activeWords.filter(w =>
+                        this.deckWords.has(this.deckKey(deck.id, w.id)));
+                    let wordsWithProgress = 0, mastered = 0, deckDue = 0, deckSenses = 0, deckLearned = 0;
+                    members.forEach(w => {
+                        const senses = (w.senses || []).filter(Boolean);
+                        deckSenses += senses.length;
+                        let learned = false;
+                        senses.forEach(s => {
+                            const p = this.progress.get(this.senseKey(w.id, s.id));
+                            if (!p) return;
+                            learned = true;
+                            deckLearned += 1;
+                            if ((p.dueAt || 0) <= now) deckDue += 1;
+                        });
+                        if (learned || w.mastery === 'learning' || w.mastery === 'mastered') wordsWithProgress += 1;
+                        if (w.mastery === 'mastered') mastered += 1;
+                    });
+                    let reviews7 = 0;
+                    activity.forEach(day => {
+                        const entry = this.studyLog[day.key];
+                        if (entry) reviews7 += deck.id === 'all' ? (entry.reviews || 0) : (entry.byDeck[deck.id] || 0);
+                    });
+                    return {
+                        id: deck.id,
+                        name: deck.name,
+                        totalWords: members.length,
+                        wordsWithProgress,
+                        mastered,
+                        due: deckDue,
+                        totalSenses: deckSenses,
+                        learnedSenses: deckLearned,
+                        reviews7,
+                        today: deck.id === 'all' ? (todayLog.reviews || 0) : (todayLog.byDeck[deck.id] || 0),
+                        active: deck.id === this.activeDeckId,
+                        readOnly: !!deck.readOnly
+                    };
+                });
+                const currentDeck = deckRows.find(d => d.active) || deckRows[0];
+                const currentPct = currentDeck.totalWords ? Math.round(currentDeck.mastered / currentDeck.totalWords * 100) : 0;
+
                 const fields = ['tone', 'pos', 'level', 'formality', 'grammar'];
-                const stats = {};
-                fields.forEach(f => stats[f] = {});
+                const fieldStats = {};
+                fields.forEach(f => fieldStats[f] = {});
                 activeWords.forEach(w => {
-                    w.senses.forEach(s => {
+                    (w.senses || []).filter(Boolean).forEach(s => {
                         fields.forEach(f => {
                             const val = s[f] ? s[f].trim() : '未标记';
-                            if (!stats[f][val]) stats[f][val] = 0;
-                            stats[f][val]++;
+                            fieldStats[f][val] = (fieldStats[f][val] || 0) + 1;
                         });
                     });
                 });
-                const dayMs = 86400000;
-                const last7days = Array.from({ length: 7 }, (_, i) => { const d = new Date(now - (6 - i) *
-                    dayMs); return d.toISOString().slice(0, 10); });
-                const dailyCounts = last7days.map(date => activeWords.filter(w => new Date(w.addedDate)
-                    .toISOString().slice(0, 10) === date).length);
-                const statCard = (value, label, color) => '<div class="stat-card"' + (color ? ' style="border-color:' + color + ';"' : '') + '><div class="number">' + value + '</div><div class="label">' + label + '</div></div>';
-                let html = `<h3 style="margin-bottom:20px;">📊 数据统计</h3>`;
-                html += `<div class="stats-category stats-section"><h4>📚 词库内容</h4><div class="stats-grid">` + [
-                    statCard(totalWords, '总单词数（活跃）'),
-                    statCard(totalSenses, '总释义数'),
-                    statCard(coreReady, '🧭 核心感觉就绪', '#6366f1'),
-                    statCard(synGroupCount, '⚖️ 近义组', '#0ea5e9'),
-                    statCard(rootFamilyCount, '🌳 词根家族', '#22c55e'),
-                    statCard(deletedCount, '♻️ 回收站', '#94a3b8')
-                ].join('') + `</div></div>`;
-                html += `<div class="stats-category stats-section"><h4>🎯 学习进度</h4><div class="stats-grid">` + [
-                    statCard(mastered, '✅ 已掌握'),
-                    statCard(learning, '🔄 学习中'),
-                    statCard(unknown, '❓ 未标记'),
-                    statCard(learnedSenses, '📚 已学义项', '#14b8a6'),
-                    statCard(totalReviews, '🎮 累计复习', '#8b5cf6'),
-                    statCard(accuracy + '%', '🎯 平均正确率', '#10b981')
-                ].join('') + `</div></div>`;
-                html += `<div class="stats-category stats-section"><h4>⏰ 复习状态</h4><div class="stats-grid">` + [
-                    statCard(dueForReview, '🔔 待复习', '#f59e0b'),
-                    statCard(dueSenses, '⏰ 到期义项', '#0ea5e9'),
-                    statCard(wrongSenses, '❗ 错题义项', '#ef4444')
-                ].join('') + `</div></div>`;
-                const fieldLabels = { tone: '😊 情感色彩', pos: '📌 词性', level: '⭐ 难度',
-                    formality: '📝 语体', grammar: '📖 语法属性' };
-                fields.forEach(f => {
-                    const data = stats[f];
-                    if (Object.keys(data).length > 0) {
-                        html += `<div class="stats-category" style="margin-top:12px;"><h4>${fieldLabels[f]}</h4>`;
-                        Object.entries(data).sort((a, b) => b[1] - a[1]).forEach(([key, count]) => {
-                            html +=
-                                `<div class="cat-stat-item"><span class="name">${this.escapeHtml(key)}</span><span class="count">${count}</span></div>`;
-                        });
-                        html += '</div>';
-                    }
-                });
-                html +=
-                    `<div class="stats-category" style="margin-top:16px;"><h4>📈 近7天新增趋势</h4><div style="display:flex; gap:8px; align-items:flex-end; height:120px; padding:12px 0;">${last7days.map((date, i) => { const maxDaily = Math.max(1, ...dailyCounts); const height = Math.max(6, Math.round((dailyCounts[i] / maxDaily) * 100)); return `<div style="flex:1; display:flex; flex-direction:column; align-items:center;"><div style="width:100%; background:#3b82f6; height:${height}px; border-radius:4px 4px 0 0; min-height:8px;"></div><div style="font-size:11px; color:#64748b; margin-top:4px;">${date.slice(5)}</div><div style="font-size:12px; font-weight:600;">${dailyCounts[i]}</div></div>`; }).join('')}</div></div>`;
+                const totalReviews = activeWords.reduce((acc, w) => acc + (w.reviewCount || 0), 0);
+                const totalCorrect = activeWords.reduce((acc, w) => acc + (w.correctCount || 0), 0);
+                const overallAccuracy = totalReviews > 0 ? Math.round(totalCorrect / totalReviews * 100) : 0;
+                const coreReady = activeWords.filter(w => w.core && w.core.feeling &&
+                    w.core.quality !== 'needs-review').length;
+
+                const metric = (icon, value, label, hint, tone) =>
+                    `<div class="dash-metric ${tone || ''}"><div class="dash-metric-icon">${icon}</div><div><div class="dash-metric-value">${value}</div><div class="dash-metric-label">${label}</div>${hint ? `<div class="dash-metric-hint">${hint}</div>` : ''}</div></div>`;
+                const barChart = (rows, max, kind) => `<div class="dash-bars ${kind || ''}">${rows.map((row, i) => {
+                    const value = kind === 'activity' ? row.reviews : row.count;
+                    const height = Math.max(3, Math.round(value / max * 100));
+                    return `<div class="dash-bar-col" title="${row.label}：${value}">
+                        <div class="dash-bar-value">${value}</div>
+                        <div class="dash-bar-track"><div class="dash-bar-fill" style="height:${height}%"></div></div>
+                        <div class="dash-bar-label">${row.label}</div>
+                        ${kind === 'activity' ? `<div class="dash-bar-sub">+${row.newSenses}</div>` : ''}
+                    </div>`;
+                }).join('')}</div>`;
+                const deckCard = d => {
+                    const pct = d.totalWords ? Math.round(d.mastered / d.totalWords * 100) : 0;
+                    return `<div class="dash-deck-card ${d.active ? 'active' : ''}" data-dash-deck="${this.escapeHtml(d.id)}">
+                        <div class="dash-deck-head"><b>${this.escapeHtml(d.name)}</b>${d.readOnly ? '<span class="dash-lock">🔒 标准库</span>' : ''}</div>
+                        <div class="dash-deck-pct">掌握度 ${pct}% <span>${d.mastered}/${d.totalWords} 词</span></div>
+                        <div class="dash-deck-track"><div class="dash-deck-fill" style="width:${pct}%"></div></div>
+                        <div class="dash-deck-meta"><span>已学 ${d.wordsWithProgress}/${d.totalWords} 词</span><span>到期 ${d.due} 义项</span><span>今日 ${d.today} 次</span><span>近7天 ${d.reviews7} 次</span></div>
+                        <button type="button" class="dash-deck-open" data-dash-deck="${this.escapeHtml(d.id)}">${d.active ? '当前词库' : '查看词库'}</button>
+                    </div>`;
+                };
+
+                let html = `<div class="dash-page">
+                    <div class="dash-title-row"><div><h3>📊 学习仪表盘</h3><div class="dash-subtitle">今天 ${todayKey} · ${totalWords} 个词在视野内</div></div><button type="button" class="dash-refresh" id="dashRefreshBtn">↻ 刷新</button></div>
+                    <div class="dash-hero">
+                        <div class="dash-hero-main">
+                            <div class="dash-kicker">当前词库</div>
+                            <div class="dash-hero-name">${this.escapeHtml(currentDeck.name)}</div>
+                            <div class="dash-hero-sub">${currentDeck.wordsWithProgress}/${currentDeck.totalWords} 词已开始 · ${currentDeck.mastered} 词已掌握 · ${currentDeck.due} 个义项到期</div>
+                            <div class="dash-hero-track"><div class="dash-hero-fill" style="width:${currentPct}%"></div></div>
+                            <div class="dash-hero-foot">掌握度 ${currentPct}%${currentDeck.due ? ` · 今天先清掉 ${currentDeck.due} 个到期义项` : ' · 今天没有到期义项'}</div>
+                        </div>
+                        <div class="dash-hero-actions">
+                            <button type="button" class="dash-primary" data-dash-go="daily">📅 开始今日复习</button>
+                            <button type="button" class="dash-secondary" data-dash-go="review">🎴 复习中心</button>
+                        </div>
+                    </div>
+                    <div class="dash-metrics">
+                        ${metric('📖', todayLog.reviews, '今日复习', `${todayNew} 个新义项`, 'blue')}
+                        ${metric('🌱', todayNew, '今日新学', '首次接触的义项', 'green')}
+                        ${metric('🔥', streak + ' 天', '连续学习', streak ? '保持住' : '今天开始', 'orange')}
+                        ${metric('⏰', dueSenses, '到期义项', overdueSenses ? `含 ${overdueSenses} 个逾期` : '都在计划内', 'amber')}
+                        ${metric('🎯', todayLog.reviews ? accuracy + '%' : '—', '今日正确率', todayLog.reviews ? '按今日作答计算' : '还没有作答', 'violet')}
+                    </div>
+                    <div class="dash-columns">
+                        <section class="dash-panel">
+                            <div class="dash-panel-head"><h4>🗓️ 未来 7 天到期</h4><span>${dueSenses} 个待复习</span></div>
+                            ${barChart(forecast, forecastMax, 'forecast')}
+                            <div class="dash-note">${overdueSenses ? `今天包含 ${overdueSenses} 个逾期义项` : '按当前间隔重复计划估算'}${futureForecast ? '' : ' · 之后 6 天暂无到期'}</div>
+                        </section>
+                        <section class="dash-panel">
+                            <div class="dash-panel-head"><h4>📈 近 7 天学习量</h4><span>${activity.reduce((a, d) => a + d.reviews, 0)} 次复习</span></div>
+                            ${barChart(activity, activityMax, 'activity')}
+                            <div class="dash-note">柱高为复习次数，下方 +N 为新学义项</div>
+                        </section>
+                    </div>
+                    <section class="dash-panel dash-deck-section">
+                        <div class="dash-panel-head"><h4>📚 每个词库的进度</h4><button type="button" class="dash-link" data-dash-go="decks">管理词库</button></div>
+                        <div class="dash-deck-grid">${deckRows.map(deckCard).join('')}</div>
+                    </section>
+                    <details class="dash-details">
+                        <summary>📋 详细内容统计</summary>
+                        <div class="dash-detail-metrics">
+                            <div><b>${activeWords.length}</b><span>总单词</span></div>
+                            <div><b>${activeWords.reduce((a, w) => a + (w.senses || []).length, 0)}</b><span>总释义</span></div>
+                            <div><b>${coreReady}</b><span>核心感觉</span></div>
+                            <div><b>${(this.extras.synonymGroups || []).length}</b><span>近义组</span></div>
+                            <div><b>${(this.extras.rootFamilies || []).length}</b><span>词根家族</span></div>
+                            <div><b>${totalReviews}</b><span>累计复习</span></div>
+                            <div><b>${overallAccuracy}%</b><span>平均正确率</span></div>
+                            <div><b>${activeWords.length - newWords}</b><span>已开始学习</span></div>
+                        </div>
+                        <div class="dash-field-grid">${fields.map(f => {
+                            const labels = { tone: '😊 情感色彩', pos: '📌 词性', level: '⭐ 难度', formality: '📝 语体', grammar: '📖 语法属性' };
+                            const rows = Object.entries(fieldStats[f]).sort((a, b) => b[1] - a[1]);
+                            if (!rows.length) return '';
+                            return `<div class="dash-field"><h5>${labels[f]}</h5>${rows.map(([name, count]) =>
+                                `<div class="dash-field-row"><span>${this.escapeHtml(name)}</span><b>${count}</b></div>`).join('')}</div>`;
+                        }).join('')}</div>
+                    </details>
+                </div>`;
                 container.innerHTML = html;
                 this._statsCache = { key: statsCacheKey, html };
+                this.bindDashboardActions(container);
+            },
+
+            bindDashboardActions(container) {
+                container.querySelectorAll('[data-dash-go]').forEach(btn => {
+                    btn.addEventListener('click', () => this.setMode(btn.dataset.dashGo));
+                });
+                container.querySelectorAll('[data-dash-deck]').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = el.dataset.dashDeck;
+                        this.listLimit = 120;
+                        this.setActiveDeck(id);
+                    });
+                });
+                const refresh = container.querySelector('#dashRefreshBtn');
+                if (refresh) refresh.addEventListener('click', () => {
+                    this._statsCache = null;
+                    this.renderStats(container);
+                });
             },
 
             softDeleteWord(id) {
@@ -12427,6 +12917,14 @@
                     App.updateDeckSelect();
                 });
 
+                document.getElementById('listFilterSelect').addEventListener('change', function() {
+                    App.listLimit = 120;
+                    App.listFilter = this.value || 'all';
+                    const list = App.getFilteredWords();
+                    App.syncSelectionToFiltered(list);
+                    App.renderList();
+                    App.renderRightPanel();
+                });
                 document.getElementById('groupBySelect').addEventListener('change', function() {
                     App.listLimit = 120;
                     const form = document.getElementById('addWordForm');

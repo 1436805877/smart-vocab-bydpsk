@@ -27,6 +27,11 @@ jobs:
       - name: Update safety regression
         run: npm run test:update-safety
 
+      - name: Data and study regressions
+        run: |
+          npm run test:builtin
+          npm run test:study
+
       - name: Build installer
         run: npm run dist
         env:
