@@ -1,8 +1,8 @@
 {
   "name": "smart-vocab",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
-  "description": "智能单词本 0.5.2 beta — 内置六级 4036 词 + 核心感觉 + 词根演变 + 近义辨析",
+  "description": "智能单词本 0.5.3 beta — 内置六级 4036 词 + 核心感觉 + 词根演变 + 近义辨析",
   "main": "main.js",
   "author": "Mokiklok",
   "license": "MIT",
@@ -11,6 +11,7 @@
     "dev": "electron .",
     "pack": "electron-builder --dir",
     "portable": "node scripts/package-portable.mjs",
+    "test:update-safety": "node scripts/test-update-safety.cjs",
     "dist": "electron-builder --win nsis portable --publish never"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.2 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.3 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.2 beta</title>
+    <title>智能单词本 v0.5.3 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -4220,6 +4220,15 @@
             background: linear-gradient(90deg, #6366f1, #22c55e);
             transition: width .25s ease;
         }
+        .update-backup {
+            margin: 2px 0 8px;
+            padding: 6px 9px;
+            border-radius: 8px;
+            background: color-mix(in srgb, #22c55e 12%, transparent);
+            color: color-mix(in srgb, var(--text-color, #0f172a) 82%, #15803d);
+            font-size: 12px;
+            line-height: 1.5;
+        }
         .update-notes {
             max-height: 112px;
             overflow: auto;
@@ -5316,7 +5325,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.2 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.3 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5799,7 +5808,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.2', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.3', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5943,7 +5952,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
-            appVersion: '0.5.2',
+            appVersion: '0.5.3',
             storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
@@ -7364,7 +7373,7 @@
 
             updateSectionHtml() {
                 const u = this.updateState;
-                const version = (u && u.currentVersion) || this.appVersion || '0.5.2';
+                const version = (u && u.currentVersion) || this.appVersion || '0.5.3';
                 const status = (u && u.status) || 'idle';
                 const pct = Math.max(0, Math.min(100, Math.round(Number(u && u.progress) || 0)));
                 const notes = u && u.releaseNotes
@@ -7393,18 +7402,18 @@
                     tone = 'available';
                     text = u.portable
                         ? `发现新版本 v${u.latestVersion || ''}。便携版请打开发布页下载新版。`
-                        : `发现新版本 v${u.latestVersion || ''}，可以下载并安装。`;
+                        : `发现新版本 v${u.latestVersion || ''}。下载前会自动备份当前数据。`;
                     action = u.portable
                         ? `<button type="button" class="settings-mini-btn primary" data-update-action="release">打开发布页</button>`
-                        : `<button type="button" class="settings-mini-btn primary" data-update-action="download">下载更新</button>`;
+                        : `<button type="button" class="settings-mini-btn primary" data-update-action="download">备份并下载</button>`;
                 } else if (status === 'downloading') {
                     tone = 'downloading';
                     text = u.message || `正在下载 v${u.latestVersion || ''}…`;
                     action = `<button type="button" class="settings-mini-btn" disabled>下载中 ${pct}%</button>`;
                 } else if (status === 'downloaded') {
                     tone = 'downloaded';
-                    text = u.message || '更新已下载，重启后安装。';
-                    action = `<button type="button" class="settings-mini-btn primary" data-update-action="install">重启并安装</button>`;
+                    text = u.message || '更新已下载，重启后安装。安装前会再次备份当前数据。';
+                    action = `<button type="button" class="settings-mini-btn primary" data-update-action="install">备份并安装</button>`;
                 } else if (status === 'not-available') {
                     tone = 'ok';
                     text = u.message || `当前已是最新版本（v${version}）。`;
@@ -7418,12 +7427,15 @@
                 const progress = status === 'downloading'
                     ? `<div class="update-progress"><span style="width:${pct}%"></span></div>`
                     : '';
+                const backupLine = this._updateBackupAt
+                    ? `<div class="update-backup">🛡 已创建更新前备份：${this.escapeHtml(new Date(this._updateBackupAt).toLocaleString())}</div>`
+                    : '';
                 return `
                     <div class="update-line">
                         <span class="update-version">当前 v${this.escapeHtml(version)}${u && u.portable ? ' · 便携版' : ''}${u && u.status === 'web' ? ' · 网页版' : (u && u.packaged ? '' : ' · 开发')}</span>
                         <span class="update-status ${tone}">${this.escapeHtml(text)}</span>
                     </div>
-                    ${progress}
+                    ${progress}${backupLine}
                     <div class="update-actions">
                         ${action}
                         ${action.includes('data-update-action="release"') ? '' : '<button type="button" class="settings-mini-btn" data-update-action="release">打开发布页</button>'}
@@ -7436,6 +7448,24 @@
                 const api = window.desktop;
                 if (!api) return;
                 try {
+                    if (action === 'check') this._updateBackupAt = 0;
+                    // 下载/安装前先落一份完整 JSON 备份；更新本身不动数据，
+                    // 但旧版安装器/新版迁移一旦出错，用户必须有可恢复的最近快照。
+                    if (action === 'download' || action === 'install') {
+                        const reason = action === 'download' ? 'before-update' : 'before-install';
+                        if (this.words.length) {
+                            this.showToast(action === 'download'
+                                ? '正在备份当前数据，然后下载更新…'
+                                : '正在备份当前数据，然后安装更新…', 'info', 3000);
+                            const snapshot = await this.createBackup(reason);
+                            if (!snapshot) {
+                                this.showToast('更新前备份失败，已取消更新。请先到「备份」页手动备份。', 'error', 6000);
+                                return;
+                            }
+                            this._updateBackupAt = snapshot.createdAt;
+                            this.refreshUpdateSection();
+                        }
+                    }
                     let state = null;
                     if (action === 'check' && typeof api.checkForUpdates === 'function') {
                         state = await api.checkForUpdates();
@@ -7703,7 +7733,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.2',
+                    appVersion: '0.5.3',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -7720,9 +7750,21 @@
                 };
             },
 
-            backupFileName(date = new Date()) {
+            backupFileName(date = new Date(), reason = '') {
                 const pad = n => String(n).padStart(2, '0');
-                return `wordbook-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.json`;
+                const suffix = String(reason || '').replace(/[^a-z0-9-]/gi, '');
+                return `wordbook-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}${suffix ? '-' + suffix : ''}.json`;
+            },
+
+            backupReasonLabel(reason) {
+                const labels = {
+                    manual: '手动备份',
+                    auto: '自动备份',
+                    'before-restore': '恢复前备份',
+                    'before-update': '更新前备份',
+                    'before-install': '安装前备份'
+                };
+                return labels[reason] || reason || '手动备份';
             },
 
             saveMirror() {
@@ -7763,9 +7805,24 @@
                 }
                 if (window.desktop && typeof window.desktop.saveBackup === 'function') {
                     try {
-                        await window.desktop.saveBackup(JSON.stringify(data, null, 2), this.backupFileName());
+                        const saved = await window.desktop.saveBackup(
+                            JSON.stringify(data, null, 2),
+                            this.backupFileName(new Date(), reason === 'manual' ? '' : reason)
+                        );
+                        if (!saved || saved.ok === false) {
+                            throw new Error((saved && saved.error) || '本地备份写入失败');
+                        }
                     } catch (e) {
                         console.error('Desktop backup failed:', e);
+                        // 更新/安装前的备份必须能落盘；只写进当前数据库不算安全备份。
+                        if (reason === 'before-update' || reason === 'before-install') {
+                            this.showToast('本地备份写入失败：' + (e.message || e), 'error', 6000);
+                            return null;
+                        }
+                        if (reason === 'manual') {
+                            this.showToast('内部备份已建，但本地 JSON 写入失败：' + (e.message || e), 'error', 5000);
+                            return snapshot;
+                        }
                     }
                 }
                 if (reason === 'manual') this.showToast('✅ 备份完成', 'success');
@@ -8819,7 +8876,7 @@
                     <div class="backup-card">
                         <div class="backup-card-main">
                             <div class="backup-date">${this.escapeHtml(fmt(s.createdAt))}</div>
-                            <div class="backup-meta">${s.wordCount || 0} 个单词 · ${s.progressCount || 0} 个义项进度 · ${this.escapeHtml(s.reason || 'manual')}</div>
+                            <div class="backup-meta">${s.wordCount || 0} 个单词 · ${s.progressCount || 0} 个义项进度 · ${this.escapeHtml(this.backupReasonLabel(s.reason))}</div>
                         </div>
                         <div class="backup-card-actions">
                             <button class="backup-restore" data-id="${this.escapeHtml(s.id)}">恢复</button>

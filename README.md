@@ -1,4 +1,4 @@
-# 智能单词本 0.5.2 beta
+# 智能单词本 0.5.3 beta
 
 一个单文件、离线优先的单词学习应用，按「核心感觉 + 词根演变 + 近义辨析」组织单词，而不是把单词等同于一条中文翻译。
 
@@ -16,7 +16,7 @@
 
 「设置 → 版本更新」可以手动检查 GitHub Release，安装版会显示下载进度并在下载完成后重启安装；便携版不会覆盖正在运行的 exe，只打开发布页让你下载新版。启动时会自动检查一次，可在同一张卡片里关闭。
 
-更新只读取公开的 Release 信息和 `latest.yml`，不会上传词库、进度或壁纸。开发模式不检查更新。
+0.5.3 起，安装版在下载前和安装前都会自动创建完整 JSON 备份；备份失败会取消更新。备份仍保存在本机，更新只读取公开的 Release 信息和 `latest.yml`，不会上传词库、进度或壁纸。开发模式不检查更新。
 
 ## 运行
 
@@ -35,8 +35,9 @@ python -m http.server 8080
 
 ```bash
 npm install
-npm start        # 开发运行
-npm run dist     # 生成 Windows 安装包 + 便携版
+npm start                       # 开发运行
+npm run test:update-safety      # 更新前备份/中止逻辑回归
+npm run dist                    # 生成 Windows 安装包 + 便携版
 ```
 
 详细说明见 [docs/desktop.md](docs/desktop.md)。如果本机无法下载 Electron，可在 GitHub Actions 里手动运行 **Build Windows app**，从 Artifacts 下载安装包。
@@ -45,14 +46,14 @@ Release 页面（安装包构建完成后）：
 
 https://github.com/1436805877/smart-vocab-bydpsk/releases
 
-0.5.2 安装包与免安装便携版从 Release 下载：
+0.5.3 安装包与免安装便携版从 Release 下载：
 
 ```text
-https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.2
+https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.3
 ```
 
-- `SmartVocab-0.5.2-x64.exe`：安装版（支持应用内检查和更新）
-- `SmartVocab-0.5.2-portable.exe`：免安装，双击即可运行（更新时打开发布页）
+- `SmartVocab-0.5.3-x64.exe`：安装版（支持应用内检查和更新）
+- `SmartVocab-0.5.3-portable.exe`：免安装，双击即可运行（更新时打开发布页）
 
 首次启动会使用独立的桌面数据目录，并自动写入内置六级词库，不需要再手动导入 JSON。
 
