@@ -1,4 +1,4 @@
-# 智能单词本 0.5.3 beta
+# 智能单词本 0.5.4 beta
 
 一个单文件、离线优先的单词学习应用，按「核心感觉 + 词根演变 + 近义辨析」组织单词，而不是把单词等同于一条中文翻译。
 
@@ -7,6 +7,10 @@
 ## 内置词库
 
 安装包和便携版都携带 `data-cet6.json.gz`（4036 词 / 8009 义项）。首次启动时主进程会直接写入 SQLite，不需要手动导入。已有词库不会被覆盖；如果用户主动清空词库，可以在空状态里点「恢复内置六级词库」。
+
+## 标准库版本与校验
+
+标准库旁边有 `data-cet6.manifest.json`，记录 `libraryVersion`（当前 `2026.10.1`）、词数/义项数、来源和 gzip 文件的 SHA-256。主进程在导入前先校验文件和清单，校验失败会拒绝写入数据库；设置页的「标准库」卡片会显示版本、规模、来源和校验结果。以后发布新标准库时，用新清单和新的校验和区分版本。
 
 ## 壁纸专属外观
 
@@ -36,6 +40,7 @@ python -m http.server 8080
 ```bash
 npm install
 npm start                       # 开发运行
+npm run test:builtin            # 内置词库版本/校验/导入保护回归
 npm run test:update-safety      # 更新前备份/中止逻辑回归
 npm run dist                    # 生成 Windows 安装包 + 便携版
 ```
@@ -46,14 +51,14 @@ Release 页面（安装包构建完成后）：
 
 https://github.com/1436805877/smart-vocab-bydpsk/releases
 
-0.5.3 安装包与免安装便携版从 Release 下载：
+0.5.4 安装包与免安装便携版从 Release 下载：
 
 ```text
-https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.3
+https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.4
 ```
 
-- `SmartVocab-0.5.3-x64.exe`：安装版（支持应用内检查和更新）
-- `SmartVocab-0.5.3-portable.exe`：免安装，双击即可运行（更新时打开发布页）
+- `SmartVocab-0.5.4-x64.exe`：安装版（支持应用内检查和更新）
+- `SmartVocab-0.5.4-portable.exe`：免安装，双击即可运行（更新时打开发布页）
 
 首次启动会使用独立的桌面数据目录，并自动写入内置六级词库，不需要再手动导入 JSON。
 

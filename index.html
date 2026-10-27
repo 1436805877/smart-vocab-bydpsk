@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.3 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.4 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.3 beta</title>
+    <title>智能单词本 v0.5.4 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -5325,7 +5325,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.3 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.4 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5808,7 +5808,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.3', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.4', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -5952,7 +5952,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
-            appVersion: '0.5.3',
+            appVersion: '0.5.4',
             storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
@@ -6446,6 +6446,7 @@
                 try {
                     const result = await window.desktop.restoreBuiltinWordbook();
                     if (!result || !result.ok) throw new Error((result && result.error) || '恢复失败');
+                    this.builtinLibrary = result;
                     // 恢复前不要用旧 decks 覆盖内置词库
                     this.decksLoaded = false;
                     this.decks = [];
@@ -7373,7 +7374,7 @@
 
             updateSectionHtml() {
                 const u = this.updateState;
-                const version = (u && u.currentVersion) || this.appVersion || '0.5.3';
+                const version = (u && u.currentVersion) || this.appVersion || '0.5.4';
                 const status = (u && u.status) || 'idle';
                 const pct = Math.max(0, Math.min(100, Math.round(Number(u && u.progress) || 0)));
                 const notes = u && u.releaseNotes
@@ -7495,6 +7496,17 @@
 
             renderSettings(container) {
                 const t = this.settings.theme || {};
+                const lib = this.builtinLibrary && this.builtinLibrary.library;
+                const libOk = !!(lib && lib.ok);
+                const libVersion = (lib && lib.libraryVersion) || '未记录';
+                const libWords = (lib && lib.wordCount) || this.words.length;
+                const libSenses = (lib && lib.senseCount) || 0;
+                const libSource = (lib && lib.source) || '随安装包内置';
+                const libHash = (lib && (lib.actualSha256 || lib.expectedSha256)) || '';
+                const libError = (lib && lib.error) || (this.builtinLibrary && this.builtinLibrary.error) || '';
+                const libStatus = !this.builtinEnabled ? '网页版不启用' : (libOk ? '✅ 校验通过' : '⚠️ 未通过校验');
+                const libStatusColor = libOk ? '#15803d' : '#b45309';
+                const importedVersion = (lib && lib.marker && (lib.marker.libraryVersion || lib.marker.dataVersion)) || '旧版记录';
                 container.innerHTML = `
                     <div class="settings-page">
                         <div class="settings-title">⚙️ 设置</div>
@@ -7562,6 +7574,32 @@
                                 <input type="checkbox" id="settingsAutoCheckUpdates" ${this.settings.autoCheckUpdates ? 'checked' : ''}>
                             </label>
                         </div>
+
+                        ${this.builtinEnabled ? `
+                        <div class="settings-card">
+                            <div class="settings-section-label">📚 标准词库</div>
+                            <div class="settings-row">
+                                <span><b>内置六级词库</b><small>随安装包分发，不依赖手动导入；更新 App 时自动沿用。</small></span>
+                                <span style="color:${libStatusColor};font-size:13px;font-weight:600;">${libStatus}</span>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>库版本</b><small>数据清单版本，用于判断标准库是否需要随 App 升级。</small></span>
+                                <code style="font-size:12px;color:#475569;">${this.escapeHtml(libVersion)}</code>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>内容规模</b><small>清单声明 · 当前数据库实际。</small></span>
+                                <span style="font-size:13px;color:#475569;">${libWords} 词 · ${libSenses} 义项 / 当前 ${this.words.length} 词</span>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>数据来源</b><small>${this.escapeHtml(libSource)}</small></span>
+                            </div>
+                            <div class="settings-row">
+                                <span><b>文件校验</b><small>启动时校验 gzip 文件，损坏则拒绝导入并提示。</small></span>
+                                <code style="font-size:11px;color:#64748b;" title="${this.escapeHtml(libHash)}">${libHash ? this.escapeHtml(libHash.slice(0, 16) + '…' + libHash.slice(-8)) : '无'}</code>
+                            </div>
+                            <div class="settings-hint">本次数据标记：${this.escapeHtml(importedVersion)}。修改或删除标准库文件后，校验会失败，不会把损坏数据写进数据库。</div>
+                            ${libError ? `<div class="settings-hint" style="color:#b45309;">校验信息：${this.escapeHtml(libError)}</div>` : ''}
+                        </div>` : ''}
 
                         <div class="settings-card">
                             <div class="settings-section-label">📚 学习</div>
@@ -7733,7 +7771,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.3',
+                    appVersion: '0.5.4',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,

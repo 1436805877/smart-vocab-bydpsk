@@ -338,6 +338,7 @@ function dbImportAll(db, payload) {
 const { createBuiltinLibrary } = require('./lib/builtin-library');
 const builtinLibrary = createBuiltinLibrary({
   dataFile: path.join(__dirname, 'data-cet6.json.gz'),
+  manifestFile: path.join(__dirname, 'data-cet6.manifest.json'),
   markerFile: path.join(storageDir, 'builtin-library.json'),
   ensureStorageDirs,
   getAppDb,
