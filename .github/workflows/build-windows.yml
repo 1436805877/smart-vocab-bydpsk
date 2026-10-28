@@ -32,6 +32,9 @@ jobs:
           npm run test:builtin
           npm run test:study
 
+      - name: Performance regressions
+        run: npm run test:performance
+
       - name: Build installer
         run: npm run dist
         env:
