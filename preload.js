@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld('desktop', {
   mirrorInfo: () => ipcRenderer.invoke('db:mirrorInfo'),
   dbInfo: () => ipcRenderer.invoke('db:info'),
   dbGetAll: (store) => ipcRenderer.invoke('db:getAll', store),
+  dbGetBackupMetas: () => ipcRenderer.invoke('db:getBackupMetas'),
+  dbGetBackup: (id) => ipcRenderer.invoke('db:getBackup', id),
   dbReplaceStore: (store, rows) => ipcRenderer.invoke('db:replaceStore', { store, rows }),
   dbImportAll: (payload) => ipcRenderer.invoke('db:importAll', payload),
   dbPut: (store, row) => ipcRenderer.invoke('db:put', { store, row }),

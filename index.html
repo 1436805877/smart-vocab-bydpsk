@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.5 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.6 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.5 beta</title>
+    <title>智能单词本 v0.5.6 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -5447,7 +5447,7 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.5 beta</span></h1>
+            <h1>📖 智能单词本 <span class="version-tag">0.5.6 beta</span></h1>
             <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
             <button class="nav-btn" data-mode="review">🎴 复习中心</button>
             <button class="nav-btn" data-mode="daily">📅 今日</button>
@@ -5829,6 +5829,22 @@
                     req.onerror = () => reject(req.error);
                 });
             }
+            async getBackupMetas() {
+                const all = await this.getBackups();
+                return all.map(s => ({
+                    id: s.id, createdAt: s.createdAt, reason: s.reason,
+                    wordCount: s.wordCount, progressCount: s.progressCount,
+                    size: 0
+                })).sort((a, b) => b.createdAt - a.createdAt);
+            }
+            async getBackup(id) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction('backups', 'readonly');
+                    const req = tx.objectStore('backups').get(id);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => reject(req.error);
+                });
+            }
             async saveBackup(snapshot) {
                 return new Promise((resolve, reject) => {
                     const tx = this.db.transaction('backups', 'readwrite');
@@ -5938,7 +5954,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.5', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.6', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6017,6 +6033,16 @@
                 const res = await this.bridge.dbGetAll('backups');
                 if (!res.ok) throw new Error(res.error);
                 return res.rows || [];
+            }
+            async getBackupMetas() {
+                const res = await this.bridge.dbGetBackupMetas();
+                if (!res.ok) throw new Error(res.error);
+                return res.rows || [];
+            }
+            async getBackup(id) {
+                const res = await this.bridge.dbGetBackup(id);
+                if (!res.ok) throw new Error(res.error);
+                return res.backup || null;
             }
             async saveBackup(snapshot) {
                 const res = await this.bridge.dbPut('backups', snapshot);
@@ -6107,7 +6133,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
-            appVersion: '0.5.5',
+            appVersion: '0.5.6',
             storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
@@ -6117,6 +6143,11 @@
             fileBackups: [],
             mirrorInfo: null,
             mirrorTimer: null,
+            _booted: false,
+            _wallpaperRun: 0,
+            _wallpaperApplyTimer: null,
+            _wallpaperItemCache: null,
+            _wallpaperItemPromise: null,
             lastBackupAt: 0,
             decks: [],
             deckWords: new Set(),
@@ -6189,6 +6220,7 @@
             gameStates: {},
 
             async init() {
+                this._booted = false;
                 try {
                     if (window.desktop && typeof window.desktop.dbInfo === 'function') {
                         this.db = new SQLiteStore();
@@ -6244,10 +6276,15 @@
                     this.currentSenseId = null; }
                 this.render();
                 this.hideBootScreen();
+                this._booted = true;
                 this.initUpdater();
-                this.migrateWallpapersToDesktop().then(() => this.applyWallpaper()).catch(() => {});
-                this.autoBackupIfNeeded().catch(e => console.error(e));
-                this.saveMirror();
+                // 首帧显示后再读取壁纸；自动备份/镜像也延后，避免启动瞬间与渲染抢资源。
+                this.scheduleWallpaperApply(60);
+                this.migrateWallpapersToDesktop()
+                    .then(() => this.scheduleWallpaperApply(60))
+                    .catch(() => {});
+                setTimeout(() => this.runWhenIdle(() => this.autoBackupIfNeeded().catch(e => console.error(e))), 8000);
+                setTimeout(() => this.runWhenIdle(() => this.saveMirror()), 8000);
                 setInterval(() => this.autoBackupIfNeeded(), 6 * 3600 * 1000);
             },
 
@@ -6953,8 +6990,10 @@
                 const root = document.documentElement;
                 root.style.setProperty('--page-bg', t.bgColor || '#f3f6fb');
                 root.style.setProperty('--panel-bg', t.panelColor || '#ffffff');
-                if (t.autoTextColor) this.updateAutoTextColor();
-                else root.style.setProperty('--text-color', t.textColor || '#0f172a');
+                if (t.autoTextColor) {
+                    if (this._booted) this.updateAutoTextColor();
+                    else root.style.setProperty('--text-color', this.hexBrightness(t.panelColor || '#ffffff') > 0.55 ? '#0f172a' : '#f8fafc');
+                } else root.style.setProperty('--text-color', t.textColor || '#0f172a');
                 this.applyVisibility();
                 root.style.setProperty('--app-opacity', String(Math.round((Number.isFinite(Number(t.appOpacity)) ? Number(t.appOpacity) : 0.96) * 100)) + '%');
                 root.style.setProperty('--panel-opacity', String(Math.round((Number.isFinite(Number(t.panelOpacity)) ? Number(t.panelOpacity) : 0.88) * 100)) + '%');
@@ -6968,7 +7007,24 @@
                     if (video) video.style.opacity = (t.wallpaper || t.wallpaperId) ? String(Number(t.wallpaperOpacity ?? 0.35)) : '0';
                     return;
                 }
-                this.applyWallpaper();
+                // 启动时 loadSettings 会连续 applyTheme 两次，首帧前不加载壁纸；
+                // 等界面显示后再延迟加载，且只加载当前使用的那一张。
+                if (this._booted) this.scheduleWallpaperApply();
+            },
+
+            scheduleWallpaperApply(delay = 0) {
+                clearTimeout(this._wallpaperApplyTimer);
+                this._wallpaperApplyTimer = setTimeout(() => {
+                    this.applyWallpaper().catch(e => console.error('Wallpaper apply failed:', e));
+                }, Math.max(0, delay));
+            },
+
+            runWhenIdle(callback) {
+                if (typeof window.requestIdleCallback === 'function') {
+                    window.requestIdleCallback(callback, { timeout: 3000 });
+                } else {
+                    setTimeout(callback, 0);
+                }
             },
 
             hexBrightness(hex) {
@@ -7003,15 +7059,18 @@
                 const t = this.settings.theme || {};
                 let url = t.wallpaper || '';
                 let videoFrame = null;
+                let bitmap = null;
                 if (t.wallpaperId) {
                     try {
-                        const items = await this.wallpaperList();
-                        const item = items.find(x => x.id === t.wallpaperId);
-                        if (!item) return null;
+                        const selectedId = t.wallpaperId;
+                        const item = await this.getWallpaperItem(selectedId);
+                        if (!item || this.settings.theme.wallpaperId !== selectedId) return null;
                         if (item.kind === 'video') {
                             const video = document.getElementById('appWallpaperVideo');
-                            if (!video || !video.videoWidth) return null;
+                            if (!video || video.dataset.wallpaperId !== item.id || !video.videoWidth) return null;
                             videoFrame = video;
+                        } else if (typeof createImageBitmap === 'function') {
+                            bitmap = await createImageBitmap(item.blob);
                         } else {
                             url = URL.createObjectURL(item.blob);
                         }
@@ -7024,6 +7083,8 @@
                     const ctx = canvas.getContext('2d');
                     if (videoFrame) {
                         ctx.drawImage(videoFrame, 0, 0, 32, 32);
+                    } else if (bitmap) {
+                        ctx.drawImage(bitmap, 0, 0, 32, 32);
                     } else {
                         if (!url) return null;
                         const img = await new Promise((resolve, reject) => {
@@ -7041,7 +7102,8 @@
                     }
                     return total / (data.length / 4) / 255;
                 } catch { return null; } finally {
-                    if (t.wallpaperId && url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+                    if (bitmap && typeof bitmap.close === 'function') bitmap.close();
+                    if (!bitmap && t.wallpaperId && url && url.startsWith('blob:')) URL.revokeObjectURL(url);
                 }
             },
 
@@ -7074,16 +7136,18 @@
                 });
             },
 
-            async wallpaperList() {
+            async wallpaperList(loadBlobs = true) {
                 if (window.desktop && window.desktop.listWallpapers) {
                     const metas = await window.desktop.listWallpapers();
+                    const sorted = (metas || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    if (!loadBlobs) return sorted;
                     const items = [];
-                    for (const meta of metas || []) {
+                    for (const meta of sorted) {
                         const data = await window.desktop.getWallpaper(meta.id);
                         if (!data || !data.buffer) continue;
                         items.push({ ...meta, blob: new Blob([data.buffer], { type: data.mime || meta.mime || 'application/octet-stream' }) });
                     }
-                    return items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    return items;
                 }
                 const db = await this.wallpaperDB();
                 return new Promise((resolve, reject) => {
@@ -7093,7 +7157,38 @@
                 });
             },
 
+            async getWallpaperItem(id) {
+                if (!id) return null;
+                if (this._wallpaperItemCache && this._wallpaperItemCache.id === id) return this._wallpaperItemCache.item;
+                if (this._wallpaperItemPromise && this._wallpaperItemPromise.id === id) return this._wallpaperItemPromise.promise;
+                const promise = (async () => {
+                    try {
+                        const items = await this.wallpaperList(false);
+                        const meta = items.find(x => x && x.id === id);
+                        if (!meta) return null;
+                        let blob = meta.blob;
+                        if (!blob && window.desktop && window.desktop.getWallpaper) {
+                            const data = await window.desktop.getWallpaper(id);
+                            if (!data || !data.buffer) return null;
+                            blob = new Blob([data.buffer], { type: data.mime || meta.mime || 'application/octet-stream' });
+                        }
+                        if (!blob) return null;
+                        const item = { ...meta, blob };
+                        this._wallpaperItemCache = { id, item };
+                        return item;
+                    } catch { return null; }
+                })();
+                this._wallpaperItemPromise = { id, promise };
+                try {
+                    return await promise;
+                } finally {
+                    if (this._wallpaperItemPromise && this._wallpaperItemPromise.promise === promise) this._wallpaperItemPromise = null;
+                }
+            },
+
             async wallpaperPut(item) {
+                this._wallpaperItemCache = null;
+                this._wallpaperItemPromise = null;
                 if (window.desktop && window.desktop.saveWallpaper) {
                     const buffer = await item.blob.arrayBuffer();
                     const saved = await window.desktop.saveWallpaper({
@@ -7116,6 +7211,8 @@
             },
 
             async wallpaperDelete(id) {
+                if (this._wallpaperItemCache && this._wallpaperItemCache.id === id) this._wallpaperItemCache = null;
+                if (this._wallpaperItemPromise && this._wallpaperItemPromise.id === id) this._wallpaperItemPromise = null;
                 if (window.desktop && window.desktop.deleteWallpaper) {
                     await window.desktop.deleteWallpaper(id);
                     return;
@@ -7150,50 +7247,62 @@
                 const img = document.getElementById('appWallpaper');
                 const video = document.getElementById('appWallpaperVideo');
                 if (!img || !video) return;
+                const run = ++this._wallpaperRun;
+                const opacity = Number.isFinite(Number(t.wallpaperOpacity)) ? Number(t.wallpaperOpacity) : 0.35;
+                let item = null;
+                if (t.wallpaperId) item = await this.getWallpaperItem(t.wallpaperId);
+                if (run !== this._wallpaperRun) return;
                 if (this._wallpaperObjectUrl) {
                     URL.revokeObjectURL(this._wallpaperObjectUrl);
                     this._wallpaperObjectUrl = null;
                 }
-                const opacity = Number.isFinite(Number(t.wallpaperOpacity)) ? Number(t.wallpaperOpacity) : 0.35;
                 let applied = false;
-                if (t.wallpaperId) {
-                    try {
-                        const items = await this.wallpaperList();
-                        const item = items.find(x => x.id === t.wallpaperId);
-                        if (item && item.blob) {
-                            const url = URL.createObjectURL(item.blob);
-                            this._wallpaperObjectUrl = url;
-                            if (item.kind === 'video') {
-                                img.style.backgroundImage = 'none';
-                                img.style.opacity = '0';
-                                video.src = url;
-                                video.style.display = 'block';
-                                video.style.opacity = String(opacity);
-                                video.onloadeddata = () => this.updateAutoTextColor();
-                                video.play().catch(() => {});
-                            } else {
-                                video.pause();
-                                video.style.display = 'none';
-                                img.style.backgroundImage = `url("${url}")`;
-                                img.style.opacity = String(opacity);
-                            }
-                            applied = true;
-                        }
-                    } catch { /* ignore */ }
+                if (item && item.blob) {
+                    const url = URL.createObjectURL(item.blob);
+                    this._wallpaperObjectUrl = url;
+                    if (item.kind === 'video') {
+                        img.style.backgroundImage = 'none';
+                        img.style.opacity = '0';
+                        video.dataset.wallpaperId = item.id;
+                        video.onloadeddata = () => {
+                            if (run !== this._wallpaperRun) return;
+                            this.updateAutoTextColor();
+                        };
+                        video.src = url;
+                        video.style.display = 'block';
+                        video.style.opacity = String(opacity);
+                        video.play().catch(() => {});
+                    } else {
+                        video.pause();
+                        video.style.display = 'none';
+                        video.dataset.wallpaperId = '';
+                        img.dataset.wallpaperId = item.id;
+                        img.style.backgroundImage = `url("${url}")`;
+                        img.style.opacity = String(opacity);
+                    }
+                    applied = true;
+                    if (item.kind !== 'video') this.updateAutoTextColor();
                 }
+                if (run !== this._wallpaperRun) return;
                 if (!applied && t.wallpaper) {
                     video.pause();
                     video.style.display = 'none';
+                    video.dataset.wallpaperId = '';
+                    img.dataset.wallpaperId = '';
                     img.style.backgroundImage = `url("${t.wallpaper}")`;
                     img.style.opacity = String(opacity);
                     applied = true;
+                    this.updateAutoTextColor();
                 }
                 if (!applied) {
                     video.pause();
                     video.style.display = 'none';
+                    video.dataset.wallpaperId = '';
+                    img.dataset.wallpaperId = '';
                     img.style.backgroundImage = 'none';
                     img.style.opacity = '0';
                     document.body.classList.remove('has-wallpaper');
+                    this.updateAutoTextColor();
                 }
             },
 
@@ -7404,7 +7513,7 @@
             },
 
             async useWallpaper(id) {
-                const items = await this.wallpaperList();
+                const items = await this.wallpaperList(false);
                 const item = items.find(x => x.id === id);
                 if (!item) return;
                 this.settings.theme.wallpaperId = item.id;
@@ -7445,8 +7554,8 @@
                         const url = URL.createObjectURL(item.blob);
                         this._wallpaperPreviewUrls.push(url);
                         preview = item.kind === 'video'
-                            ? `<video src="${url}" muted loop autoplay playsinline></video>`
-                            : `<img src="${url}" alt="">`;
+                            ? `<video src="${url}" muted loop playsinline preload="metadata" ${this.settings.theme.wallpaperId === item.id ? 'autoplay' : ''}></video>`
+                            : `<img src="${url}" alt="" loading="lazy" decoding="async">`;
                     } catch { /* ignore */ }
                     const active = this.settings.theme.wallpaperId === item.id;
                     const preset = this.normalizeScreenPreset(item.preset);
@@ -7620,7 +7729,7 @@
 
             updateSectionHtml() {
                 const u = this.updateState;
-                const version = (u && u.currentVersion) || this.appVersion || '0.5.5';
+                const version = (u && u.currentVersion) || this.appVersion || '0.5.6';
                 const status = (u && u.status) || 'idle';
                 const pct = Math.max(0, Math.min(100, Math.round(Number(u && u.progress) || 0)));
                 const notes = u && u.releaseNotes
@@ -8017,7 +8126,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.5',
+                    appVersion: '0.5.6',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -8078,7 +8187,7 @@
                 };
                 try {
                     await this.db.saveBackup(snapshot);
-                    const all = (await this.db.getBackups()).sort((a, b) => b.createdAt - a.createdAt);
+                    const all = (await this.db.getBackupMetas()).sort((a, b) => b.createdAt - a.createdAt);
                     for (const old of all.slice(7)) await this.db.deleteBackup(old.id);
                     this.backups = all.slice(0, 7);
                     this.lastBackupAt = now;
@@ -8116,7 +8225,7 @@
             async autoBackupIfNeeded() {
                 if (!this.words.length) return;
                 try {
-                    const all = (await this.db.getBackups()).sort((a, b) => b.createdAt - a.createdAt);
+                    const all = (await this.db.getBackupMetas()).sort((a, b) => b.createdAt - a.createdAt);
                     this.backups = all;
                     if (all.length && Date.now() - all[0].createdAt < 12 * 3600 * 1000) {
                         this.lastBackupAt = all[0].createdAt;
@@ -8130,7 +8239,7 @@
 
             async refreshBackupList() {
                 try {
-                    const all = await this.db.getBackups();
+                    const all = await this.db.getBackupMetas();
                     this.backups = all.sort((a, b) => b.createdAt - a.createdAt);
                 } catch (e) { this.backups = []; }
                 if (window.desktop && typeof window.desktop.listBackups === 'function') {
@@ -8213,7 +8322,10 @@
                 const snap = this.backups.find(x => x.id === id);
                 if (!snap) { this.showToast('找不到这个备份', 'error'); return; }
                 if (!confirm(`将用 ${new Date(snap.createdAt).toLocaleString()} 的备份覆盖当前数据。\n恢复前会自动备份当前数据。确定继续吗？`)) return;
-                await this.restoreFromData(snap.data, '备份');
+                this.showToast('正在读取备份…', 'info');
+                const full = await this.db.getBackup(id);
+                if (!full || !full.data) { this.showToast('读取备份失败', 'error'); return; }
+                await this.restoreFromData(full.data, '备份');
             },
 
             async restoreDesktopFile(name) {
@@ -8250,14 +8362,18 @@
             async deleteSnapshot(id) {
                 if (!confirm('确定删除这个备份吗？')) return;
                 await this.db.deleteBackup(id);
-                await this.refreshBackupList();
+                // 删除后只从内存列表移除这一项，不再把几十 MB 的备份全部重读一遍。
+                this.backups = this.backups.filter(x => x.id !== id);
                 if (this.currentMode === 'backup') this.renderRightPanel();
+                this.showToast('已删除备份', 'success');
             },
 
-            downloadSnapshot(id) {
+            async downloadSnapshot(id) {
                 const snap = this.backups.find(x => x.id === id);
                 if (!snap) return;
-                this.downloadFile(JSON.stringify(snap.data, null, 2), `单词本备份_${new Date(snap.createdAt).toISOString().slice(0,10)}.json`, 'application/json;charset=utf-8');
+                const full = await this.db.getBackup(id);
+                if (!full || !full.data) { this.showToast('读取备份失败', 'error'); return; }
+                this.downloadFile(JSON.stringify(full.data, null, 2), `单词本备份_${new Date(snap.createdAt).toISOString().slice(0,10)}.json`, 'application/json;charset=utf-8');
             },
 
             splitDefinition(text) {

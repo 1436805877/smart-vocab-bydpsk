@@ -307,6 +307,39 @@ function dbReadAll(db, store) {
     .map(row => JSON.parse(row.json));
 }
 
+// 备份列表只需要元数据。这里让 SQLite 直接抽取字段，避免把几十 MB 的
+// 快照 JSON 全部读进主进程/渲染进程，启动和删除备份时都不会再卡顿。
+function dbBackupMetas(db) {
+  const rows = db.prepare(`
+    SELECT
+      json_extract(json, '$.id') AS id,
+      json_extract(json, '$.createdAt') AS createdAt,
+      json_extract(json, '$.reason') AS reason,
+      json_extract(json, '$.wordCount') AS wordCount,
+      json_extract(json, '$.progressCount') AS progressCount,
+      length(json) AS size
+    FROM objects
+    WHERE store = 'backups'
+  `).all();
+  return rows
+    .filter(row => row && row.id)
+    .map(row => ({
+      id: String(row.id),
+      createdAt: Number(row.createdAt) || 0,
+      reason: String(row.reason || 'manual'),
+      wordCount: Number(row.wordCount) || 0,
+      progressCount: Number(row.progressCount) || 0,
+      size: Number(row.size) || 0
+    }))
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function dbReadBackup(db, id) {
+  const row = db.prepare("SELECT json FROM objects WHERE store = 'backups' AND key = ?").get(String(id));
+  if (!row) return null;
+  return JSON.parse(row.json);
+}
+
 function dbCounts(db) {
   const counts = {};
   for (const store of DB_STORES) {
@@ -531,6 +564,20 @@ ipcMain.handle('db:getAll', async (_event, store) => {
     return { ok: true, rows: dbReadAll(getAppDb(), store) };
   } catch (error) {
     return { ok: false, error: String(error), rows: [] };
+  }
+});
+ipcMain.handle('db:getBackupMetas', async () => {
+  try {
+    return { ok: true, rows: dbBackupMetas(getAppDb()) };
+  } catch (error) {
+    return { ok: false, error: String(error), rows: [] };
+  }
+});
+ipcMain.handle('db:getBackup', async (_event, id) => {
+  try {
+    return { ok: true, backup: dbReadBackup(getAppDb(), id) };
+  } catch (error) {
+    return { ok: false, error: String(error), backup: null };
   }
 });
 ipcMain.handle('db:replaceStore', async (_event, payload) => {

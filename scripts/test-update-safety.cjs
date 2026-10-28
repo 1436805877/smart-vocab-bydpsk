@@ -64,6 +64,7 @@ function makeBackupHost() {
     buildExportData: () => ({ app: '智能单词本', words: [{ id: 1, word: 'crowd' }], progress: [{ key: '1' }] }),
     db: {
       saveBackup: async () => {},
+      getBackupMetas: async () => [],
       getBackups: async () => [],
       deleteBackup: async () => {},
     },
