@@ -57,7 +57,7 @@ try {
 await fsp.rename(path.join(outDir, 'electron.exe'), path.join(outDir, 'SmartVocab.exe'));
 
 await fsp.writeFile(path.join(outDir, 'README.txt'),
-  '智能单词本 0.5.6 beta（便携版）\r\n\r\n' +
+  '智能单词本 0.5.7 beta（界面符号预览版）\r\n\r\n' +
   '1. 必须先把整个文件夹解压出来，不能直接在压缩包里双击 exe。\r\n' +
   '2. 双击 SmartVocab.exe 启动。\r\n' +
   '3. 如果没反应，运行 启动诊断.bat，把 startup.log 和窗口里的退出码发给我。\r\n' +

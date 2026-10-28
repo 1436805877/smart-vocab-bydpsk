@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-    智能单词本 v0.5.6 beta（SQLite 数据层测试版）
+    智能单词本 v0.5.7 beta（SQLite 数据层测试版）
     基于 v2.3.1，但开始按「核心感觉 + 词根演变 + 近义辨析」的学习方式重构。
     0.1 的目标：清理旧功能、收紧复习模式、改善导入导出，并预留 v2 数据结构。
     正式版之前不会使用 1.0。
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>智能单词本 v0.5.6 beta</title>
+    <title>智能单词本 v0.5.7 beta</title>
     <style>
         * {
             box-sizing: border-box;
@@ -58,6 +58,40 @@
             gap: 8px;
             flex: 0 0 auto;
             white-space: nowrap;
+        }
+        .brand-seal {
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid currentColor;
+            border-radius: 3px;
+            font-family: "Songti SC", "STSong", "SimSun", serif;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+            opacity: .82;
+            flex: 0 0 auto;
+        }
+        .boot-title .brand-seal {
+            width: 34px;
+            height: 34px;
+            font-size: 19px;
+            margin-right: 10px;
+            vertical-align: 1px;
+        }
+        .nav-idx {
+            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: .03em;
+            opacity: .38;
+            margin-right: 5px;
+            vertical-align: 1px;
+        }
+        .nav-btn.active .nav-idx {
+            opacity: .72;
         }
         .top-bar .version-tag {
             font-size: 11px;
@@ -2215,7 +2249,19 @@
             display: flex; align-items: flex-start; gap: 10px; padding: 14px 12px;
             border: 1px solid var(--dash-line); border-radius: 14px; background: var(--dash-surface); min-width: 0;
         }
-        .dash-metric-icon { font-size: 20px; line-height: 1; margin-top: 2px; }
+        .dash-metric-icon {
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            line-height: 1;
+            margin-top: 2px;
+            opacity: .45;
+            border: 1px solid currentColor;
+            border-radius: 2px;
+            padding: 2px 3px;
+            width: fit-content;
+        }
         .dash-metric-value { font-size: 24px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
         .dash-metric-label { margin-top: 3px; color: var(--dash-muted); font-size: 12px; white-space: nowrap; }
         .dash-metric-hint { margin-top: 3px; color: var(--dash-muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2908,8 +2954,18 @@
             transform: translateY(-4px);
         }
         .game-card .game-icon {
-            font-size: 48px;
-            display: block;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            width: 36px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid currentColor;
+            border-radius: 3px;
+            opacity: .5;
             margin-bottom: 12px;
         }
         .game-card .game-name {
@@ -3889,6 +3945,14 @@
             color: #1e293b;
             margin-bottom: 2px;
         }
+        .help-mode b .help-code {
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 9px;
+            font-weight: 600;
+            opacity: .4;
+            margin-right: 5px;
+            vertical-align: 1px;
+        }
         .help-mode span {
             color: #64748b;
             font-size: 12.5px;
@@ -4286,6 +4350,18 @@
             color: #4f46e5;
             letter-spacing: .04em;
             padding: 12px 0 6px;
+        }
+        .settings-section-label::before,
+        .detail-section h4::before,
+        .dash-panel-head h4::before,
+        .game-header .game-title::before {
+            content: "§";
+            font-family: Georgia, "Times New Roman", serif;
+            font-weight: 400;
+            font-size: .95em;
+            opacity: .34;
+            margin-right: 6px;
+            letter-spacing: 0;
         }
         .update-card {
             margin-top: 16px;
@@ -5437,7 +5513,7 @@
 <body>
     <div id="bootScreen">
         <div class="boot-card">
-            <div class="boot-title">📖 智能单词本</div>
+            <div class="boot-title"><span class="brand-seal">词</span><span>智能单词本</span></div>
             <div class="boot-spinner"></div>
             <div class="boot-text" id="bootText">正在准备内置六级词库…</div>
         </div>
@@ -5447,23 +5523,23 @@
     <div class="app" id="app">
         <!-- 顶栏 -->
         <div class="top-bar">
-            <h1>📖 智能单词本 <span class="version-tag">0.5.6 beta</span></h1>
-            <button class="nav-btn active" data-mode="dictionary">📚 单词本</button>
-            <button class="nav-btn" data-mode="review">🎴 复习中心</button>
-            <button class="nav-btn" data-mode="daily">📅 今日</button>
-            <button class="nav-btn" data-mode="stats">📊 统计</button>
+            <h1><span class="brand-seal">词</span><span>智能单词本</span><span class="version-tag">0.5.7 beta</span></h1>
+            <button class="nav-btn active" data-mode="dictionary"><span class="nav-idx">01</span>单词本</button>
+            <button class="nav-btn" data-mode="review"><span class="nav-idx">02</span>复习中心</button>
+            <button class="nav-btn" data-mode="daily"><span class="nav-idx">03</span>今日</button>
+            <button class="nav-btn" data-mode="stats"><span class="nav-idx">04</span>统计</button>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="搜索..." />
                 <button class="clear-btn" id="clearSearchBtn">✕</button>
             </div>
             <div class="top-actions">
                 <button class="tool-btn fullscreen-btn" id="fullscreenBtn" title="全屏（F11）">⛶</button>
-                <button class="tool-btn help-btn" id="helpBtn" title="使用说明">❔ 说明</button>
-                <button class="nav-btn utility-btn" data-mode="recycle" title="回收站">♻️ 回收站</button>
-                <button class="nav-btn utility-btn" data-mode="backup" title="备份与恢复">🗄️ 备份</button>
-                <button class="nav-btn utility-btn" data-mode="settings" title="设置">⚙️ 设置</button>
-                <button class="tool-btn export-btn" id="exportBtn" title="导出">📤 导出</button>
-                <button class="tool-btn import-btn" id="importBtn" title="导入">📥 导入</button>
+                <button class="tool-btn help-btn" id="helpBtn" title="使用说明">说明</button>
+                <button class="nav-btn utility-btn" data-mode="recycle" title="回收站">回收站</button>
+                <button class="nav-btn utility-btn" data-mode="backup" title="备份与恢复">备份</button>
+                <button class="nav-btn utility-btn" data-mode="settings" title="设置">设置</button>
+                <button class="tool-btn export-btn" id="exportBtn" title="导出">导出</button>
+                <button class="tool-btn import-btn" id="importBtn" title="导入">导入</button>
             </div>
         </div>
 
@@ -5473,46 +5549,46 @@
                 <div class="alpha-nav" id="alphaNav"></div>
                 <div class="left-content">
                     <div class="batch-mode-bar" id="batchModeBar">
-                        <span class="batch-info">📦 批量管理模式</span>
-                        <button class="batch-btn batch-select-all" id="batchSelectAllBtn">☑️ 全选</button>
-                        <button class="batch-btn batch-delete" id="batchDeleteBtn">🗑 批量删除</button>
-                        <button class="batch-btn batch-empty-recycle" id="emptyRecycleBtn" style="display:none;background:#991b1b;color:white;">🗑 清空回收站</button>
+                        <span class="batch-info">批量管理模式</span>
+                        <button class="batch-btn batch-select-all" id="batchSelectAllBtn">✓ 全选</button>
+                        <button class="batch-btn batch-delete" id="batchDeleteBtn">批量删除</button>
+                        <button class="batch-btn batch-empty-recycle" id="emptyRecycleBtn" style="display:none;background:#991b1b;color:white;">清空回收站</button>
                         <button class="batch-btn batch-cancel" id="batchCancelBtn">✕ 退出</button>
                     </div>
                     <div class="panel-header">
                         <span class="mode-title">词库<select id="deckSelect"><option value="all">全部单词</option></select><input type="text" id="deckSearchInput" class="deck-filter-input" placeholder="筛选" title="筛选词库" /></span>
                         <span class="mode-title">分组依据<select id="groupBySelect">
-                            <option value="hierarchy">📂 层级列表</option>
-                            <option value="alphabetical">🔤 字母</option>
-                            <option value="tone">😊 情感色彩</option>
-                            <option value="pos">📌 词性</option>
-                            <option value="level">⭐ 难度</option>
-                            <option value="formality">📝 语体</option>
-                            <option value="grammar">📖 语法属性</option>
+                            <option value="hierarchy">层级列表</option>
+                            <option value="alphabetical">字母</option>
+                            <option value="tone">情感色彩</option>
+                            <option value="pos">词性</option>
+                            <option value="level">★ 难度</option>
+                            <option value="formality">语体</option>
+                            <option value="grammar">语法属性</option>
                         </select></span>
                         <span class="mode-title">筛选<select id="listFilterSelect" title="按学习状态筛选">
                             <option value="all">全部状态</option>
-                            <option value="unlearned">🌱 未学</option>
-                            <option value="learning">🔄 学习中</option>
-                            <option value="mastered">✅ 已掌握</option>
-                            <option value="wrong">❗ 错题</option>
-                            <option value="culture">🏛️ 文化彩蛋</option>
+                            <option value="unlearned">未学</option>
+                            <option value="learning">↻ 学习中</option>
+                            <option value="mastered">✓ 已掌握</option>
+                            <option value="wrong">! 错题</option>
+                            <option value="culture">文化彩蛋</option>
                         </select></span>
                         <span class="panel-actions">
-                            <button class="action-btn list-tool" id="randomBtn" title="随机单词">🎲 随机</button>
-                            <button class="action-btn list-tool" id="batchManageBtn" title="批量管理">📦 批量</button>
-                            <button class="action-btn list-tool" id="newWordEditorBtn" title="完整编辑新词条">📝 新建</button>
-                            <button class="action-btn add-word" id="addWordBtn">➕ 添加单词</button>
+                            <button class="action-btn list-tool" id="randomBtn" title="随机单词">随机</button>
+                            <button class="action-btn list-tool" id="batchManageBtn" title="批量管理">批量</button>
+                            <button class="action-btn list-tool" id="newWordEditorBtn" title="完整编辑新词条">新建</button>
+                            <button class="action-btn add-word" id="addWordBtn">+ 添加单词</button>
                         </span>
                     </div>
                     <div class="add-word-form" id="addWordForm">
-                        <div class="form-title">📝 添加新单词</div>
+                        <div class="form-title">添加新单词</div>
                         <div class="form-grid">
                             <div class="form-group full-width">
                                 <label>单词 <span class="required">*</span></label>
                                 <div class="word-input-wrapper">
                                     <input type="text" id="newWord" placeholder="请输入单词" />
-                                    <button class="fetch-btn" id="fetchBtn">🔍 自动补全</button>
+                                    <button class="fetch-btn" id="fetchBtn">自动补全</button>
                                 </div>
                             </div>
                             <div class="form-group"><label>音标</label><input type="text" id="newPhonetic" placeholder="如 /əˈbaɪd/" /></div>
@@ -5522,7 +5598,7 @@
                             <div class="form-error" id="formError">请至少填写 单词 和 释义。</div>
                             <div class="form-actions">
                                 <button class="cancel-btn" id="cancelAddWordBtn">取消</button>
-                                <button class="save-btn" id="saveWordBtn">💾 保存</button>
+                                <button class="save-btn" id="saveWordBtn">保存</button>
                             </div>
                         </div>
                     </div>
@@ -5533,7 +5609,7 @@
 
             <!-- 右侧面板 -->
             <div class="right-panel" id="rightPanel">
-                <div class="detail-placeholder">👆 点击左侧条目查看详情</div>
+                <div class="detail-placeholder">点击左侧条目查看详情</div>
             </div>
         </div>
     </div>
@@ -5545,12 +5621,12 @@
         <div class="conflict-modal">
             <div class="conflict-header">
                 <button class="close-modal" id="closeConflictModalBtn">✕</button>
-                <h2>⚠️ 检测到导入冲突</h2>
+                <h2>检测到导入冲突</h2>
                 <p class="conflict-subtitle">以下单词与现有单词本中的单词同名，请选择处理方式。</p>
                 <div class="conflict-actions">
-                    <button class="overwrite-all" id="overwriteAllBtn">🔄 全部覆盖</button>
-                    <button class="skip-all" id="skipAllBtn">⏭ 全部跳过</button>
-                    <button class="confirm-import-btn" id="confirmImportBtn">✅ 确认导入</button>
+                    <button class="overwrite-all" id="overwriteAllBtn">↻ 全部覆盖</button>
+                    <button class="skip-all" id="skipAllBtn">» 全部跳过</button>
+                    <button class="confirm-import-btn" id="confirmImportBtn">✓ 确认导入</button>
                 </div>
             </div>
             <div class="conflict-list" id="conflictListContainer"></div>
@@ -5561,7 +5637,7 @@
     <div class="modal-overlay" id="exportModalOverlay">
         <div class="modal" style="max-width:560px;">
             <button class="close-modal" id="closeExportModalBtn">✕</button>
-            <h2>📤 导出单词本</h2>
+            <h2>导出单词本</h2>
             <p class="text-sm text-muted">JSON 可完整备份并再次导入；CSV 适合 Excel；Markdown 适合阅读；TXT 是纯词表。</p>
             <div class="export-grid">
                 <button class="export-card" data-format="json"><strong>JSON</strong><span>完整备份 · 可再次导入</span></button>
@@ -5575,7 +5651,7 @@
     <!-- 使用说明 -->
     <div class="modal-overlay" id="helpOverlay">
         <div class="modal help-modal">
-            <div class="help-head"><h2>📖 智能单词本 · 使用说明</h2><button type="button" id="helpCloseBtn" title="关闭">✕</button></div>
+            <div class="help-head"><h2>智能单词本 · 使用说明</h2><button type="button" id="helpCloseBtn" title="关闭">✕</button></div>
             <div class="help-body">
                 <h3>一、这个软件想解决什么</h3>
                 <p>不是把单词塞进一个更大的列表，而是帮你建立一条从“画面/感觉”到“词根演变”，再到“近义辨析”和“真实语境”的理解链。</p>
@@ -5588,18 +5664,18 @@
                     <li>打开「今日」，按队列复习；</li>
                     <li>在「复习中心」选择某个模式专项突破；</li>
                     <li>在「统计」看进度，在「备份」定期备份；</li>
-                    <li>遇到不熟或想补充的词，点「✏️ 编辑」完善核心感觉、词根、文化。</li>
+                    <li>遇到不熟或想补充的词，点「✎ 编辑」完善核心感觉、词根、文化。</li>
                 </ol>
 
                 <h3>三、复习模式</h3>
                 <div class="help-mode-grid">
-                    <div class="help-mode"><b>🎴 翻卡牌</b><span>看单词想释义，适合快速过一遍。</span></div>
-                    <div class="help-mode"><b>🧭 核心回忆</b><span>先给核心感觉和画面，再回忆单词。</span></div>
-                    <div class="help-mode"><b>⚖️ 近义辨析</b><span>从近义组里选出最贴合语境的那个。</span></div>
-                    <div class="help-mode"><b>🌱 词根拆解</b><span>按前缀/词根/后缀拼出单词。</span></div>
-                    <div class="help-mode"><b>🔗 词义链</b><span>从本义到引申义，理解多义词的逻辑。</span></div>
-                    <div class="help-mode"><b>⌨️ 拼写挑战</b><span>听/看中文或例句，拼出英文单词。</span></div>
-                    <div class="help-mode"><b>✍️ 创意造句</b><span>一次一个单词，最后拼成一段话。</span></div>
+                    <div class="help-mode"><b><span class="help-code">01</span>翻卡牌</b><span>看单词想释义，适合快速过一遍。</span></div>
+                    <div class="help-mode"><b><span class="help-code">02</span>核心回忆</b><span>先给核心感觉和画面，再回忆单词。</span></div>
+                    <div class="help-mode"><b><span class="help-code">03</span>近义辨析</b><span>从近义组里选出最贴合语境的那个。</span></div>
+                    <div class="help-mode"><b><span class="help-code">04</span>词根拆解</b><span>按前缀/词根/后缀拼出单词。</span></div>
+                    <div class="help-mode"><b><span class="help-code">05</span>词义链</b><span>从本义到引申义，理解多义词的逻辑。</span></div>
+                    <div class="help-mode"><b><span class="help-code">06</span>拼写挑战</b><span>听/看中文或例句，拼出英文单词。</span></div>
+                    <div class="help-mode"><b><span class="help-code">07</span>创意造句</b><span>一次一个单词，最后拼成一段话。</span></div>
                 </div>
                 <p>另外还有「今日复习」和「错题复习」：答错的义项进入错题本，连续答对后自动移出。</p>
 
@@ -5614,8 +5690,8 @@
                 </table>
 
                 <h3>五、词库、编辑与导入</h3>
-                <p>左侧「📝 新建」打开完整编辑器；详情页「✏️ 编辑」修改当前词。编辑器支持核心感觉、词根/词缀、词源、文化彩蛋、多义项、例句、搭配和易错。</p>
-                <p>「📥 导入」支持 JSON/CSV；JSON 可以完整保留词库、词根、近义组、文化和进度。标准库建议「导入为新词库」。</p>
+                <p>左侧「 新建」打开完整编辑器；详情页「✎ 编辑」修改当前词。编辑器支持核心感觉、词根/词缀、词源、文化彩蛋、多义项、例句、搭配和易错。</p>
+                <p>「 导入」支持 JSON/CSV；JSON 可以完整保留词库、词根、近义组、文化和进度。标准库建议「导入为新词库」。</p>
                 <p>左侧字母栏点击直接跳转；键盘上按字母第一次只高亮，第二次按同一个字母才跳转。这样鼠标不会误触，键盘也有确认。</p>
 
                 <h3>六、数据安全</h3>
@@ -5624,10 +5700,10 @@
                 <div class="help-note">清理浏览器数据、重装系统、换电脑前，先「导出 → JSON」备份。恢复前软件也会自动备份当前数据。</div>
 
                 <h3>七、常见问题</h3>
-                <p><b>为什么有的词没有词根？</b> 因为不确定的词根不强行拆；宁缺毋滥。</p>
-                <p><b>为什么核心感觉不是释义？</b> 核心感觉负责“想起来”，释义负责“说准确”，两者分工不同。</p>
-                <p><b>为什么每天只引入一个义项？</b> 控制认知负担，先形成稳定复习节奏。</p>
-                <p><b>词库太大卡怎么办？</b> 列表默认分批加载，滚动到底部会自动加载下一批；也可以搜索后只看结果。</p>
+                <p><b>为什么有的词没有词根？</b>因为不确定的词根不强行拆；宁缺毋滥。</p>
+                <p><b>为什么核心感觉不是释义？</b>核心感觉负责“想起来”，释义负责“说准确”，两者分工不同。</p>
+                <p><b>为什么每天只引入一个义项？</b>控制认知负担，先形成稳定复习节奏。</p>
+                <p><b>词库太大卡怎么办？</b>列表默认分批加载，滚动到底部会自动加载下一批；也可以搜索后只看结果。</p>
             </div>
         </div>
     </div>
@@ -5637,12 +5713,12 @@
         <div class="modal word-editor">
             <div class="word-editor-header">
                 <div>
-                    <h2 id="wordEditorTitle">📝 编辑单词</h2>
+                    <h2 id="wordEditorTitle">编辑单词</h2>
                     <div class="word-editor-sub">把核心感觉、词根、文化彩蛋和义项一次编辑完整。</div>
                 </div>
                 <div class="word-editor-head-actions">
                     <button type="button" class="ghost" id="wordEditorCancel">取消</button>
-                    <button type="button" class="primary" id="wordEditorSave" style="display:none;">💾 保存修改</button>
+                    <button type="button" class="primary" id="wordEditorSave" style="display:none;">保存修改</button>
                 </div>
             </div>
             <div class="word-editor-body">
@@ -5653,7 +5729,7 @@
                 </div>
 
                 <div class="editor-section">
-                    <h3>🧭 核心感觉</h3>
+                    <h3>核心感觉</h3>
                     <div class="editor-grid">
                         <label class="editor-field full">核心感觉 *<input id="editorFeeling" placeholder="画面/动作/感觉，不要写释义，60 字内" /></label>
                         <label class="editor-field full">画面<input id="editorImage" placeholder="一个具体场景" /></label>
@@ -5662,7 +5738,7 @@
                 </div>
 
                 <div class="editor-section">
-                    <h3>🌱 词根与词源</h3>
+                    <h3>词根与词源</h3>
                     <div class="editor-grid">
                         <label class="editor-field">字面义<input id="editorLiteral" placeholder="如：向前到底部" /></label>
                         <label class="editor-field">词源置信度<select id="editorConfidence"><option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select></label>
@@ -5673,7 +5749,7 @@
                 </div>
 
                 <div class="editor-section">
-                    <h3>🎭 文化与彩蛋</h3>
+                    <h3>文化与彩蛋</h3>
                     <div class="editor-grid">
                         <label class="editor-field full">文化背景<textarea id="editorCultureBackground" rows="2"></textarea></label>
                         <label class="editor-field full">语用提醒<textarea id="editorCultureUsage" rows="2"></textarea></label>
@@ -5682,7 +5758,7 @@
                 </div>
 
                 <div class="editor-section">
-                    <h3>📖 释义与例句</h3>
+                    <h3>释义与例句</h3>
                     <div id="editorSenses"></div>
                     <button type="button" class="editor-add-row" id="editorAddSense">＋ 添加释义</button>
                 </div>
@@ -5705,19 +5781,19 @@
     <div class="modal-overlay" id="importModalOverlay">
         <div class="modal" style="max-width:640px;">
             <button class="close-modal" id="closeImportModalBtn">✕</button>
-            <h2>📥 导入单词</h2>
+            <h2>导入单词</h2>
             <p class="text-sm text-muted">先选择导入方式，再选择文件。普通导入会读取 JSON 里的词库归属；没有归属时进入当前词库。</p>
             <div class="import-mode-grid">
                 <button class="import-mode-card active" data-import-mode="normal">
-                    <strong>📥 普通导入</strong>
+                    <strong>普通导入</strong>
                     <span>按文件里的词库信息导入；没有词库信息则进当前词库</span>
                 </button>
                 <button class="import-mode-card" data-import-mode="new">
-                    <strong>🆕 导入为新词库</strong>
+                    <strong>导入为新词库</strong>
                     <span>所有文件进入一个新词库，可指定名称</span>
                 </button>
                 <button class="import-mode-card" data-import-mode="existing">
-                    <strong>📂 导入到已有词库</strong>
+                    <strong>导入到已有词库</strong>
                     <span>所有文件进入你选中的词库</span>
                 </button>
             </div>
@@ -5954,7 +6030,7 @@
                     .map(key => ({ key, value: extras[key] || [] }));
                 const payload = { words, extras: extraRows, progress, decks, deckWords, backups };
                 const backupData = {
-                    app: '智能单词本', appVersion: '0.5.6', schemaVersion: 3,
+                    app: '智能单词本', appVersion: '0.5.7', schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: words.length,
                     words,
@@ -6133,7 +6209,7 @@
         // ============================================================
         const App = {
             db: new VocabDB(),
-            appVersion: '0.5.6',
+            appVersion: '0.5.7',
             storageMode: 'indexeddb',
             searchIndex: new SearchIndex(),
             words: [],
@@ -6300,7 +6376,7 @@
                     flashcard: {
                         id: 'flashcard',
                         name: '翻卡牌',
-                        icon: '🃏',
+                        icon: '01',
                         desc: '自主复习，点击卡片翻转查看释义',
                         badge: '经典',
                         render: () => this.renderFlashcardGame()
@@ -6308,7 +6384,7 @@
                     coreRecall: {
                         id: 'coreRecall',
                         name: '核心回忆',
-                        icon: '🧭',
+                        icon: '02',
                         desc: '看单词先回忆核心感觉，再揭示答案',
                         badge: '核心',
                         render: () => this.renderCoreRecallGame()
@@ -6316,7 +6392,7 @@
                     synonymChallenge: {
                         id: 'synonymChallenge',
                         name: '近义辨析',
-                        icon: '⚖️',
+                        icon: '03',
                         desc: '在一组近义词里选出最贴合语境的一个',
                         badge: '辨析',
                         render: () => this.renderSynonymChallenge()
@@ -6324,7 +6400,7 @@
                     rootChallenge: {
                         id: 'rootChallenge',
                         name: '词根拆解',
-                        icon: '🌱',
+                        icon: '04',
                         desc: '拆词根、看字面义、连同根词',
                         badge: '词根',
                         render: () => this.renderRootChallenge()
@@ -6332,7 +6408,7 @@
                     senseChain: {
                         id: 'senseChain',
                         name: '词义链',
-                        icon: '🪜',
+                        icon: '05',
                         desc: '看例句或词义链阶段，选择对应义项',
                         badge: '义项',
                         render: () => this.renderSenseChainGame()
@@ -6340,7 +6416,7 @@
                     spellingChallenge: {
                         id: 'spellingChallenge',
                         name: '拼写挑战',
-                        icon: '✍️',
+                        icon: '06',
                         desc: '看释义或听发音，拼出完整的单词',
                         badge: '拼写',
                         render: () => this.renderSpellingChallenge()
@@ -6348,7 +6424,7 @@
                     creativeWriting: {
                         id: 'creativeWriting',
                         name: '创意造句',
-                        icon: '✏️',
+                        icon: '07',
                         desc: '一次一个单词，写完最后拼成一段话',
                         badge: '创意',
                         render: () => this.renderCreativeWriting()
@@ -6728,7 +6804,7 @@
                         this.currentSenseId = null;
                     }
                     this.render();
-                    this.showToast(`✅ 已恢复内置词库：${result.wordCount || this.words.length} 词`, 'success');
+                    this.showToast(`✓ 已恢复内置词库：${result.wordCount || this.words.length} 词`, 'success');
                 } catch (e) {
                     console.error(e);
                     this.showToast('恢复内置词库失败：' + (e.message || e), 'error');
@@ -6815,8 +6891,8 @@
                     d.name.toLowerCase().includes(q));
                 select.innerHTML = [
                     `<option value="all">全部单词（${this.words.filter(w => !w.deleted).length}）</option>`,
-                    ...visibleDecks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' 🔒' : ''}</option>`),
-                    '<option value="__manage__">⚙️ 管理词库</option>',
+                    ...visibleDecks.map(d => `<option value="${this.escapeHtml(d.id)}">${this.escapeHtml(d.name)}（${counts[d.id] || 0}）${d.readOnly ? ' · 只读' : ''}</option>`),
+                    '<option value="__manage__">管理词库</option>',
                     '<option value="__new__">＋ 新建词库</option>'
                 ].join('');
                 select.value = this.activeDeckId;
@@ -6871,7 +6947,7 @@
                 const cards = this.decks.map(d => `
                     <div class="deck-card ${d.id === this.activeDeckId ? 'active' : ''}">
                         <div class="deck-card-main">
-                            <div class="deck-name">${this.escapeHtml(d.name)} ${d.readOnly ? '🔒' : ''}</div>
+                            <div class="deck-name">${this.escapeHtml(d.name)}${d.readOnly ? ' · 只读' : ''}</div>
                             <div class="deck-meta">${d.kind === 'standard' ? '标准词库' : '用户词库'} · ${counts[d.id] || 0} 个单词${d.id === this.activeDeckId ? ' · 当前使用' : ''}</div>
                         </div>
                         <div class="deck-card-actions">
@@ -6885,7 +6961,7 @@
                     <div class="deck-page">
                         <div class="deck-hero">
                             <div>
-                                <div class="deck-title">🗂️ 词库管理</div>
+                                <div class="deck-title">词库管理</div>
                                 <div class="deck-sub">同一个单词可以在多个词库；学习进度按义项共享，不随词库复制。</div>
                             </div>
                         </div>
@@ -7565,7 +7641,7 @@
                         if (typeof preset.autoTextColor === 'boolean') presetBits.push(preset.autoTextColor ? '自动文字' : '固定文字');
                     }
                     const presetLabel = preset
-                        ? `⭐ 默认外观${presetBits.length ? ' · ' + presetBits.join(' · ') : ''}`
+                        ? `★ 默认外观${presetBits.length ? ' · ' + presetBits.join(' · ') : ''}`
                         : '默认外观：跟随当前界面';
                     return `<div class="wallpaper-card ${active ? 'active' : ''}" data-wallpaper-id="${item.id}">
                         <div class="wallpaper-thumb">${preview}</div>
@@ -7630,7 +7706,7 @@
                 const entry = this.undoStack.pop();
                 try { this.redoStack.push({ label: entry.label, snapshot: this.snapshotData() }); } catch (e) { /* ignore */ }
                 await this.applyUndoSnapshot(entry.snapshot);
-                this.showToast(`↩️ 已撤销：${entry.label}`, 'success');
+                this.showToast(`← 已撤销：${entry.label}`, 'success');
             },
 
             async redo() {
@@ -7641,7 +7717,7 @@
                 const entry = this.redoStack.pop();
                 try { this.undoStack.push({ label: entry.label, snapshot: this.snapshotData() }); } catch (e) { /* ignore */ }
                 await this.applyUndoSnapshot(entry.snapshot);
-                this.showToast(`↪️ 已重做：${entry.label}`, 'success');
+                this.showToast(`→ 已重做：${entry.label}`, 'success');
             },
 
             cancelPendingNext() {
@@ -7729,7 +7805,7 @@
 
             updateSectionHtml() {
                 const u = this.updateState;
-                const version = (u && u.currentVersion) || this.appVersion || '0.5.6';
+                const version = (u && u.currentVersion) || this.appVersion || '0.5.7';
                 const status = (u && u.status) || 'idle';
                 const pct = Math.max(0, Math.min(100, Math.round(Number(u && u.progress) || 0)));
                 const notes = u && u.releaseNotes
@@ -7784,7 +7860,7 @@
                     ? `<div class="update-progress"><span style="width:${pct}%"></span></div>`
                     : '';
                 const backupLine = this._updateBackupAt
-                    ? `<div class="update-backup">🛡 已创建更新前备份：${this.escapeHtml(new Date(this._updateBackupAt).toLocaleString())}</div>`
+                    ? `<div class="update-backup">已创建更新前备份：${this.escapeHtml(new Date(this._updateBackupAt).toLocaleString())}</div>`
                     : '';
                 return `
                     <div class="update-line">
@@ -7859,14 +7935,14 @@
                 const libSource = (lib && lib.source) || '随安装包内置';
                 const libHash = (lib && (lib.actualSha256 || lib.expectedSha256)) || '';
                 const libError = (lib && lib.error) || (this.builtinLibrary && this.builtinLibrary.error) || '';
-                const libStatus = !this.builtinEnabled ? '网页版不启用' : (libOk ? '✅ 校验通过' : '⚠️ 未通过校验');
+                const libStatus = !this.builtinEnabled ? '网页版不启用' : (libOk ? '✓ 校验通过' : ' 未通过校验');
                 const libStatusColor = libOk ? '#15803d' : '#b45309';
                 const importedVersion = (lib && lib.marker && (lib.marker.libraryVersion || lib.marker.dataVersion)) || '旧版记录';
                 container.innerHTML = `
                     <div class="settings-page">
-                        <div class="settings-title">⚙️ 设置</div>
+                        <div class="settings-title">设置</div>
                         <div class="settings-card">
-                            <div class="settings-section-label">🎨 个性化</div>
+                            <div class="settings-section-label">个性化</div>
                             <div class="settings-row">
                                 <span><b>页面背景色</b><small>列表和详情周围的底色。</small></span>
                                 <div class="settings-color-grid"><input type="color" id="settingsBgColor" value="${t.bgColor || '#f3f6fb'}"></div>
@@ -7922,7 +7998,7 @@
                         </div>
 
                         <div class="settings-card update-card">
-                            <div class="settings-section-label">🔄 版本更新</div>
+                            <div class="settings-section-label">↻ 版本更新</div>
                             <div id="settingsUpdateSection">${this.updateSectionHtml()}</div>
                             <label class="settings-row">
                                 <span><b>启动时自动检查更新</b><small>安装版会在后台连接 GitHub 检查；便携版只提示新版本，不会覆盖正在运行的程序。</small></span>
@@ -7932,7 +8008,7 @@
 
                         ${this.builtinEnabled ? `
                         <div class="settings-card">
-                            <div class="settings-section-label">📚 标准词库</div>
+                            <div class="settings-section-label">标准词库</div>
                             <div class="settings-row">
                                 <span><b>内置六级词库</b><small>随安装包分发，不依赖手动导入；更新 App 时自动沿用。</small></span>
                                 <span style="color:${libStatusColor};font-size:13px;font-weight:600;">${libStatus}</span>
@@ -7957,7 +8033,7 @@
                         </div>` : ''}
 
                         <div class="settings-card">
-                            <div class="settings-section-label">📚 学习</div>
+                            <div class="settings-section-label">学习</div>
                             <label class="settings-row">
                                 <span>
                                     <b>答完一题后自动进入下一题</b>
@@ -8126,7 +8202,7 @@
             buildExportData() {
                 return {
                     app: '智能单词本',
-                    appVersion: '0.5.6',
+                    appVersion: '0.5.7',
                     schemaVersion: 3,
                     exportedAt: new Date().toISOString(),
                     wordCount: this.words.length,
@@ -8218,7 +8294,7 @@
                         }
                     }
                 }
-                if (reason === 'manual') this.showToast('✅ 备份完成', 'success');
+                if (reason === 'manual') this.showToast('✓ 备份完成', 'success');
                 return snapshot;
             },
 
@@ -8314,7 +8390,7 @@
                 this.dailySession = null;
                 await this.saveData(true);
                 this.render();
-                this.showToast(`✅ 已从${label}恢复 ${restored.length} 个单词`, 'success');
+                this.showToast(`✓ 已从${label}恢复 ${restored.length} 个单词`, 'success');
                 return true;
             },
 
@@ -8615,7 +8691,7 @@
                     return;
                 }
                 el.classList.add('show');
-                el.innerHTML = `<span>🔍 搜索「${this.escapeHtml(query)}」：<b>${count}</b> 个结果</span><button type="button" id="summaryClearBtn">清除搜索</button>`;
+                el.innerHTML = `<span>搜索「${this.escapeHtml(query)}」：<b>${count}</b>个结果</span><button type="button" id="summaryClearBtn">清除搜索</button>`;
                 const btn = el.querySelector('#summaryClearBtn');
                 if (btn) btn.addEventListener('click', () => this.clearSearch());
             },
@@ -8660,7 +8736,7 @@
                 if (undoCallback) {
                     const btn = document.createElement('button');
                     btn.className = 'undo-btn';
-                    btn.textContent = '↩ 撤销';
+                    btn.textContent = '← 撤销';
                     btn.addEventListener('click', (e) => { e.stopPropagation();
                         undoCallback();
                         this.hideToast(); });
@@ -8705,7 +8781,7 @@
             },
             scrollToLetter(letter) {
                 if (this.currentGroupBy !== 'hierarchy' && this.currentGroupBy !== 'alphabetical') {
-                    this.showToast('⚠️ 字母书签仅在层级列表和字母分组模式下可用', 'info');
+                    this.showToast(' 字母书签仅在层级列表和字母分组模式下可用', 'info');
                     return;
                 }
                 const container = document.getElementById('listContainer');
@@ -8773,7 +8849,7 @@
 
                 if (this.currentMode === 'recycle') {
                     if (filteredWords.length === 0) {
-                        container.innerHTML = `<div class="empty-state">${query ? '🔍 回收站中没有匹配的条目' : '♻️ 回收站为空'}</div>`;
+                        container.innerHTML = `<div class="empty-state">${query ? ' 回收站中没有匹配的条目' : ' 回收站为空'}</div>`;
                         return;
                     }
                     let html = '';
@@ -8786,7 +8862,7 @@
                                 ${isBatchMode ? `<input type="checkbox" class="batch-checkbox" data-word-id="${w.id}" ${rsSelected ? 'checked' : ''} />` : ''}
                                 <span class="word-text"><strong>${this.escapeHtml(w.word)}</strong> <span style="color:#94a3b8;font-size:13px;">(已删除)</span></span>
                             </div>
-                            ${!isBatchMode ? `<div class="recycle-actions"><button class="restore-btn" data-action="restore" data-word-id="${w.id}">↩ 还原</button><button class="permanent-delete-btn" data-action="permanent-delete" data-word-id="${w.id}">🗑 永久删除</button></div>` : ''}
+                            ${!isBatchMode ? `<div class="recycle-actions"><button class="restore-btn" data-action="restore" data-word-id="${w.id}">← 还原</button><button class="permanent-delete-btn" data-action="permanent-delete" data-word-id="${w.id}">永久删除</button></div>` : ''}
                         </div>`;
                     });
                     container.innerHTML = html + loadMoreHtml;
@@ -8796,8 +8872,8 @@
                 if (this.currentGroupBy === 'hierarchy') {
                     if (filteredWords.length === 0) {
                         const hasAny = this.getDisplayWords().length > 0;
-                        if (query) container.innerHTML = `<div class="empty-state">🔍 没有匹配的单词</div>`;
-                        else if (!hasAny) container.innerHTML = `<div class="empty-state">还没有单词。${this.builtinEnabled ? '<br><button type="button" class="restore-builtin-btn" id="restoreBuiltinBtn">📚 恢复内置六级词库（4036 词）</button>' : '添加一个吧！'}</div>`;
+                        if (query) container.innerHTML = `<div class="empty-state">没有匹配的单词</div>`;
+                        else if (!hasAny) container.innerHTML = `<div class="empty-state">还没有单词。${this.builtinEnabled ? '<br><button type="button" class="restore-builtin-btn" id="restoreBuiltinBtn">恢复内置六级词库（4036 词）</button>' : '添加一个吧！'}</div>`;
                         else container.innerHTML = `<div class="empty-state">当前筛选「${this.escapeHtml(this.listFilterName())}」下没有单词。<br><button type="button" class="clear-list-filter-btn">显示全部状态</button></div>`;
                         const clearFilter = container.querySelector('.clear-list-filter-btn');
                         if (clearFilter) clearFilter.addEventListener('click', () => {
@@ -8819,8 +8895,8 @@
                             <div class="word-row">
                                 ${isBatchMode ? `<input type="checkbox" class="batch-checkbox" data-word-id="${w.id}" ${hwSelected ? 'checked' : ''} />` : ''}
                                 <span class="word-text"><strong>${this.escapeHtml(w.word)}</strong></span>
-                                ${badge ? `<span class="mastery-badge ${badge}">${w.mastery === 'mastered' ? '✅' : '🔄'}</span>` : ''}
-                                ${needsReview ? `<span class="review-reminder">🔔</span>` : ''}
+                                ${badge ? `<span class="mastery-badge ${badge}">${w.mastery === 'mastered' ? '✓' : '↻'}</span>` : ''}
+                                ${needsReview ? `<span class="review-reminder">!</span>` : ''}
                             </div>
                         </div>`;
                         w.senses.forEach(s => {
@@ -8865,7 +8941,7 @@
                 }
 
                 if (groups.length === 0 || groups.every(g => g.items.length === 0)) {
-                    if (query) container.innerHTML = `<div class="empty-state">🔍 没有匹配的条目</div>`;
+                    if (query) container.innerHTML = `<div class="empty-state">没有匹配的条目</div>`;
                     else if (this.listFilter !== 'all') container.innerHTML = `<div class="empty-state">当前筛选「${this.escapeHtml(this.listFilterName())}」下没有单词。<br><button type="button" class="clear-list-filter-btn">显示全部状态</button></div>`;
                     else container.innerHTML = `<div class="empty-state">还没有单词，添加一个吧！</div>`;
                     const clearFilter = container.querySelector('.clear-list-filter-btn');
@@ -8895,8 +8971,8 @@
                                 <div class="word-row">
                                     ${isBatchMode ? `<input type="checkbox" class="batch-checkbox" data-word-id="${item.word.id}" ${giSelected ? 'checked' : ''} />` : ''}
                                     <span class="word-text">${this.escapeHtml(item.label)}</span>
-                                    ${badge ? `<span class="mastery-badge ${badge}">${item.word.mastery === 'mastered' ? '✅' : '🔄'}</span>` : ''}
-                                    ${needsReview ? `<span class="review-reminder">🔔</span>` : ''}
+                                    ${badge ? `<span class="mastery-badge ${badge}">${item.word.mastery === 'mastered' ? '✓' : '↻'}</span>` : ''}
+                                    ${needsReview ? `<span class="review-reminder">!</span>` : ''}
                                 </div>
                             </div>`;
                     });
@@ -9059,7 +9135,7 @@
                 } else if (this.currentMode === 'stats') {
                     this.renderStats(panel);
                 } else {
-                    panel.innerHTML = '<div class="detail-placeholder">👆 点击左侧条目查看详情</div>';
+                    panel.innerHTML = '<div class="detail-placeholder">点击左侧条目查看详情</div>';
                 }
             },
 
@@ -9150,15 +9226,15 @@
                     <div class="daily-page">
                         <div class="daily-hero">
                             <div>
-                                <div class="daily-title">📅 今日任务</div>
+                                <div class="daily-title">今日任务</div>
                                 <div class="daily-sub">按义项安排：到期优先，新词每天最多 ${this.dailyLimits.newLimit} 个义项。</div>
                             </div>
-                            <button class="back-btn" id="dailyRefreshBtn">🔄 刷新</button>
+                            <button class="back-btn" id="dailyRefreshBtn">↻ 刷新</button>
                         </div>
                         <div class="daily-stats">
-                            <div class="daily-stat"><div class="num">${stats.due}</div><div class="lbl">⏰ 到期义项</div></div>
-                            <div class="daily-stat"><div class="num">${stats.freshWords}</div><div class="lbl">🆕 新词</div></div>
-                            <div class="daily-stat"><div class="num">${stats.wrong}</div><div class="lbl">❗ 错题</div></div>
+                            <div class="daily-stat"><div class="num">${stats.due}</div><div class="lbl">到期义项</div></div>
+                            <div class="daily-stat"><div class="num">${stats.freshWords}</div><div class="lbl">新词</div></div>
+                            <div class="daily-stat"><div class="num">${stats.wrong}</div><div class="lbl">! 错题</div></div>
                         </div>
                         <div class="daily-controls">
                             <label>新词上限 <input id="dailyNewLimit" type="number" min="0" max="200" value="${this.dailyLimits.newLimit}"></label>
@@ -9166,8 +9242,8 @@
                             <span class="daily-queue-count">本次队列 ${queue.length} 个义项</span>
                         </div>
                         <div class="daily-actions">
-                            <button class="daily-start" id="dailyStartBtn" ${queue.length ? '' : 'disabled'}>▶ 开始今日复习</button>
-                            <button class="daily-wrong-start" id="wrongStartBtn" ${wrongItems.length ? '' : 'disabled'}>❗ 复习错题（${wrongItems.length}）</button>
+                            <button class="daily-start" id="dailyStartBtn" ${queue.length ? '' : 'disabled'}>▸ 开始今日复习</button>
+                            <button class="daily-wrong-start" id="wrongStartBtn" ${wrongItems.length ? '' : 'disabled'}>! 复习错题（${wrongItems.length}）</button>
                         </div>
                         <div class="daily-section-title">今日队列预览</div>
                         <div class="daily-list">${previewHtml}</div>
@@ -9237,13 +9313,13 @@
                     panel.innerHTML = `
                         <div class="game-container daily-review-result">
                             <div class="game-header">
-                                <div class="game-title">${s.kind === 'wrong' ? '❗ 错题复习' : '📅 今日复习'} <small>完成</small></div>
+                                <div class="game-title">${s.kind === 'wrong' ? '! 错题复习' : ' 今日复习'} <small>完成</small></div>
                                 <button class="back-btn" id="dailyResultBack">← 返回今日任务</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${s.correct} / ${s.total}</div>
                                 <div class="sub">记得 ${s.correct} 个 · 正确率 ${acc}%</div>
-                                <button id="dailyResultAgain">🔄 再复习一轮</button>
+                                <button id="dailyResultAgain">↻ 再复习一轮</button>
                             </div>
                         </div>
                     `;
@@ -9275,20 +9351,20 @@
                 ` : `
                     <div class="daily-review-answer">
                         <div class="daily-review-def">${this.escapeHtml(sense.definition || '（无释义）')}</div>
-                        ${sense.coreLink ? `<div class="daily-review-core">🧭 ${this.escapeHtml(sense.coreLink)}</div>` : ''}
-                        ${sense.example ? `<div class="daily-review-example">📝 ${this.escapeHtml(sense.example)}</div>` : ''}
-                        ${sense.notes && sense.notes[0] ? `<div class="daily-review-note">✏️ ${this.escapeHtml(sense.notes[0])}</div>` : ''}
+                        ${sense.coreLink ? `<div class="daily-review-core"> ${this.escapeHtml(sense.coreLink)}</div>` : ''}
+                        ${sense.example ? `<div class="daily-review-example"> ${this.escapeHtml(sense.example)}</div>` : ''}
+                        ${sense.notes && sense.notes[0] ? `<div class="daily-review-note">✎ ${this.escapeHtml(sense.notes[0])}</div>` : ''}
                     </div>
                     <div class="daily-review-actions">
-                        <button data-grade="0" class="grade-forgot">😵 忘记</button>
-                        <button data-grade="1" class="grade-fuzzy">🤔 模糊</button>
-                        <button data-grade="2" class="grade-remember">✅ 记得</button>
+                        <button data-grade="0" class="grade-forgot">忘记</button>
+                        <button data-grade="1" class="grade-fuzzy">模糊</button>
+                        <button data-grade="2" class="grade-remember">✓ 记得</button>
                     </div>
                 `;
                 panel.innerHTML = `
                     <div class="game-container daily-review">
                         <div class="game-header">
-                            <div class="game-title">${s.kind === 'wrong' ? '❗ 错题复习' : '📅 今日复习'} <small>${typeLabel}</small></div>
+                            <div class="game-title">${s.kind === 'wrong' ? '! 错题复习' : ' 今日复习'} <small>${typeLabel}</small></div>
                             <button class="back-btn" id="dailyReviewBack">← 返回今日任务</button>
                         </div>
                         <div class="daily-review-word">${this.escapeHtml(w.word)}</div>
@@ -9363,12 +9439,12 @@
                     <div class="backup-page">
                         <div class="backup-hero">
                             <div>
-                                <div class="backup-title">🗄️ 备份与恢复</div>
+                                <div class="backup-title">备份与恢复</div>
                                 <div class="backup-sub">启动时超过 12 小时自动备份，保留最近 7 份。恢复前会先自动备份当前数据。</div>
                             </div>
                             <div class="backup-hero-actions">
-                                <button class="backup-primary" id="backupNowBtn">💾 立即备份</button>
-                                <button class="backup-secondary" id="backupRefreshBtn">🔄 刷新</button>
+                                <button class="backup-primary" id="backupNowBtn">立即备份</button>
+                                <button class="backup-secondary" id="backupRefreshBtn">↻ 刷新</button>
                             </div>
                         </div>
                         <div class="backup-status">
@@ -9380,7 +9456,7 @@
                         <div class="backup-list">${snapshotCards}</div>
                         <div class="backup-section-title">从文件恢复</div>
                         <div class="backup-file-actions">
-                            <button class="backup-secondary" id="backupImportBtn">📂 选择备份 JSON</button>
+                            <button class="backup-secondary" id="backupImportBtn">选择备份 JSON</button>
                             <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;">
                             <span class="backup-hint">也可以继续用「导出 → JSON」手动保存。</span>
                         </div>
@@ -9392,7 +9468,7 @@
                         <div class="backup-section-title">桌面本地备份</div>
                         <div class="backup-list">${desktopCards}</div>
                         <div class="backup-folder-row">
-                            <button class="backup-secondary" id="backupFolderBtn" ${window.desktop ? '' : 'disabled'}>📁 打开备份目录</button>
+                            <button class="backup-secondary" id="backupFolderBtn" ${window.desktop ? '' : 'disabled'}>打开备份目录</button>
                             ${window.desktop ? '' : '<span class="backup-hint">网页版没有本地文件夹；桌面版可用。</span>'}
                         </div>
                     </div>
@@ -9456,7 +9532,7 @@
                 if (game && typeof game.render === 'function') {
                     game.render.call(this, container);
                 } else {
-                    container.innerHTML = '<div class="detail-placeholder">⚠️ 游戏加载失败</div>';
+                    container.innerHTML = '<div class="detail-placeholder">游戏加载失败</div>';
                 }
             },
 
@@ -9470,12 +9546,12 @@
                 let html = `
                     <div style="padding: 8px 0;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-                            <h2 style="font-size:24px;font-weight:700;">🎮 选择复习游戏</h2>
+                            <h2 style="font-size:24px;font-weight:700;">选择复习游戏</h2>
                             <span style="font-size:14px;color:#64748b;">${this.words.filter(w=>!w.deleted).length} 个活跃单词</span>
                         </div>
                         <div class="daily-banner" id="dailyBanner">
                             <div>
-                                <b>📅 今日任务</b>
+                                <b>今日任务</b>
                                 <span>到期 ${dailyStats.due} · 新词 ${dailyStats.freshWords} · 错题 ${dailyStats.wrong}</span>
                             </div>
                             <button>进入</button>
@@ -9539,7 +9615,7 @@
                     </button>`);
                 }
                 if (!rows.length) return '';
-                return `<div class="game-summary"><h4>📋 本局总结 · 点任意一行可跳转</h4><div class="game-summary-list">${rows.join('')}</div></div>`;
+                return `<div class="game-summary"><h4>≡ 本局总结 · 点任意一行可跳转</h4><div class="game-summary-list">${rows.join('')}</div></div>`;
             },
             bindGameSummary(container) {
                 container.querySelectorAll('.game-summary-row').forEach(btn => {
@@ -9560,18 +9636,18 @@
                     return `<div class="front">
                         <div>${this.escapeHtml(word.word)}</div>
                         ${word.phonetic ? `<div class="phonetic-small">${this.escapeHtml(word.phonetic)}</div>` : ''}
-                        <button class="speak-btn-small" id="speakCardBtn">🔊 朗读</button>
+                        <button class="speak-btn-small" id="speakCardBtn">♪ 朗读</button>
                     </div>`;
                 }
                 return `<div class="back">
                     <div class="note" style="margin-bottom:6px;">义项 ${senseIndex} / ${word.senses.length}</div>
-                    ${word.core && word.core.feeling ? `<div class="note" style="margin-bottom:6px;color:#4f46e5;">🧭 核心感觉：${this.escapeHtml(word.core.feeling)}</div>` : ''}
-                    <div class="def">📖 ${this.escapeHtml(sense.definition || '（无）')}</div>
-                    ${sense.example ? `<div class="ex">📝 ${this.escapeHtml(sense.example)}</div>` : ''}
-                    ${sense.notes && sense.notes[0] ? `<div class="note">✏️ ${this.escapeHtml(sense.notes[0])}</div>` : ''}
-                    ${sense.synonyms ? `<div class="note" style="margin-top:6px;">🔗 近义：${this.escapeHtml(sense.synonyms)}</div>` : ''}
-                    ${sense.collocations ? `<div class="note">🔗 搭配：${this.escapeHtml(sense.collocations)}</div>` : ''}
-                    ${sense.pitfall ? `<div class="note" style="margin-top:6px;">⚠️ ${this.escapeHtml(sense.pitfall)}</div>` : ''}
+                    ${word.core && word.core.feeling ? `<div class="note" style="margin-bottom:6px;color:#4f46e5;">核心感觉：${this.escapeHtml(word.core.feeling)}</div>` : ''}
+                    <div class="def"> ${this.escapeHtml(sense.definition || '（无）')}</div>
+                    ${sense.example ? `<div class="ex"> ${this.escapeHtml(sense.example)}</div>` : ''}
+                    ${sense.notes && sense.notes[0] ? `<div class="note">✎ ${this.escapeHtml(sense.notes[0])}</div>` : ''}
+                    ${sense.synonyms ? `<div class="note" style="margin-top:6px;">近义：${this.escapeHtml(sense.synonyms)}</div>` : ''}
+                    ${sense.collocations ? `<div class="note">搭配：${this.escapeHtml(sense.collocations)}</div>` : ''}
+                    ${sense.pitfall ? `<div class="note" style="margin-top:6px;"> ${this.escapeHtml(sense.pitfall)}</div>` : ''}
                 </div>`;
             },
             renderFlashcardGame() {
@@ -9579,7 +9655,7 @@
                 const activeWords = this.words.filter(w => !w.deleted);
                 if (activeWords.length === 0) {
                     container.innerHTML =
-                        `<div class="game-container"><div class="empty-review">🎉 没有可复习的单词</div></div>`;
+                        `<div class="game-container"><div class="empty-review">没有可复习的单词</div></div>`;
                     return;
                 }
                 if (this.flashcardIndex >= activeWords.length) this.flashcardIndex = 0;
@@ -9598,19 +9674,19 @@
                 let html = `
                     <div class="game-container flashcard-game">
                         <div class="game-header">
-                            <div class="game-title">🃏 翻卡牌 <small>自主复习</small></div>
+                            <div class="game-title">翻卡牌 <small>自主复习</small></div>
                             <button class="back-btn" id="flashcardBackBtn">← 返回游戏列表</button>
                         </div>
                         <div style="text-align:center;">
                             <div class="card" id="flashcardCard">${this.flashcardCardInner(word, sense, senseIndex)}                            </div>
-                            <div style="margin-top:12px;font-size:14px;color:#94a3b8;cursor:pointer;" id="flipHint">👆 点击卡片翻转</div>
+                            <div style="margin-top:12px;font-size:14px;color:#94a3b8;cursor:pointer;" id="flipHint">点击卡片翻转</div>
                             <div class="card-actions">
-                                <button class="dont-know-btn" data-action="unknown">❌ 不认识</button>
-                                <button class="skip-btn" data-action="skip">⏭ 跳过</button>
-                                <button class="know-btn" data-action="mastered">✅ 认识</button>
+                                <button class="dont-know-btn" data-action="unknown">× 不认识</button>
+                                <button class="skip-btn" data-action="skip">» 跳过</button>
+                                <button class="know-btn" data-action="mastered">✓ 认识</button>
                             </div>
                             <div class="progress-info">进度：<span class="highlight">${progress}</span></div>
-                            <div class="progress-info" style="margin-top:4px;font-size:14px;">掌握度：${word.mastery === 'mastered' ? '✅ 已掌握' : (word.mastery === 'learning' ? '🔄 学习中' : '❓ 未标记')}</div>
+                            <div class="progress-info" style="margin-top:4px;font-size:14px;">掌握度：${word.mastery === 'mastered' ? '✓ 已掌握' : (word.mastery === 'learning' ? '↻ 学习中' : '? 未标记')}</div>
                         </div>
                     </div>
                 `;
@@ -9658,7 +9734,7 @@
                 const activeWords = this.words.filter(w => !w.deleted);
                 if (activeWords.length === 0) {
                     container.innerHTML =
-                        `<div class="game-container"><div class="empty-review">🎉 没有可复习的单词</div></div>`;
+                        `<div class="game-container"><div class="empty-review">没有可复习的单词</div></div>`;
                     return;
                 }
                 const state = this.gameStates.coreRecall || {};
@@ -9673,14 +9749,14 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🧭 核心回忆 <small>本轮完成</small></div>
+                                <div class="game-title">核心回忆 <small>本轮完成</small></div>
                                 <button class="back-btn" id="coreRecallBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${state.correct} / ${state.order.length}</div>
                                 <div class="sub">本轮能回忆出核心感觉的单词数</div>
                                 ${this.gameSummaryHtml((state.order || []).slice(0, 30).map(id => ({ wordId: id })))}
-                                <button id="coreRecallRetryBtn">🔄 再来一轮</button>
+                                <button id="coreRecallRetryBtn">↻ 再来一轮</button>
                             </div>
                         </div>
                     `;
@@ -9712,9 +9788,9 @@
                         <div class="core-recall-missing-title">这个词还没有结构化核心感觉</div>
                         <div class="core-recall-missing-desc">旧版数据可能只存了释义。直接显示释义会违背“核心感觉”的用法，所以这里先不显示。</div>
                         <div class="core-recall-actions">
-                            <button id="coreRecallSkipBtn">⏭ 跳过</button>
-                            <button id="coreRecallLegacyBtn">📄 查看旧版笔记</button>
-                            <button id="coreRecallFlagBtn">✏️ 标记待补充</button>
+                            <button id="coreRecallSkipBtn">» 跳过</button>
+                            <button id="coreRecallLegacyBtn">查看旧版笔记</button>
+                            <button id="coreRecallFlagBtn">✎ 标记待补充</button>
                         </div>
                         <div class="core-recall-legacy" id="coreRecallLegacy" style="display:none;">
                             <div class="core-recall-legacy-label">旧版笔记（仅参考，不是核心感觉）</div>
@@ -9724,24 +9800,24 @@
                 `;
                 const bodyHtml = hasCore ? (!state.revealed ? `
                     <div class="core-recall-prompt">先在心里说出这个词的核心感觉 / 画面，再揭示答案。</div>
-                    <div class="core-recall-reveal-wrap"><button id="coreRecallRevealBtn">👀 显示核心感觉</button></div>
+                    <div class="core-recall-reveal-wrap"><button id="coreRecallRevealBtn">显示核心感觉</button></div>
                 ` : `
                     <div class="core-recall-answer">
                         <div class="core-recall-feeling">${this.escapeHtml(core.feeling)}</div>
-                        ${core.image ? `<div class="core-recall-image">🖼️ ${this.escapeHtml(core.image)}</div>` : ''}
+                        ${core.image ? `<div class="core-recall-image"> ${this.escapeHtml(core.image)}</div>` : ''}
                         ${keywords.length ? `<div class="core-recall-keywords">${keywords.map(k => `<span>${this.escapeHtml(k)}</span>`).join('')}</div>` : ''}
                         ${chain.length ? `<div class="core-recall-chain">${chain.map(n => `<span class="chain-node"><b>${this.escapeHtml(n.label || '')}</b><small>${this.escapeHtml(n.bridge || '')}</small></span>`).join('<span class="chain-arrow">→</span>')}</div>` : ''}
                     </div>
                     <div class="core-recall-actions">
-                        <button data-grade="0">😵 忘记</button>
-                        <button data-grade="1">🤔 模糊</button>
-                        <button data-grade="2">✅ 记得</button>
+                        <button data-grade="0">忘记</button>
+                        <button data-grade="1">模糊</button>
+                        <button data-grade="2">✓ 记得</button>
                     </div>
                 `) : missingHtml;
                 let html = `
                     <div class="game-container core-recall-game">
                         <div class="game-header">
-                            <div class="game-title">🧭 核心回忆 <small>先想感觉，再看答案</small></div>
+                            <div class="game-title">核心回忆 <small>先想感觉，再看答案</small></div>
                             <button class="back-btn" id="coreRecallBackBtn2">← 返回</button>
                         </div>
                         <div class="core-recall-word">${this.escapeHtml(word.word)}</div>
@@ -9807,9 +9883,9 @@
                 });
                 const feedback = document.createElement('div');
                 feedback.className = `feedback-banner ${correctAnswer ? 'correct' : 'wrong'}`;
-                feedback.innerHTML = `${correctAnswer ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                feedback.innerHTML = `${correctAnswer ? '✓ 正确' : `× 正确答案：${this.escapeHtml(q.answer)}`}
                     ${q.nuance ? `<div>${this.escapeHtml(q.nuance)}</div>` : ''}
-                    ${q.mnemonic ? `<div>💡 ${this.escapeHtml(q.mnemonic)}</div>` : ''}`;
+                    ${q.mnemonic ? `<div>※ ${this.escapeHtml(q.mnemonic)}</div>` : ''}`;
                 const options = container.querySelector('.game-options');
                 if (options) options.insertAdjacentElement('beforebegin', feedback);
                 const score = container.querySelector('.game-status .score');
@@ -9823,12 +9899,12 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">⚖️ 近义辨析</div>
+                                <div class="game-title">近义辨析</div>
                                 <button class="back-btn" id="synBackBtn">← 返回</button>
                             </div>
                             <div class="empty-review">
                                 还没有可用的近义组。<br>
-                                导入包含 <code>synonymGroups</code> 的 v2 数据后即可开始。<br>
+                                导入包含 <code>synonymGroups</code>的 v2 数据后即可开始。<br>
                                 <span style="font-size:13px;">当前近义组：${(this.extras.synonymGroups || []).length} 个</span>
                             </div>
                         </div>
@@ -9899,14 +9975,14 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">⚖️ 近义辨析 <small>结果</small></div>
+                                <div class="game-title">近义辨析 <small>结果</small></div>
                                 <button class="back-btn" id="synBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
                                 ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
-                                <button id="synRetryBtn">🔄 再来一局</button>
+                                <button id="synRetryBtn">↻ 再来一局</button>
                             </div>
                         </div>
                     `;
@@ -9928,15 +10004,15 @@
                 const isAnswering = state.showAnswer;
                 const feedback = isAnswering
                     ? `<div class="feedback-banner ${state.selected === q.answer ? 'correct' : 'wrong'}">
-                        ${state.selected === q.answer ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                        ${state.selected === q.answer ? '✓ 正确' : `× 正确答案：${this.escapeHtml(q.answer)}`}
                         ${q.nuance ? `<div style="margin-top:6px;font-size:13px;">${this.escapeHtml(q.nuance)}</div>` : ''}
-                        ${q.mnemonic ? `<div style="margin-top:4px;font-size:12px;opacity:.8;">💡 ${this.escapeHtml(q.mnemonic)}</div>` : ''}
+                        ${q.mnemonic ? `<div style="margin-top:4px;font-size:12px;opacity:.8;">※ ${this.escapeHtml(q.mnemonic)}</div>` : ''}
                     </div>`
                     : '';
                 let html = `
                     <div class="game-container">
                         <div class="game-header">
-                            <div class="game-title">⚖️ 近义辨析 <small>${this.escapeHtml(q.groupName)}</small></div>
+                            <div class="game-title">近义辨析 <small>${this.escapeHtml(q.groupName)}</small></div>
                             <button class="back-btn" id="synBackBtn2">← 返回</button>
                         </div>
                         <div class="game-question" style="font-size:20px;line-height:1.6;">${q.promptType === 'collocation' ? this.escapeHtml(q.prompt) : this.escapeHtml(q.prompt)}</div>
@@ -9999,7 +10075,7 @@
                 });
                 const feedback = document.createElement('div');
                 feedback.className = `feedback-banner ${correctAnswer ? 'correct' : 'wrong'}`;
-                feedback.innerHTML = `${correctAnswer ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                feedback.innerHTML = `${correctAnswer ? '✓ 正确' : `× 正确答案：${this.escapeHtml(q.answer)}`}
                     <div class="root-explanation">${this.escapeHtml(q.explanation || '')}</div>`;
                 const options = container.querySelector('.game-options');
                 if (options) options.insertAdjacentElement('beforebegin', feedback);
@@ -10015,12 +10091,12 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🌱 词根拆解</div>
+                                <div class="game-title">词根拆解</div>
                                 <button class="back-btn" id="rootBackBtn">← 返回</button>
                             </div>
                             <div class="empty-review">
                                 还没有可用的词根数据。<br>
-                                导入包含 <code>morphology.parts</code> 的 v2 数据后即可开始。<br>
+                                导入包含 <code>morphology.parts</code>的 v2 数据后即可开始。<br>
                                 <span style="font-size:13px;">当前可拆解单词：0 个</span>
                             </div>
                         </div>
@@ -10142,7 +10218,7 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🌱 词根拆解</div>
+                                <div class="game-title">词根拆解</div>
                                 <button class="back-btn" id="rootBackBtn">← 返回</button>
                             </div>
                             <div class="empty-review">词根数据不足，暂时无法出题。</div>
@@ -10161,14 +10237,14 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🌱 词根拆解 <small>结果</small></div>
+                                <div class="game-title">词根拆解 <small>结果</small></div>
                                 <button class="back-btn" id="rootBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
                                 ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
-                                <button id="rootRetryBtn">🔄 再来一局</button>
+                                <button id="rootRetryBtn">↻ 再来一局</button>
                             </div>
                         </div>
                     `;
@@ -10191,7 +10267,7 @@
                 const correct = state.selected === q.answer;
                 const feedback = isAnswering
                     ? `<div class="feedback-banner ${correct ? 'correct' : 'wrong'}">
-                        ${correct ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                        ${correct ? '✓ 正确' : `× 正确答案：${this.escapeHtml(q.answer)}`}
                         <div class="root-explanation">${this.escapeHtml(q.explanation || '')}</div>
                     </div>`
                     : '';
@@ -10200,7 +10276,7 @@
                 let html = `
                     <div class="game-container">
                         <div class="game-header">
-                            <div class="game-title">🌱 词根拆解 <small>拆开看字面义</small></div>
+                            <div class="game-title">词根拆解 <small>拆开看字面义</small></div>
                             <button class="back-btn" id="rootBackBtn2">← 返回</button>
                         </div>
                         <div class="core-recall-word" style="font-size:42px;margin:18px 0 4px;">${this.escapeHtml(q.word || '')}</div>
@@ -10262,7 +10338,7 @@
                 });
                 const feedback = document.createElement('div');
                 feedback.className = `feedback-banner ${correctAnswer ? 'correct' : 'wrong'}`;
-                feedback.innerHTML = `${correctAnswer ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                feedback.innerHTML = `${correctAnswer ? '✓ 正确' : `× 正确答案：${this.escapeHtml(q.answer)}`}
                     <div class="sense-explanation">${this.escapeHtml(q.explanation || '')}</div>
                     ${q.translation ? `<div class="sense-translation">中文：${this.escapeHtml(q.translation)}</div>` : ''}`;
                 const options = container.querySelector('.sense-options');
@@ -10278,7 +10354,7 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🪜 词义链</div>
+                                <div class="game-title">词义链</div>
                                 <button class="back-btn" id="senseBackBtn">← 返回</button>
                             </div>
                             <div class="empty-review">
@@ -10395,7 +10471,7 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🪜 词义链</div>
+                                <div class="game-title">词义链</div>
                                 <button class="back-btn" id="senseBackBtn">← 返回</button>
                             </div>
                             <div class="empty-review">多义项数据不足，暂时无法出题。</div>
@@ -10414,14 +10490,14 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🪜 词义链 <small>结果</small></div>
+                                <div class="game-title">词义链 <small>结果</small></div>
                                 <button class="back-btn" id="senseBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore / total * 100) : 0}%</div>
                                 ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
-                                <button id="senseRetryBtn">🔄 再来一局</button>
+                                <button id="senseRetryBtn">↻ 再来一局</button>
                             </div>
                         </div>
                     `;
@@ -10444,7 +10520,7 @@
                 const correct = state.selected === q.answer;
                 const feedback = isAnswering
                     ? `<div class="feedback-banner ${correct ? 'correct' : 'wrong'}">
-                        ${correct ? '✅ 正确' : `❌ 正确答案：${this.escapeHtml(q.answer)}`}
+                        ${correct ? '✓ 正确' : `× 正确答案：${this.escapeHtml(q.answer)}`}
                         <div class="sense-explanation">${this.escapeHtml(q.explanation || '')}</div>
                         ${q.translation ? `<div class="sense-translation">中文：${this.escapeHtml(q.translation)}</div>` : ''}
                     </div>`
@@ -10455,7 +10531,7 @@
                 let html = `
                     <div class="game-container">
                         <div class="game-header">
-                            <div class="game-title">🪜 词义链 <small>义项选择</small></div>
+                            <div class="game-title">词义链 <small>义项选择</small></div>
                             <button class="back-btn" id="senseBackBtn2">← 返回</button>
                         </div>
                         <div class="core-recall-word" style="font-size:42px;margin:18px 0 4px;">${this.escapeHtml(q.word || '')}</div>
@@ -10555,13 +10631,13 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">✍️ 拼写挑战 <small>结果</small></div>
+                                <div class="game-title">✎ 拼写挑战 <small>结果</small></div>
                                 <button class="back-btn" id="spellBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore/total*100) : 0}%</div>
-                                <button id="spellRetryBtn">🔄 再来一局</button>
+                                <button id="spellRetryBtn">↻ 再来一局</button>
                             </div>
                         </div>
                     `;
@@ -10624,33 +10700,33 @@
 
                 let prompt = '';
                 if (!state.skipAudio) {
-                    prompt = `🔊 听发音拼写单词 (点击按钮播放)`;
+                    prompt = `♪ 听发音拼写单词 (点击按钮播放)`;
                 } else {
-                    prompt = `📖 根据释义拼写单词：${this.escapeHtml(q.definition)}`;
+                    prompt = ` 根据释义拼写单词：${this.escapeHtml(q.definition)}`;
                 }
 
                 const html = `
                     <div class="game-container">
                         <div class="game-header">
-                            <div class="game-title">✍️ 拼写挑战 <small>${state.index+1}/${state.total}</small></div>
+                            <div class="game-title">✎ 拼写挑战 <small>${state.index+1}/${state.total}</small></div>
                             <button class="back-btn" id="spellBackBtn2">← 返回</button>
                         </div>
                         <div style="text-align:center;padding:8px 0;">
                             ${!state.skipAudio ? `
-                                <button class="game-skip-audio" id="spellSkipAudioBtn">🔇 跳过听力，直接看释义</button>
+                                <button class="game-skip-audio" id="spellSkipAudioBtn">跳过听力，直接看释义</button>
                                 <div style="margin-top:12px;">
-                                    <button id="spellPlayBtn" style="padding:8px 20px;border-radius:30px;border:none;background:#dbeafe;color:#1d4ed8;font-weight:600;cursor:pointer;">🔊 播放发音</button>
+                                    <button id="spellPlayBtn" style="padding:8px 20px;border-radius:30px;border:none;background:#dbeafe;color:#1d4ed8;font-weight:600;cursor:pointer;">♪ 播放发音</button>
                                 </div>
                             ` : `
                                 <div style="font-size:18px;font-weight:500;margin-bottom:8px;">${prompt}</div>
-                                <button class="game-skip-audio" id="spellUnskipAudioBtn">🔊 恢复听力模式</button>
+                                <button class="game-skip-audio" id="spellUnskipAudioBtn">♪ 恢复听力模式</button>
                             `}
                         </div>
                         <div class="game-input">
                             <input type="text" id="spellInput" placeholder="输入单词..." autofocus ${state.showAnswer ? 'disabled' : ''} />
                             <button id="spellSubmitBtn" ${state.showAnswer ? 'disabled' : ''}>提交</button>
                         </div>
-                        ${state.showAnswer ? `<div class="feedback-banner wrong">❌ 正确拼写：<strong>${this.escapeHtml(state.lastAnswer)}</strong>（即将进入下一题）</div>` : ''}
+                        ${state.showAnswer ? `<div class="feedback-banner wrong">× 正确拼写：<strong>${this.escapeHtml(state.lastAnswer)}</strong>（即将进入下一题）</div>` : ''}
                         <div class="game-status">
                             <span>得分 ${state.score}</span>
                             <span>进度 ${state.index+1}/${state.total}</span>
@@ -10792,14 +10868,14 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🎯 单词射手 <small>结果</small></div>
+                                <div class="game-title">单词射手 <small>结果</small></div>
                                 <button class="back-btn" id="shooterBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${finalScore} / ${total}</div>
                                 <div class="sub">正确率 ${total > 0 ? Math.round(finalScore/total*100) : 0}%</div>
                                 ${this.gameSummaryHtml((state.questions || []).map(q => ({ wordId: q.wordId, senseId: q.senseId })))}
-                                <button id="shooterRetryBtn">🔄 再来一局</button>
+                                <button id="shooterRetryBtn">↻ 再来一局</button>
                             </div>
                         </div>
                     `;
@@ -10847,13 +10923,13 @@
 
                 let feedbackHtml = '';
                 if (state.showAnswer) {
-                    feedbackHtml = `<div class="feedback-banner wrong">✅ 正确答案：${this.escapeHtml(state.correctAnswer)}</div>`;
+                    feedbackHtml = `<div class="feedback-banner wrong">✓ 正确答案：${this.escapeHtml(state.correctAnswer)}</div>`;
                 }
 
                 const html = `
                     <div class="game-container">
                         <div class="game-header">
-                            <div class="game-title">🎯 单词射手 <small>选择正确释义</small></div>
+                            <div class="game-title">单词射手 <small>选择正确释义</small></div>
                             <button class="back-btn" id="shooterBackBtn2">← 返回</button>
                         </div>
                         <div class="game-question">${this.escapeHtml(q.word)}</div>
@@ -10871,7 +10947,7 @@
                         <div class="game-status">
                             <span>进度 ${state.index+1}/${state.total}</span>
                             <span class="score">得分 ${state.score}</span>
-                            <span class="timer">本题 ⏱️ ${state.timer}s</span>
+                            <span class="timer">本题  ${state.timer}s</span>
                         </div>
                     </div>
                 `;
@@ -10947,14 +11023,14 @@
                     container.innerHTML = `
                         <div class="game-container">
                             <div class="game-header">
-                                <div class="game-title">🧩 消消乐 <small>${matched === total ? '🎉 全部消除！' : '完成'}</small></div>
+                                <div class="game-title">消消乐 <small>${matched === total ? ' 全部消除！' : '完成'}</small></div>
                                 <button class="back-btn" id="matchBackBtn">← 返回</button>
                             </div>
                             <div class="game-result">
                                 <div class="big-score">${matched} / ${total}</div>
                                 <div class="sub">${matched === total ? '完美通关！' : '继续加油！'}</div>
                                 ${this.gameSummaryHtml((state.cards || []).filter(c => c.type === 'word').map(c => ({ wordId: c.pairId, senseId: c.senseId })))}
-                                <button id="matchRetryBtn">🔄 再来一局</button>
+                                <button id="matchRetryBtn">↻ 再来一局</button>
                             </div>
                         </div>
                     `;
@@ -11030,7 +11106,7 @@
                 const html = `
                     <div class="game-container">
                         <div class="game-header">
-                            <div class="game-title">🧩 消消乐 <small>匹配单词与释义</small></div>
+                            <div class="game-title">消消乐 <small>匹配单词与释义</small></div>
                             <button class="back-btn" id="matchBackBtn2">← 返回</button>
                         </div>
                         <div class="match-grid" id="matchGrid">
@@ -11088,7 +11164,7 @@
                     this.renderCreativeWriting();
                 };
 
-                const back = `<div class="game-header"><div class="game-title">✏️ 创意造句 <small>一次一个单词，最后拼成一段话</small></div><button class="back-btn" id="creativeBackBtn">← 返回</button></div>`;
+                const back = `<div class="game-header"><div class="game-title">✎ 创意造句 <small>一次一个单词，最后拼成一段话</small></div><button class="back-btn" id="creativeBackBtn">← 返回</button></div>`;
 
                 if (state.phase === 'summary') {
                     const story = state.entries.map(e => e.sentence).join(' ');
@@ -11108,7 +11184,7 @@
                             <div class="creative-story">${this.escapeHtml(story)}</div>
                             <div class="creative-sentence-list">${rows}</div>
                             <div style="text-align:center;margin:18px 0;">
-                                <button id="creativeAgainBtn" class="creative-main-btn">🔄 再来一组</button>
+                                <button id="creativeAgainBtn" class="creative-main-btn">↻ 再来一组</button>
                             </div>
                         </div>`;
                     document.getElementById('creativeBackBtn').addEventListener('click', () => this.leaveGame());
@@ -11170,13 +11246,13 @@
                 const currentIdx = (word.senses || []).findIndex(s => s.id === this.currentSenseId);
                 const label = currentIdx >= 0
                     ? `释义 ${currentIdx + 1}：${this.escapeHtml((word.senses[currentIdx].definition || '').slice(0, 36))}`
-                    : '📋 总览';
+                    : '≡ 总览';
                 const items = [
-                    `<button type="button" class="sense-select-item ${currentIdx < 0 ? 'active' : ''}" data-value="__overview__">📋 总览</button>`,
+                    `<button type="button" class="sense-select-item ${currentIdx < 0 ? 'active' : ''}" data-value="__overview__">≡ 总览</button>`,
                     ...(word.senses || []).map((s, idx) => `<button type="button" class="sense-select-item ${idx === currentIdx ? 'active' : ''}" data-value="${s.id}">释义 ${idx + 1}：${this.escapeHtml((s.definition || '（空释义）').slice(0, 60))}</button>`)
                 ].join('');
                 const options = [
-                    '<option value="__overview__">📋 总览</option>',
+                    '<option value="__overview__">≡ 总览</option>',
                     ...(word.senses || []).map((s, idx) => `<option value="${s.id}">释义 ${idx + 1}</option>`)
                 ].join('');
                 return `<div class="sense-select"><button type="button" class="sense-select-trigger" id="senseSelectTrigger"><span>${label}</span><span>▾</span></button><div class="sense-select-menu" id="senseSelectMenu">${items}</div><select id="senseSwitcher" style="display:none;">${options}</select></div>`;
@@ -11206,9 +11282,9 @@
             detailNavBar(word, backToOverview = false) {
                 const backLabel = backToOverview ? '← 返回单词界面' : '← 返回列表';
                 const danger = word.deleted
-                    ? `<button type="button" id="detailRestoreBtn" class="detail-nav-restore">↩ 还原</button><button type="button" id="detailPermanentDeleteBtn" class="detail-nav-delete">🗑 永久删除</button>`
-                    : `<button type="button" id="detailDeleteBtn" class="detail-nav-delete">🗑 删除单词</button>`;
-                return `<div class="detail-sticky-bar"><button type="button" id="detailBackBtn">${backLabel}</button><button type="button" id="detailEditBtn">✏️ 编辑</button><span class="detail-sticky-title">${this.escapeHtml(word.word)}</span><div class="detail-sticky-arrows"><button type="button" id="detailPrevBtn" title="上一个（←）">◀</button><button type="button" id="detailNextBtn" title="下一个（→）">▶</button>${danger}</div></div>`;
+                    ? `<button type="button" id="detailRestoreBtn" class="detail-nav-restore">← 还原</button><button type="button" id="detailPermanentDeleteBtn" class="detail-nav-delete">永久删除</button>`
+                    : `<button type="button" id="detailDeleteBtn" class="detail-nav-delete">删除单词</button>`;
+                return `<div class="detail-sticky-bar"><button type="button" id="detailBackBtn">${backLabel}</button><button type="button" id="detailEditBtn">✎ 编辑</button><span class="detail-sticky-title">${this.escapeHtml(word.word)}</span><div class="detail-sticky-arrows"><button type="button" id="detailPrevBtn" title="上一个（←）">◂</button><button type="button" id="detailNextBtn" title="下一个（→）">▸</button>${danger}</div></div>`;
             },
             bindDetailNav(backToOverview = false) {
                 const back = document.getElementById('detailBackBtn');
@@ -11245,7 +11321,7 @@
             },
             renderDictionaryDetail(container) {
                 const word = this.words.find(w => w.id === this.currentWordId);
-                if (!word) { container.innerHTML = '<div class="detail-placeholder">👆 点击左侧条目查看详情</div>'; return; }
+                if (!word) { container.innerHTML = '<div class="detail-placeholder">点击左侧条目查看详情</div>'; return; }
                 if (this.currentSenseId === null) { this.renderOverview(container, word); return; }
                 let sense = word.senses.find(s => s.id === this.currentSenseId);
                 if (!sense && word.senses.length > 0) { sense = word.senses[0];
@@ -11266,14 +11342,14 @@
                 const etym = word.etymology || {};
                 const coreBits = [];
                 if (core.feeling) coreBits.push(`<div class="core-feeling">${this.escapeHtml(core.feeling)}</div>`);
-                if (core.image) coreBits.push(`<div class="core-image">🖼️ ${this.escapeHtml(core.image)}</div>`);
+                if (core.image) coreBits.push(`<div class="core-image"> ${this.escapeHtml(core.image)}</div>`);
                 if (Array.isArray(core.keywords) && core.keywords.length) {
                     coreBits.push(`<div class="core-keywords">${core.keywords.map(k => `<span>${this.escapeHtml(k)}</span>`).join('')}</div>`);
                 }
                 if (Array.isArray(core.chain) && core.chain.length) {
                     coreBits.push(`<div class="core-chain">${core.chain.map(n => `<span class="chain-node"><b>${this.escapeHtml(n.label || '')}</b><small>${this.escapeHtml(n.bridge || '')}</small></span>`).join('<span class="chain-arrow">→</span>')}</div>`);
                 }
-                const coreHtml = coreBits.length ? `<div class="detail-section core-section"><h4>🧭 核心感觉</h4>${coreBits.join('')}</div>` : '';
+                const coreHtml = coreBits.length ? `<div class="detail-section core-section"><h4>核心感觉</h4>${coreBits.join('')}</div>` : '';
                 const rootBits = [];
                 if (Array.isArray(morph.parts) && morph.parts.length) {
                     rootBits.push(`<div class="morph-parts">${morph.parts.map(p => `<span class="morph-part"><b>${this.escapeHtml(p.form || '')}</b> ${this.escapeHtml(p.meaning || '')}</span>`).join('<span class="chain-arrow">+</span>')}</div>`);
@@ -11283,21 +11359,21 @@
                     rootBits.push(`<div class="etym-path">${etym.path.map(p => `<span>${this.escapeHtml(p.form || '')}<small>${this.escapeHtml(p.language || '')}</small></span>`).join('<span class="chain-arrow">→</span>')}</div>`);
                 }
                 if (etym.story) rootBits.push(`<div class="etym-story">${this.escapeHtml(etym.story)}</div>`);
-                const rootHtml = rootBits.length ? `<div class="detail-section"><h4>🌱 词根与词源</h4>${rootBits.join('')}</div>` : '';
+                const rootHtml = rootBits.length ? `<div class="detail-section"><h4>词根与词源</h4>${rootBits.join('')}</div>` : '';
                 const culture = (word.culture && typeof word.culture === 'object') ? word.culture : {};
                 const eggs = Array.isArray(culture.easterEggs) ? culture.easterEggs.filter(Boolean) : [];
-                const cultureHtml = (culture.background || culture.usage || eggs.length) ? `<div class="detail-section culture-section"><h4>🎭 文化与彩蛋</h4>${culture.background ? `<div class="culture-block"><b>文化背景</b><span>${this.escapeHtml(culture.background)}</span></div>` : ''}${culture.usage ? `<div class="culture-block"><b>语用提醒</b><span>${this.escapeHtml(culture.usage)}</span></div>` : ''}${eggs.length ? `<div class="culture-eggs">${eggs.map(e => `<div>🥚 ${this.escapeHtml(e)}</div>`).join('')}</div>` : ''}</div>` : '';
+                const cultureHtml = (culture.background || culture.usage || eggs.length) ? `<div class="detail-section culture-section"><h4>文化与彩蛋</h4>${culture.background ? `<div class="culture-block"><b>文化背景</b><span>${this.escapeHtml(culture.background)}</span></div>` : ''}${culture.usage ? `<div class="culture-block"><b>语用提醒</b><span>${this.escapeHtml(culture.usage)}</span></div>` : ''}${eggs.length ? `<div class="culture-eggs">${eggs.map(e => `<div> ${this.escapeHtml(e)}</div>`).join('')}</div>` : ''}</div>` : '';
                 const wordSynGroups = (word.synonymGroupIds || [])
                     .map(id => (this.extras.synonymGroups || []).find(g => g.id === id))
                     .filter(Boolean);
-                const synHtml = wordSynGroups.length ? `<div class="detail-section syn-section"><h4>⚖️ 近义辨析</h4>${wordSynGroups.map(g => {
+                const synHtml = wordSynGroups.length ? `<div class="detail-section syn-section"><h4>近义辨析</h4>${wordSynGroups.map(g => {
                     const members = (g.members || []).map(m => `<span class="syn-member"><b>${this.escapeHtml(m.word || '')}</b>${m.nuance ? ` · ${this.escapeHtml(m.nuance)}` : ''}${m.register ? ` <small>${this.escapeHtml(m.register)}</small>` : ''}</span>`).join('');
                     const contrasts = (g.contrasts || []).map(c => `<div class="syn-contrast">${this.escapeHtml(c.a || '')} vs ${this.escapeHtml(c.b || '')}：${this.escapeHtml(c.difference || '')}</div>`).join('');
-                    return `<div class="syn-group"><div class="syn-title">${this.escapeHtml(g.name || '近义组')}</div><div class="syn-members">${members}</div>${contrasts}${g.mnemonic ? `<div class="syn-mnemonic">💡 ${this.escapeHtml(g.mnemonic)}</div>` : ''}</div>`;
+                    return `<div class="syn-group"><div class="syn-title">${this.escapeHtml(g.name || '近义组')}</div><div class="syn-members">${members}</div>${contrasts}${g.mnemonic ? `<div class="syn-mnemonic">※ ${this.escapeHtml(g.mnemonic)}</div>` : ''}</div>`;
                 }).join('')}</div>` : '';
                 const rootFamily = (word.morphology && word.morphology.rootFamilyId)
                     ? (this.extras.rootFamilies || []).find(g => g.id === word.morphology.rootFamilyId) : null;
-                const rootFamilyHtml = rootFamily ? `<div class="detail-section"><h4>🌳 同根家族</h4><div class="root-family"><div class="root-family-head"><b>${this.escapeHtml(rootFamily.root || '')}</b> ${this.escapeHtml(rootFamily.meaning || '')}</div><div class="root-family-members">${(rootFamily.members || []).map(m => `<span class="root-member"><b>${this.escapeHtml(m.word || '')}</b>${m.meaning ? ` · ${this.escapeHtml(m.meaning)}` : ''}</span>`).join('')}</div>${rootFamily.mnemonic ? `<div class="syn-mnemonic">💡 ${this.escapeHtml(rootFamily.mnemonic)}</div>` : ''}</div></div>` : '';
+                const rootFamilyHtml = rootFamily ? `<div class="detail-section"><h4>同根家族</h4><div class="root-family"><div class="root-family-head"><b>${this.escapeHtml(rootFamily.root || '')}</b> ${this.escapeHtml(rootFamily.meaning || '')}</div><div class="root-family-members">${(rootFamily.members || []).map(m => `<span class="root-member"><b>${this.escapeHtml(m.word || '')}</b>${m.meaning ? ` · ${this.escapeHtml(m.meaning)}` : ''}</span>`).join('')}</div>${rootFamily.mnemonic ? `<div class="syn-mnemonic">※ ${this.escapeHtml(rootFamily.mnemonic)}</div>` : ''}</div></div>` : '';
                 const senseListHtml = word.senses.map((s, idx) => {
                     const tags = [];
                     if (s.tone) tags.push('情感:' + s.tone);
@@ -11308,18 +11384,18 @@
                     const tagHtml = tags.length ? tags.map(t => `<span>${this.escapeHtml(t)}</span>`).join('') : '';
                     const srsP = this.progress.get(this.senseKey(word.id, s.id));
                     const srsText = srsP
-                        ? `${srsP.dueAt <= Date.now() ? '⏰ 到期' : '🕒 下次 ' + new Date(srsP.dueAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} · 间隔 ${srsP.interval || 0} 天 · 复习 ${srsP.reps || 0} 次`
-                        : '🆕 未学';
+                        ? `${srsP.dueAt <= Date.now() ? ' 到期' : ' 下次 ' + new Date(srsP.dueAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })} · 间隔 ${srsP.interval || 0} 天 · 复习 ${srsP.reps || 0} 次`
+                        : ' 未学';
                     const zhDef = s.defZh || this.splitDefinition(s.definition).zh || s.definition || '';
                     const enDef = s.defEn || this.splitDefinition(s.definition).en || '';
-                    return `<div class="overview-sense-item" data-sense-id="${s.id}"><div class="sense-def">${idx+1}. ${this.escapeHtml(zhDef)}</div>${enDef ? `<div class="sense-en">${this.escapeHtml(enDef)}</div>` : ''}${s.coreLink ? `<div class="sense-core-link">🧭 ${this.escapeHtml(s.coreLink)}</div>` : ''}<div class="sense-srs">${this.escapeHtml(srsText)}</div>${s.example ? `<div class="sense-example">📝 ${this.escapeHtml(s.example)}</div>` : ''}${s.exampleZh ? `<div class="sense-example-zh">${this.escapeHtml(s.exampleZh)}</div>` : ''}${tagHtml ? `<div class="sense-tags">${tagHtml}</div>` : ''}</div>`;
+                    return `<div class="overview-sense-item" data-sense-id="${s.id}"><div class="sense-def">${idx+1}. ${this.escapeHtml(zhDef)}</div>${enDef ? `<div class="sense-en">${this.escapeHtml(enDef)}</div>` : ''}${s.coreLink ? `<div class="sense-core-link"> ${this.escapeHtml(s.coreLink)}</div>` : ''}<div class="sense-srs">${this.escapeHtml(srsText)}</div>${s.example ? `<div class="sense-example"> ${this.escapeHtml(s.example)}</div>` : ''}${s.exampleZh ? `<div class="sense-example-zh">${this.escapeHtml(s.exampleZh)}</div>` : ''}${tagHtml ? `<div class="sense-tags">${tagHtml}</div>` : ''}</div>`;
                 }).join('');
                 const senseOptions = word.senses.map((s, idx) =>
                     `<option value="${s.id}">释义 ${idx+1}: ${s.definition ? s.definition.slice(0, 30) : '（空）'}</option>`
                     ).join('');
-                const overviewOption = '<option value="__overview__" selected>📋 总览</option>';
+                const overviewOption = '<option value="__overview__" selected>≡ 总览</option>';
                 let html =
-                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div></div><div class="sense-switcher"><label>切换</label>${this.senseSwitcherHtml(word)}<button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button></div>${coreHtml}<div class="detail-section definitions-section"><h4>📖 释义</h4><div class="overview-sense-list">${senseListHtml}</div></div>${rootHtml}${cultureHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>📋 单词总览</h4><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">📌 全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">➕ 添加全局注释</button></div></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailOverviewSaveBar" hidden><button id="saveOverviewBtn">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">♪</button></div></div><div class="sense-switcher"><label>切换</label>${this.senseSwitcherHtml(word)}<button class="add-sense-btn" id="addSenseBtn">+ 添加释义</button></div>${coreHtml}<div class="detail-section definitions-section"><h4>释义</h4><div class="overview-sense-list">${senseListHtml}</div></div>${rootHtml}${cultureHtml}${synHtml}${rootFamilyHtml}<div class="detail-section"><h4>≡ 单词总览</h4><div style="margin-top:20px;"><h5 style="font-size:13px;color:#475569;">全局注释</h5><div class="note-list" id="wordNoteList">${notesHtml}</div><button class="add-note-btn" id="addWordNoteBtn">+ 添加全局注释</button></div></div><div class="detail-section"><h4>单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">? 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">↻ 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✓ 已掌握</button></div></div><div class="detail-save-bar" id="detailOverviewSaveBar" hidden><button id="saveOverviewBtn">保存修改</button></div>`;
                 container.innerHTML = html;
                 this.bindDetailNav();
                 this.bindSenseSelect(container);
@@ -11400,7 +11476,7 @@
                     this.renderList();
                     const bar = document.getElementById('detailOverviewSaveBar');
                     if (bar) { bar.hidden = true; bar.style.display = 'none'; }
-                    this.showToast('✅ 修改已保存', 'success');
+                    this.showToast('✓ 修改已保存', 'success');
                 });
             },
 
@@ -11422,13 +11498,13 @@
                 const senseOptions = word.senses.map((s, idx) =>
                     `<option value="${s.id}" ${s.id === sense.id ? 'selected' : ''}>释义 ${idx+1}: ${s.definition ? s.definition.slice(0, 30) : '（空）'}</option>`
                     ).join('');
-                const overviewOption = '<option value="__overview__">📋 总览</option>';
+                const overviewOption = '<option value="__overview__">≡ 总览</option>';
                 const notesHtml = (sense.notes || ['']).map((n, idx) => {
                     const isPrimary = idx === 0;
                     return `<div class="note-item ${isPrimary ? 'primary' : ''}" data-note-index="${idx}"><div class="note-text" contenteditable="true">${highlightText(n || '')}</div><div class="note-actions"><button class="delete-note" data-index="${idx}" title="删除注释">✕</button></div></div>`;
                 }).join('');
                 let html =
-                    `${this.detailNavBar(word, true)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">🔊</button></div></div><div class="sense-switcher"><label>切换</label>${this.senseSwitcherHtml(word)}<button class="add-sense-btn" id="addSenseBtn">➕ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>📖 定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>📝 例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>🔗 近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>🏷️ 分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">💡 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✏️ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">➕ 添加注释</button></div><div class="detail-section"><h4>🎯 单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">❓ 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">🔄 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✅ 已掌握</button></div></div><div class="detail-save-bar" id="detailSaveBar" hidden style="display:none;"><button id="saveDetailBtn">💾 保存修改</button></div>`;
+                    `${this.detailNavBar(word, true)}<div class="detail-word"><div class="word-header"><span>${this.escapeHtml(word.word)}</span>${word.phonetic ? `<span class="phonetic">${this.escapeHtml(word.phonetic)}</span>` : ''}${this.wordZhSummary(word) ? `<div class="word-zh-senses">${this.escapeHtml(this.wordZhSummary(word))}</div>` : ''}<button class="speak-btn" id="speakBtn" title="朗读单词">♪</button></div></div><div class="sense-switcher"><label>切换</label>${this.senseSwitcherHtml(word)}<button class="add-sense-btn" id="addSenseBtn">+ 添加释义</button><button class="add-sense-btn" id="deleteSenseBtn" style="color:#ef4444;background:#fee2e2;">✕ 删除当前释义</button></div><div class="detail-section"><h4>定义</h4><div class="content" contenteditable="true" id="defEditor">${highlightText(sense.definition || '')}</div></div><div class="detail-section"><h4>例句</h4><div class="content" contenteditable="true" id="exEditor">${highlightText(sense.example || '')}</div></div><div class="detail-section"><h4>近义词 & 搭配 & 易错</h4><div class="synonym-colloc"><div class="block"><h5>近义词</h5><div class="editable-content" contenteditable="true" id="synonymsEditor">${this.escapeHtml(sense.synonyms || '')}</div></div><div class="block"><h5>介词搭配</h5><div class="editable-content" contenteditable="true" id="collocEditor">${this.escapeHtml(sense.collocations || '')}</div></div></div><div style="margin-top:8px;"><h5 style="font-size:13px;color:#475569;">易错提示</h5><div class="content" contenteditable="true" id="pitfallEditor" style="min-height:40px;">${this.escapeHtml(sense.pitfall || '')}</div></div></div><div class="detail-section"><h4>分类标签</h4><div class="tag-group"><span class="tag-item">情感 <input class="tag-input" id="toneInput" value="${this.escapeHtml(sense.tone || '')}" placeholder="褒义/贬义" /></span><span class="tag-item">主题 <input class="tag-input" id="topicInput" value="${this.escapeHtml(sense.topic || '')}" placeholder="教育" /></span><span class="tag-item">词性 <input class="tag-input" id="posInput" value="${this.escapeHtml(sense.pos || '')}" placeholder="v." /></span><span class="tag-item">难度 <input class="tag-input" id="levelInput" value="${this.escapeHtml(sense.level || '')}" placeholder="CET-6" /></span><span class="tag-item">来源 <input class="tag-input" id="originInput" value="${this.escapeHtml(sense.origin || '')}" placeholder="拉丁" /></span><span class="tag-item">语体 <input class="tag-input" id="formalityInput" value="${this.escapeHtml(sense.formality || '')}" placeholder="正式" /></span><span class="tag-item">语法 <input class="tag-input" id="grammarInput" value="${this.escapeHtml(sense.grammar || '')}" placeholder="vt./vi." /></span></div><div class="edit-hint">※ 输入后按 Tab 或点击外部自动保存</div></div><div class="detail-section"><h4>✎ 释义注释 <span style="font-weight:normal;font-size:13px;color:#6b7280;">（点击编辑）</span></h4><div class="note-list" id="noteListContainer">${notesHtml}</div><button class="add-note-btn" id="addNoteBtn">+ 添加注释</button></div><div class="detail-section"><h4>单词掌握度</h4><div class="mastery-selector"><button data-mastery="unknown" class="${word.mastery === 'unknown' ? 'active-mastery' : ''}">? 未标记</button><button data-mastery="learning" class="${word.mastery === 'learning' ? 'active-mastery' : ''}">↻ 学习中</button><button data-mastery="mastered" class="${word.mastery === 'mastered' ? 'active-mastery' : ''}">✓ 已掌握</button></div></div><div class="detail-save-bar" id="detailSaveBar" hidden style="display:none;"><button id="saveDetailBtn">保存修改</button></div>`;
                 container.innerHTML = html;
                 this.bindDetailNav(true);
                 this.bindSenseSelect(container);
@@ -11524,7 +11600,7 @@
                     this.renderList();
                     const bar = document.getElementById('detailSaveBar');
                     if (bar) { bar.hidden = true; bar.style.display = 'none'; }
-                    this.showToast('✅ 修改已保存', 'success');
+                    this.showToast('✓ 修改已保存', 'success');
                 });
             },
 
@@ -11705,7 +11781,7 @@
                 const deckCard = d => {
                     const pct = d.totalWords ? Math.round(d.mastered / d.totalWords * 100) : 0;
                     return `<div class="dash-deck-card ${d.active ? 'active' : ''}" data-dash-deck="${this.escapeHtml(d.id)}">
-                        <div class="dash-deck-head"><b>${this.escapeHtml(d.name)}</b>${d.readOnly ? '<span class="dash-lock">🔒 标准库</span>' : ''}</div>
+                        <div class="dash-deck-head"><b>${this.escapeHtml(d.name)}</b>${d.readOnly ? '<span class="dash-lock"> · 只读</span>' : ''}</div>
                         <div class="dash-deck-pct">掌握度 ${pct}% <span>${d.mastered}/${d.totalWords} 词</span></div>
                         <div class="dash-deck-track"><div class="dash-deck-fill" style="width:${pct}%"></div></div>
                         <div class="dash-deck-meta"><span>已学 ${d.wordsWithProgress}/${d.totalWords} 词</span><span>到期 ${d.due} 义项</span><span>今日 ${d.today} 次</span><span>近7天 ${d.reviews7} 次</span></div>
@@ -11714,7 +11790,7 @@
                 };
 
                 let html = `<div class="dash-page">
-                    <div class="dash-title-row"><div><h3>📊 学习仪表盘</h3><div class="dash-subtitle">今天 ${todayKey} · ${totalWords} 个词在视野内</div></div><button type="button" class="dash-refresh" id="dashRefreshBtn">↻ 刷新</button></div>
+                    <div class="dash-title-row"><div><h3>学习仪表盘</h3><div class="dash-subtitle">今天 ${todayKey} · ${totalWords} 个词在视野内</div></div><button type="button" class="dash-refresh" id="dashRefreshBtn">↻ 刷新</button></div>
                     <div class="dash-hero">
                         <div class="dash-hero-main">
                             <div class="dash-kicker">当前词库</div>
@@ -11724,35 +11800,35 @@
                             <div class="dash-hero-foot">掌握度 ${currentPct}%${currentDeck.due ? ` · 今天先清掉 ${currentDeck.due} 个到期义项` : ' · 今天没有到期义项'}</div>
                         </div>
                         <div class="dash-hero-actions">
-                            <button type="button" class="dash-primary" data-dash-go="daily">📅 开始今日复习</button>
-                            <button type="button" class="dash-secondary" data-dash-go="review">🎴 复习中心</button>
+                            <button type="button" class="dash-primary" data-dash-go="daily">开始今日复习</button>
+                            <button type="button" class="dash-secondary" data-dash-go="review">复习中心</button>
                         </div>
                     </div>
                     <div class="dash-metrics">
-                        ${metric('📖', todayLog.reviews, '今日复习', `${todayNew} 个新义项`, 'blue')}
-                        ${metric('🌱', todayNew, '今日新学', '首次接触的义项', 'green')}
-                        ${metric('🔥', streak + ' 天', '连续学习', streak ? '保持住' : '今天开始', 'orange')}
-                        ${metric('⏰', dueSenses, '到期义项', overdueSenses ? `含 ${overdueSenses} 个逾期` : '都在计划内', 'amber')}
-                        ${metric('🎯', todayLog.reviews ? accuracy + '%' : '—', '今日正确率', todayLog.reviews ? '按今日作答计算' : '还没有作答', 'violet')}
+                        ${metric('01', todayLog.reviews, '今日复习', `${todayNew} 个新义项`, 'blue')}
+                        ${metric('02', todayNew, '今日新学', '首次接触的义项', 'green')}
+                        ${metric('03', streak + ' 天', '连续学习', streak ? '保持住' : '今天开始', 'orange')}
+                        ${metric('04', dueSenses, '到期义项', overdueSenses ? `含 ${overdueSenses} 个逾期` : '都在计划内', 'amber')}
+                        ${metric('05', todayLog.reviews ? accuracy + '%' : '—', '今日正确率', todayLog.reviews ? '按今日作答计算' : '还没有作答', 'violet')}
                     </div>
                     <div class="dash-columns">
                         <section class="dash-panel">
-                            <div class="dash-panel-head"><h4>🗓️ 未来 7 天到期</h4><span>${dueSenses} 个待复习</span></div>
+                            <div class="dash-panel-head"><h4>未来 7 天到期</h4><span>${dueSenses} 个待复习</span></div>
                             ${barChart(forecast, forecastMax, 'forecast')}
                             <div class="dash-note">${overdueSenses ? `今天包含 ${overdueSenses} 个逾期义项` : '按当前间隔重复计划估算'}${futureForecast ? '' : ' · 之后 6 天暂无到期'}</div>
                         </section>
                         <section class="dash-panel">
-                            <div class="dash-panel-head"><h4>📈 近 7 天学习量</h4><span>${activity.reduce((a, d) => a + d.reviews, 0)} 次复习</span></div>
+                            <div class="dash-panel-head"><h4>近 7 天学习量</h4><span>${activity.reduce((a, d) => a + d.reviews, 0)} 次复习</span></div>
                             ${barChart(activity, activityMax, 'activity')}
                             <div class="dash-note">柱高为复习次数，下方 +N 为新学义项</div>
                         </section>
                     </div>
                     <section class="dash-panel dash-deck-section">
-                        <div class="dash-panel-head"><h4>📚 每个词库的进度</h4><button type="button" class="dash-link" data-dash-go="decks">管理词库</button></div>
+                        <div class="dash-panel-head"><h4>每个词库的进度</h4><button type="button" class="dash-link" data-dash-go="decks">管理词库</button></div>
                         <div class="dash-deck-grid">${deckRows.map(deckCard).join('')}</div>
                     </section>
                     <details class="dash-details">
-                        <summary>📋 详细内容统计</summary>
+                        <summary>≡ 详细内容统计</summary>
                         <div class="dash-detail-metrics">
                             <div><b>${activeWords.length}</b><span>总单词</span></div>
                             <div><b>${activeWords.reduce((a, w) => a + (w.senses || []).length, 0)}</b><span>总释义</span></div>
@@ -11764,7 +11840,7 @@
                             <div><b>${activeWords.length - newWords}</b><span>已开始学习</span></div>
                         </div>
                         <div class="dash-field-grid">${fields.map(f => {
-                            const labels = { tone: '😊 情感色彩', pos: '📌 词性', level: '⭐ 难度', formality: '📝 语体', grammar: '📖 语法属性' };
+                            const labels = { tone: ' 情感色彩', pos: ' 词性', level: '★ 难度', formality: ' 语体', grammar: ' 语法属性' };
                             const rows = Object.entries(fieldStats[f]).sort((a, b) => b[1] - a[1]);
                             if (!rows.length) return '';
                             return `<div class="dash-field"><h5>${labels[f]}</h5>${rows.map(([name, count]) =>
@@ -11807,7 +11883,7 @@
                     this.currentSenseId = null; }
                 this.render();
                 this.lastDeletedId = id;
-                this.showToast(`🗑 已删除 "${w.word}"`, 'info', 4000, () => this.restoreWord(id));
+                this.showToast(` 已删除 "${w.word}"`, 'info', 4000, () => this.restoreWord(id));
             },
             restoreWord(id) {
                 const w = this.words.find(w => w.id === id);
@@ -11818,7 +11894,7 @@
                 this.saveData();
                 if (this.currentMode === 'recycle') this.render();
                 else { this.renderList(); if (this.currentWordId === id) this.renderRightPanel(); }
-                this.showToast(`↩ 已还原 "${w.word}"`, 'success');
+                this.showToast(`← 已还原 "${w.word}"`, 'success');
                 this.lastDeletedId = null;
             },
             permanentDeleteWord(id) {
@@ -11832,7 +11908,7 @@
                 if (this.currentWordId === id) { this.currentWordId = null;
                     this.currentSenseId = null; }
                 this.render();
-                this.showToast(`🗑 已永久删除 "${wordName}"`, 'error');
+                this.showToast(` 已永久删除 "${wordName}"`, 'error');
                 this.lastDeletedId = null;
             },
             navigateWord(delta) {
@@ -11893,7 +11969,7 @@
                 const w = source ? JSON.parse(JSON.stringify(source)) : this.defaultEditorWord();
                 this._editingWordId = source ? source.id : null;
                 this._editorDraft = w;
-                document.getElementById('wordEditorTitle').textContent = source ? '✏️ 编辑单词' : '📝 新建词条';
+                document.getElementById('wordEditorTitle').textContent = source ? '✎ 编辑单词' : ' 新建词条';
                 document.getElementById('editorWord').value = w.word || '';
                 document.getElementById('editorPhonetic').value = w.phonetic || '';
                 document.getElementById('editorWordNotes').value = (w.wordNotes || []).join('\n');
@@ -11958,7 +12034,7 @@
             },
             saveWordEditor() {
                 const err = document.getElementById('wordEditorError');
-                const fail = msg => { err.textContent = '⚠️ ' + msg; err.classList.add('show'); };
+                const fail = msg => { err.textContent = ' ' + msg; err.classList.add('show'); };
                 const wordText = document.getElementById('editorWord').value.trim();
                 if (!wordText) { fail('请填写单词。'); return; }
                 const editingId = this._editingWordId;
@@ -12015,7 +12091,7 @@
                 this.currentSenseId = null;
                 if (this.currentMode !== 'dictionary') this.currentMode = 'dictionary';
                 this.render();
-                this.showToast(editingId ? '✅ 词条已更新' : '✅ 词条已创建', 'success');
+                this.showToast(editingId ? '✓ 词条已更新' : '✓ 词条已创建', 'success');
             },
             bindWordEditor() {
                 const overlay = document.getElementById('wordEditorOverlay');
@@ -12048,7 +12124,7 @@
                     const btn = e.target.closest('.editor-sense-remove');
                     if (!btn) return;
                     if (document.querySelectorAll('#editorSenses .editor-sense').length <= 1) {
-                        this.showToast('⚠️ 至少保留一条释义', 'info');
+                        this.showToast(' 至少保留一条释义', 'info');
                         return;
                     }
                     btn.closest('.editor-sense').remove();
@@ -12074,7 +12150,7 @@
                     document.getElementById('formError').classList.remove('show');
                 } else {
                     form.classList.remove('open');
-                    btn.textContent = '➕ 添加单词';
+                    btn.textContent = '+ 添加单词';
                     document.getElementById('newWord').value = '';
                     document.getElementById('newPhonetic').value = '';
                     document.getElementById('newDefinition').value = '';
@@ -12087,14 +12163,14 @@
             async fetchWordData(word) {
                 const fetchBtn = document.getElementById('fetchBtn');
                 fetchBtn.disabled = true;
-                fetchBtn.textContent = '⏳ 查询中...';
+                fetchBtn.textContent = '… 查询中...';
                 try {
                     const response = await fetch(
                         `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-                    if (!response.ok) { this.showToast(response.status === 404 ? '❌ 未找到该单词的释义' :
-                            '❌ 查询失败，请稍后重试', 'error'); return; }
+                    if (!response.ok) { this.showToast(response.status === 404 ? '× 未找到该单词的释义' :
+                            '× 查询失败，请稍后重试', 'error'); return; }
                     const data = await response.json();
-                    if (!data || data.length === 0) { this.showToast('❌ 未找到该单词的释义', 'error'); return; }
+                    if (!data || data.length === 0) { this.showToast('× 未找到该单词的释义', 'error'); return; }
                     const entry = data[0];
                     const phonetic = entry.phonetic || (entry.phonetics && entry.phonetics[0] && entry.phonetics[0]
                         .text) || '';
@@ -12106,11 +12182,11 @@
                         const example = firstMeaning.definitions[0]?.example || '';
                         document.getElementById('newDefinition').value = definition;
                         document.getElementById('newExample').value = example;
-                        this.showToast('✅ 已自动填充音标、释义和例句', 'success');
-                    } else { this.showToast('⚠️ 未找到释义', 'error'); }
-                } catch (err) { this.showToast('❌ 网络错误，请检查连接', 'error');
+                        this.showToast('✓ 已自动填充音标、释义和例句', 'success');
+                    } else { this.showToast(' 未找到释义', 'error'); }
+                } catch (err) { this.showToast('× 网络错误，请检查连接', 'error');
                     console.error(err); } finally { fetchBtn.disabled = false;
-                    fetchBtn.textContent = '🔍 自动补全'; }
+                    fetchBtn.textContent = ' 自动补全'; }
             },
             handleAddWordSubmit() {
                 const wordInput = document.getElementById('newWord');
@@ -12124,18 +12200,18 @@
                 const definition = defInput.value.trim();
                 const example = exInput.value.trim();
                 const note = noteInput.value.trim();
-                if (!word) { errorEl.textContent = '⚠️ 请填写 单词。';
+                if (!word) { errorEl.textContent = ' 请填写 单词。';
                     errorEl.classList.add('show');
                     wordInput.focus(); return; }
-                if (!definition) { errorEl.textContent = '⚠️ 请填写 释义。';
+                if (!definition) { errorEl.textContent = ' 请填写 释义。';
                     errorEl.classList.add('show');
                     defInput.focus(); return; }
                 if (this.words.some(w => w.word.toLowerCase() === word.toLowerCase() && !w.deleted)) { errorEl
-                        .textContent = '⚠️ 单词 "' + word + '" 已存在（活跃），请勿重复添加。';
+                        .textContent = ' 单词 "' + word + '" 已存在（活跃），请勿重复添加。';
                     errorEl.classList.add('show');
                     wordInput.focus(); return; }
                 const deletedSame = this.words.find(w => w.word.toLowerCase() === word.toLowerCase() && w.deleted);
-                if (deletedSame) { errorEl.textContent = '⚠️ 单词 "' + word + '" 已在回收站，请先还原后再编辑。';
+                if (deletedSame) { errorEl.textContent = ' 单词 "' + word + '" 已在回收站，请先还原后再编辑。';
                     errorEl.classList.add('show');
                     wordInput.focus(); return; }
                 this.pushUndo('添加单词');
@@ -12153,7 +12229,7 @@
                 this.currentSenseId = null;
                 this.toggleAddWordForm(false);
                 this.render();
-                this.showToast(`✅ 已添加单词 "${word}"`, 'success');
+                this.showToast(`✓ 已添加单词 "${word}"`, 'success');
                 setTimeout(() => {
                     const items = document.querySelectorAll('.list-item');
                     for (const el of items) { if (Number(el.dataset.wordId) === newWord.id) { el
@@ -12163,7 +12239,7 @@
 
             toggleBatchMode() {
                 if (!this.batchMode && this.currentMode !== 'dictionary' && this.currentMode !== 'recycle') {
-                    this.showToast('⚠️ 批量管理仅在「单词本」或「回收站」中可用', 'info');
+                    this.showToast(' 批量管理仅在「单词本」或「回收站」中可用', 'info');
                     return;
                 }
                 this.batchMode = !this.batchMode;
@@ -12181,7 +12257,7 @@
                 } else {
                     bar.classList.remove('show');
                     btn.classList.remove('active');
-                    btn.textContent = '📦 批量管理';
+                    btn.textContent = ' 批量管理';
                 }
                 this.updateBatchBar();
                 this.render();
@@ -12189,7 +12265,7 @@
             updateBatchBar() {
                 const deleteBtn = document.getElementById('batchDeleteBtn');
                 const emptyRecycleBtn = document.getElementById('emptyRecycleBtn');
-                if (deleteBtn) deleteBtn.textContent = this.currentMode === 'recycle' ? '🗑 永久删除' : '🗑 批量删除';
+                if (deleteBtn) deleteBtn.textContent = this.currentMode === 'recycle' ? ' 永久删除' : ' 批量删除';
                 if (emptyRecycleBtn) emptyRecycleBtn.style.display = (this.batchMode && this.currentMode === 'recycle') ?
                     'inline-block' : 'none';
                 this.updateBatchInfo();
@@ -12197,8 +12273,8 @@
             updateBatchInfo() {
                 const info = document.querySelector('.batch-mode-bar .batch-info');
                 if (info) info.textContent = this.currentMode === 'recycle' ?
-                    `📦 回收站：已选择 ${this.selectedWordIds.size} 个单词` :
-                    `📦 已选择 ${this.selectedWordIds.size} 个单词`;
+                    ` 回收站：已选择 ${this.selectedWordIds.size} 个单词` :
+                    ` 已选择 ${this.selectedWordIds.size} 个单词`;
             },
             batchSelectAll() {
                 const displayWords = this.getFilteredWords();
@@ -12209,7 +12285,7 @@
                 this.updateBatchInfo();
             },
             batchDeleteWords() {
-                if (this.selectedWordIds.size === 0) { this.showToast('⚠️ 请先选择要删除的单词', 'error'); return; }
+                if (this.selectedWordIds.size === 0) { this.showToast(' 请先选择要删除的单词', 'error'); return; }
                 const ids = new Set(this.selectedWordIds);
                 const names = [];
                 ids.forEach(id => { const w = this.words.find(w => w.id === id); if (w) names.push(w.word); });
@@ -12227,7 +12303,7 @@
                     this.saveData();
                     this.render();
                     this.updateBatchInfo();
-                    this.showToast(`🗑 已永久删除 ${ids.size} 个单词`, 'error');
+                    this.showToast(` 已永久删除 ${ids.size} 个单词`, 'error');
                     return;
                 }
                 if (!confirm(`确定将选中的 ${ids.size} 个单词移入回收站吗？\n\n${suffix}`)) return;
@@ -12245,11 +12321,11 @@
                 this.saveData();
                 this.render();
                 this.updateBatchInfo();
-                this.showToast(`🗑 已将 ${count} 个单词移入回收站`, 'info');
+                this.showToast(` 已将 ${count} 个单词移入回收站`, 'info');
             },
             emptyRecycleBin() {
                 const recycleWords = this.words.filter(w => w.deleted);
-                if (recycleWords.length === 0) { this.showToast('♻️ 回收站已经是空的', 'info'); return; }
+                if (recycleWords.length === 0) { this.showToast(' 回收站已经是空的', 'info'); return; }
                 if (!confirm(`确定清空回收站吗？这将永久删除 ${recycleWords.length} 个单词，不可恢复！`)) return;
                 this.pushUndo('清空回收站');
                 this.words = this.words.filter(w => !w.deleted);
@@ -12260,7 +12336,7 @@
                     this.currentSenseId = null; }
                 this.render();
                 this.updateBatchInfo();
-                this.showToast(`🗑 已清空回收站，永久删除 ${recycleWords.length} 个单词`, 'error');
+                this.showToast(` 已清空回收站，永久删除 ${recycleWords.length} 个单词`, 'error');
             },
 
             setMode(mode) {
@@ -12405,7 +12481,7 @@
                 return '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
             },
             toMarkdown() {
-                const lines = ['# 智能单词本导出', '', `> 导出时间：${new Date().toLocaleString()}`, ''];
+                const lines = ['# 智能单词本导出', '', `>导出时间：${new Date().toLocaleString()}`, ''];
                 this.words.forEach(w => {
                     lines.push(`## ${w.word}`);
                     if (w.phonetic) lines.push(`- 音标：${w.phonetic}`);
@@ -12437,12 +12513,12 @@
                     window.desktop.saveTextFile({ content, defaultName: filename, kind })
                         .then(result => {
                             if (result && result.ok) {
-                                this.showToast(`✅ 已保存到 ${result.filePath}`, 'success', 3500);
+                                this.showToast(`✓ 已保存到 ${result.filePath}`, 'success', 3500);
                             } else if (result && result.canceled) {
                                 this.showToast('已取消保存', 'info');
                             }
                         })
-                        .catch(err => this.showToast('❌ 保存失败：' + err.message, 'error'));
+                        .catch(err => this.showToast('× 保存失败：' + err.message, 'error'));
                     return true;
                 }
                 const blob = new Blob([content], { type: mime });
@@ -12458,7 +12534,7 @@
             },
             exportAs(format) {
                 if (this.words.length === 0) {
-                    this.showToast('⚠️ 没有数据可导出', 'error');
+                    this.showToast(' 没有数据可导出', 'error');
                     return;
                 }
                 const dateStr = new Date().toISOString().slice(0, 10);
@@ -12482,10 +12558,10 @@
                     }
                     this.closeExportModal();
                     if (!nativeSave) {
-                        this.showToast(`✅ 已导出 ${this.words.length} 个单词（${format.toUpperCase()}）`, 'success');
+                        this.showToast(`✓ 已导出 ${this.words.length} 个单词（${format.toUpperCase()}）`, 'success');
                     }
                 } catch (err) {
-                    this.showToast('❌ 导出失败：' + err.message, 'error');
+                    this.showToast('× 导出失败：' + err.message, 'error');
                     console.error(err);
                 }
             },
@@ -12646,7 +12722,7 @@
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
                     try {
-                        this.showToast(`📥 读取 ${i + 1}/${files.length}：${file.name}`, 'info', 1000);
+                        this.showToast(` 读取 ${i + 1}/${files.length}：${file.name}`, 'info', 1000);
                         const text = await this.readFileText(file);
                         const parsed = this.parseImportText(file.name, text);
                         allWords.push(...(parsed.words || []));
@@ -12658,7 +12734,7 @@
                     } catch (err) {
                         failedFiles++;
                         console.error(err);
-                        this.showToast(`⚠️ ${file.name} 解析失败：${err.message}`, 'error', 3000);
+                        this.showToast(` ${file.name} 解析失败：${err.message}`, 'error', 3000);
                     }
                 }
                 const deckPlan = {
@@ -12699,7 +12775,7 @@
                 const groupCount = ['rootFamilies', 'synonymGroups', 'confusionPairs']
                     .reduce((n, k) => n + ((extrasToImport && extrasToImport[k]) ? extrasToImport[k].length : 0), 0);
                 if (nonConflictWords.length === 0 && conflicts.length === 0 && groupCount === 0) {
-                    this.showToast('⚠️ 没有可导入的有效单词', 'error');
+                    this.showToast(' 没有可导入的有效单词', 'error');
                     return;
                 }
                 this.importSkipped = skipped;
@@ -12841,7 +12917,7 @@
                     r.action === 'overwrite').length : 0);
                 const skipped = this.importSkipped || (this.importConflictData ? (this.importConflictData.skippedCount || 0) : 0);
                 const skipMsg = skipped > 0 ? `，跳过 ${skipped} 条` : '';
-                this.showToast(`✅ 成功导入 ${totalImported} 个单词${skipMsg}`, 'success');
+                this.showToast(`✓ 成功导入 ${totalImported} 个单词${skipMsg}`, 'success');
                 this.importSkipped = 0;
                 this.importConflictData = null;
             },
@@ -12858,7 +12934,7 @@
                     const existingDef = conflict.existing.senses[0]?.definition || '（无释义）';
                     const importedDef = conflict.imported.senses[0]?.definition || '（无释义）';
                     item.innerHTML =
-                        `<div class="conflict-word">${this.escapeHtml(conflict.imported.word)}</div><div class="conflict-existing"><div>现有：${this.escapeHtml(existingDef.slice(0, 60))}${existingDef.length > 60 ? '…' : ''}</div><div class="existing-def">导入：${this.escapeHtml(importedDef.slice(0, 60))}${importedDef.length > 60 ? '…' : ''}</div></div><div class="conflict-choices"><button class="choice-overwrite" data-index="${idx}" data-action="overwrite">🔄 覆盖</button><button class="choice-skip" data-index="${idx}" data-action="skip">⏭ 跳过</button></div>`;
+                        `<div class="conflict-word">${this.escapeHtml(conflict.imported.word)}</div><div class="conflict-existing"><div>现有：${this.escapeHtml(existingDef.slice(0, 60))}${existingDef.length > 60 ? '…' : ''}</div><div class="existing-def">导入：${this.escapeHtml(importedDef.slice(0, 60))}${importedDef.length > 60 ? '…' : ''}</div></div><div class="conflict-choices"><button class="choice-overwrite" data-index="${idx}" data-action="overwrite">↻ 覆盖</button><button class="choice-skip" data-index="${idx}" data-action="skip">» 跳过</button></div>`;
                     container.appendChild(item);
                 });
                 container.querySelectorAll('.choice-overwrite, .choice-skip').forEach(btn => {
@@ -13084,7 +13160,7 @@
                 false));
                 document.getElementById('fetchBtn').addEventListener('click', () => {
                     const word = document.getElementById('newWord').value.trim();
-                    if (!word) { App.showToast('⚠️ 请先输入单词', 'error'); return; }
+                    if (!word) { App.showToast(' 请先输入单词', 'error'); return; }
                     App.fetchWordData(word);
                 });
                 document.getElementById('addWordForm').addEventListener('keydown', (e) => {

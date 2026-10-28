@@ -1,8 +1,10 @@
-# 智能单词本 0.5.6 beta
+# 智能单词本 0.5.7 beta
 
 一个单文件、离线优先的单词学习应用，按「核心感觉 + 词根演变 + 近义辨析」组织单词，而不是把单词等同于一条中文翻译。
 
 > 0.5 起桌面版内置六级 4036 词标准词库，首次启动即可直接使用。
+
+> 0.5.7 是界面符号预览版：用索引编号、`§` 章节记号和少量排版符号替代彩色 emoji。独立分支 `preview/ink-index`，`main` 可随时回退到 0.5.6。
 
 ## 内置词库
 
@@ -63,14 +65,14 @@ Release 页面（安装包构建完成后）：
 
 https://github.com/1436805877/smart-vocab-bydpsk/releases
 
-0.5.6 安装包与免安装便携版从 Release 下载：
+0.5.7 安装包与免安装便携版从 Release 下载：
 
 ```text
-https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.6
+https://github.com/1436805877/smart-vocab-bydpsk/releases/tag/v0.5.7-preview
 ```
 
-- `SmartVocab-0.5.6-x64.exe`：安装版（支持应用内检查和更新）
-- `SmartVocab-0.5.6-portable.exe`：免安装，双击即可运行（更新时打开发布页）
+- `SmartVocab-0.5.7-x64.exe`：安装版（支持应用内检查和更新）
+- `SmartVocab-0.5.7-portable.exe`：免安装，双击即可运行（更新时打开发布页）
 
 首次启动会使用独立的桌面数据目录，并自动写入内置六级词库，不需要再手动导入 JSON。
 
